@@ -1,0 +1,3177 @@
+import contextlib
+import diffusers
+import diffusers.image_processor
+import dwm.common
+import dwm_pano.distributed as _dwm_distributed
+from dwm_pano.pano_stitch import PANO_OVERLAP_W, stitch_pano_halves
+import dwm.functional
+import dwm.models.crossview_temporal_unet
+import dwm.utils.preview
+import einops
+import itertools
+import json
+import math
+import os
+import re
+import safetensors.torch
+import threading
+import time
+import torch
+import torch.amp
+import torch.distributed.checkpoint.state_dict
+import torch.distributed.fsdp
+import torch.distributed.fsdp.sharded_grad_scaler
+from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+import torch.utils.tensorboard
+import torchvision
+import transformers
+
+
+_FID_DUMP_CHECKED_DIRS = set()
+
+def _check_dump_dir(dump_dir: str, global_step: int, rank: int):
+    """Refuse to append to a directory another run already wrote.
+
+    The manifest is opened in append mode, so pointing two evals at one
+    dump directory concatenates their records. Nothing downstream can undo
+    that: filenames carry the step, so no file collides and no duplicate
+    check fires -- the two checkpoints simply get pooled into one
+    distribution and scored against the real frames counted twice. Checked
+    once per process per directory.
+    """
+    if dump_dir in _FID_DUMP_CHECKED_DIRS:
+        return
+    meta_path = os.path.join(dump_dir, "dump_meta.json")
+    meta = {"global_step": int(global_step)}
+    if os.path.exists(meta_path):
+        with open(meta_path, "r", encoding="utf-8") as handle:
+            existing = json.load(handle)
+        if existing.get("global_step") != meta["global_step"]:
+            raise RuntimeError(
+                "{} already holds a dump for global_step {}; refusing to mix "
+                "it with global_step {}. Use a fresh directory per "
+                "checkpoint.".format(
+                    dump_dir, existing.get("global_step"), global_step))
+    elif rank == 0:
+        with open(meta_path, "w", encoding="utf-8") as handle:
+            json.dump(meta, handle)
+    _FID_DUMP_CHECKED_DIRS.add(dump_dir)
+
+
+def dump_stitched_panos(
+    dump_dir: str, global_step: int, batch_index: int, rank: int,
+    real_stitched: torch.Tensor, fake_stitched: torch.Tensor
+):
+    """Persist exactly the pixels the FID metric consumed.
+
+    Metric standardization needs an external ADM/TensorFlow evaluator to
+    score the same images torchmetrics scored, otherwise the two numbers
+    differ for two reasons at once (feature extractor AND pixels) and no
+    conversion can be pinned. torchmetrics 1.6.0 casts with
+    ``(imgs * 255).byte()`` -- truncation, not rounding -- so reproduce that
+    cast here rather than the more natural ``round()``. Note this is a
+    deliberate deviation from README section 7.3, which specifies
+    ``round(clamp(x, 0, 1) * 255)``: parity with the metric we actually run
+    beats parity with the written spec, but the ADM numbers therefore carry
+    a systematic -0.5/255 bias relative to that spec.
+
+    Load-bearing assumption: the VAE runs in fp32, so ``x * 255`` is one
+    exactly-rounded multiply and the dump is bit-identical to what
+    torchmetrics scored. Under a bf16 VAE the products would land on
+    integer-spaced values above 128 and the dump would diverge by +/-1 over
+    most pixels.
+
+    Writes ``<dump_dir>/{real,fake}/<name>.png`` plus a per-rank JSONL
+    manifest. The manifest exists because ADM's own folder reader drops the
+    tail batch (``run_iter = int(len(files) / self.batch_size)`` in
+    references/NiT/projects/evaluate/adm_evaluator.py:147); reading from a
+    manifest is what guarantees every sample is scored.
+
+    This is a diagnostic side channel, so it never aborts the eval: a batch
+    it cannot represent faithfully is skipped with a loud message rather
+    than raised. Killing a 20-hour evaluation -- after the fid/fvd metrics
+    have already consumed the batch -- because a side channel disliked a
+    pixel would be a far worse outcome than an incomplete dump, which the
+    consumers detect anyway via their clip-count checks.
+    """
+    real_dir = os.path.join(dump_dir, "real")
+    fake_dir = os.path.join(dump_dir, "fake")
+    os.makedirs(real_dir, exist_ok=True)
+    os.makedirs(fake_dir, exist_ok=True)
+    _check_dump_dir(dump_dir, global_step, rank)
+
+    if real_stitched.shape != fake_stitched.shape:
+        print(
+            "[fid-dump] SKIPPING batch {}: real/fake shape mismatch {} vs "
+            "{}".format(
+                batch_index, tuple(real_stitched.shape),
+                tuple(fake_stitched.shape)), flush=True)
+        return
+
+    # (B, T, V, C, H, W) -> (B*T*V, C, H, W): the exact flatten the FID
+    # update call uses, so the dumped order matches the scored order.
+    # The (b, t, v) decomposition is recorded per sample rather than left
+    # implicit in the flat position. At the current eval config B is 1 and V
+    # is 1 (halves are already stitched), so the flat index happens to equal
+    # the frame index -- but only by coincidence. Raise the dataloader batch
+    # size and a reader that groups by batch index alone would weld several
+    # clips into one long "sequence" and hand that to FVD, with nothing in
+    # the output to show it happened.
+    batch_dim, time_dim, view_dim = real_stitched.shape[:3]
+
+    # The byte() cast wraps instead of saturating, so a value above 1.0
+    # would silently become a near-black pixel in BOTH evaluators. Inputs
+    # are expected in [0, 1]; check before casting, and skip rather than
+    # corrupt.
+    for label, tensor in (("real", real_stitched), ("fake", fake_stitched)):
+        low = float(tensor.min())
+        high = float(tensor.max())
+        if low < -1e-4 or high > 1.0 + 1e-4:
+            print(
+                "[fid-dump] SKIPPING batch {}: {} images escape [0, 1] "
+                "(min={:.6f}, max={:.6f}); the uint8 cast would wrap".format(
+                    batch_index, label, low, high), flush=True)
+            return
+
+    # Cast on the device, then move. Moving float32 first would stage two
+    # 404 MB host tensors per batch at the current geometry, four times
+    # what the uint8 form costs.
+    real_flat = (real_stitched.flatten(0, 2).detach().float() * 255)\
+        .to(torch.uint8).cpu()
+    fake_flat = (fake_stitched.flatten(0, 2).detach().float() * 255)\
+        .to(torch.uint8).cpu()
+
+    manifest_path = os.path.join(
+        dump_dir, "manifest_rank{:02d}.jsonl".format(rank))
+    with open(manifest_path, "a", encoding="utf-8") as manifest:
+        for sample_index in range(batch_dim):
+            for frame_index in range(time_dim):
+                for view_index in range(view_dim):
+                    k = (sample_index * time_dim + frame_index) * view_dim \
+                        + view_index
+                    name = (
+                        "s{:07d}_r{:02d}_b{:06d}_i{:02d}_f{:03d}_v{:02d}.png"
+                        .format(
+                            global_step, rank, batch_index, sample_index,
+                            frame_index, view_index))
+                    for sub_dir, tensor in (
+                        (real_dir, real_flat[k]), (fake_dir, fake_flat[k])
+                    ):
+                        torchvision.io.write_png(
+                            tensor, os.path.join(sub_dir, name))
+                    manifest.write(
+                        json.dumps({
+                            "name": name, "rank": rank,
+                            "batch_index": batch_index,
+                            "sample_index": sample_index,
+                            "frame_index": frame_index,
+                            "view_index": view_index,
+                            "flat_index": k,
+                            "global_step": global_step
+                        }) + "\n")
+
+
+class CrossviewTemporalSD():
+
+    @staticmethod
+    def load_state(path: str):
+        if path.endswith(".safetensors"):
+            state = safetensors.torch.load_file(path, device="cpu")
+        else:
+            state = torch.load(path, map_location="cpu", weights_only=True)
+
+        return state
+
+    @staticmethod
+    def flatten_clip_text(
+        clip_text, flattened_clip_text: list, parsed_shape: list,
+        level: int = 0, text_condition_mask=None,
+        do_classifier_free_guidance: bool = False
+    ):
+        level_count = 0
+        if isinstance(clip_text, list) and len(parsed_shape) <= level:
+            parsed_shape.append(0)
+
+        if do_classifier_free_guidance:
+            if isinstance(clip_text, str):
+                flattened_clip_text.append("")
+                level_count += 1
+            else:
+                for i in clip_text:
+                    CrossviewTemporalSD.flatten_clip_text(
+                        i, flattened_clip_text, parsed_shape, level + 1,
+                        text_condition_mask, do_classifier_free_guidance)
+                    level_count += 1
+
+        if level == 0 or not do_classifier_free_guidance:
+            if isinstance(clip_text, str):
+                if text_condition_mask is None or (
+                        isinstance(text_condition_mask, bool) and
+                        text_condition_mask):
+                    flattened_clip_text.append(clip_text)
+                else:
+                    flattened_clip_text.append("")
+
+                level_count += 1
+
+            else:
+                for i_id, i in enumerate(clip_text):
+                    CrossviewTemporalSD.flatten_clip_text(
+                        i, flattened_clip_text, parsed_shape, level + 1,
+                        None if text_condition_mask is None else (
+                            text_condition_mask[i_id] if
+                            isinstance(text_condition_mask, list) else
+                            text_condition_mask),
+                        False)
+                    level_count += 1
+
+        if isinstance(clip_text, list):
+            parsed_shape[level] = level_count
+
+    @staticmethod
+    def get_camera_transform_ids(batch, common_config):
+        return torch.cat([
+            batch["camera_intrinsics"].flatten(-2, -1)[
+                ..., common_config["camera_intrinsic_embedding_indices"]
+            ] / batch["image_size"][
+                ..., common_config["camera_intrinsic_denom_embedding_indices"]
+            ],
+            batch["camera_transforms"].flatten(-2, -1)[
+                ..., common_config["camera_transform_embedding_indices"]
+            ]
+        ], -1)
+
+    @staticmethod
+    def get_action_ids(
+        batch, common_config: dict, action_condition_mask=None,
+        streaming_mode: bool = False, prev_ego_transforms=None
+    ):
+        if streaming_mode:
+            assert batch["ego_transforms"].shape[1] == 1
+            ego_transforms = torch.cat([
+                (
+                    batch["ego_transforms"]
+                    if prev_ego_transforms is None
+                    else prev_ego_transforms
+                ),
+                batch["ego_transforms"]
+            ], dim=1)
+        else:
+            ego_transforms = batch["ego_transforms"]
+
+        current_pose = ego_transforms[
+            :, :, common_config["camera_ego_sensor_indices"]
+        ]
+        uncondition_pose = torch.eye(4).unsqueeze(0).unsqueeze(0).unsqueeze(0)
+        if action_condition_mask is None:
+            is_conditioned = (current_pose - uncondition_pose)\
+                .sum((1, 2, 3, 4)).abs() > 1e-3
+        else:
+            is_conditioned = torch.logical_and(
+                (current_pose - uncondition_pose)
+                .sum((1, 2, 3, 4)).abs() > 1e-3,
+                action_condition_mask)
+
+        relative_pose = torch.linalg.solve(
+            current_pose[:, :-1], current_pose[:, 1:])
+        relative_pose = torch.cat([relative_pose[:, :1], relative_pose], 1)
+
+        moving_distance = torch.norm(
+            relative_pose[..., :3, 3], dim=-1, keepdim=True)
+        mps_to_kmph = 3.6
+        speed = mps_to_kmph * moving_distance * \
+            batch["fps"].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+
+        rotation_angles = torch.atan2(
+            relative_pose[..., 1, 0:1] - relative_pose[..., 0, 1:2],
+            relative_pose[..., 0, 0:1] + relative_pose[..., 1, 1:2])
+        wheel_base = 2.7
+        steering_ratio = 14
+        steering = torch.where(
+            torch.abs(moving_distance) > 0.01,
+            rotation_angles / moving_distance * wheel_base * steering_ratio,
+            -1000.0 * torch.ones_like(rotation_angles))
+        action_ids = torch.cat([speed, steering], -1)
+
+        # mask with unconditional cases
+        action_ids = torch.where(
+            is_conditioned.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
+            action_ids, -1000.0 * torch.ones_like(action_ids))
+        if streaming_mode:
+            action_ids = action_ids.chunk(2, dim=1)[-1]
+
+        return action_ids
+
+    @staticmethod
+    def get_conditions(
+        model, text_encoder, tokenizer, common_config: dict, latent_shape,
+        batch: dict, device, dtype, text_condition_mask=None,
+        _3dbox_condition_mask=None, hdmap_condition_mask=None,
+        action_condition_mask=None, explicit_view_modeling_mask=None,
+        streaming_mode: bool = False, prev_ego_transforms=None,
+        do_classifier_free_guidance: bool = False,
+        latents_shape=None,
+    ):
+        batch_size, _, view_count = latent_shape[:3]
+        sequence_length = batch["pts"].shape[1]
+        if do_classifier_free_guidance:
+            batch_size *= 2
+
+        condition_embedding_list = []
+        condition_image_list = []
+
+        # text prompt
+        if text_encoder is not None:
+            flattened_clip_text = []
+            parsed_shape = []
+            CrossviewTemporalSD.flatten_clip_text(
+                batch["clip_text"], flattened_clip_text, parsed_shape,
+                text_condition_mask=text_condition_mask,
+                do_classifier_free_guidance=do_classifier_free_guidance)
+
+            pooled_text_embeddings = None
+            if isinstance(model, diffusers.UNetSpatioTemporalConditionModel):
+                text_inputs = tokenizer(
+                    flattened_clip_text, padding="max_length",
+                    max_length=tokenizer.model_max_length, truncation=True,
+                    return_tensors="pt")
+                text_embeddings = text_encoder(
+                    text_inputs.input_ids.to(device))[0]
+                if len(parsed_shape) == 1:
+                    # all times and views share the same text prompt
+                    text_embeddings = text_embeddings.unsqueeze(1)\
+                        .unsqueeze(1)\
+                        .repeat(1, sequence_length, view_count, 1, 1)
+                else:
+                    # all times and views use different text prompts
+                    text_embeddings = text_embeddings.unflatten(
+                        0, parsed_shape)
+
+                condition_embedding_list.append(text_embeddings)
+
+            elif isinstance(model, diffusers.SD3Transformer2DModel):
+                clip_text_embeddings_list = []
+                clip_pooled_text_embeddings_list = []
+                for clip_tokenizer, clip_text_encoder in zip(
+                    tokenizer[:2], text_encoder[:2]
+                ):
+                    text_embeddings, pooled_text_embeddings =\
+                        CrossviewTemporalSD.sd3_encode_prompt_with_clip(
+                            clip_text_encoder, clip_tokenizer, common_config,
+                            flattened_clip_text, clip_text_encoder.device)
+                    clip_text_embeddings_list.append(text_embeddings)
+                    clip_pooled_text_embeddings_list.append(
+                        pooled_text_embeddings)
+
+                clip_text_embeddings = torch.cat(
+                    clip_text_embeddings_list, dim=-1)
+                pooled_text_embeddings = torch.cat(
+                    clip_pooled_text_embeddings_list, dim=-1)
+
+                t5_prompt_embed = CrossviewTemporalSD.sd3_encode_prompt_with_t5(
+                    text_encoder[-1], tokenizer[-1], common_config,
+                    prompt=flattened_clip_text, device=device)
+
+                clip_text_embeddings = torch.nn.functional.pad(
+                    clip_text_embeddings,
+                    (0, t5_prompt_embed.shape[-1] -
+                     clip_text_embeddings.shape[-1]),
+                )
+                text_embeddings = torch.cat(
+                    [clip_text_embeddings, t5_prompt_embed], dim=-2)
+
+                if len(parsed_shape) == 1:
+                    # all times and views share the same text prompt
+                    text_embeddings = text_embeddings.unsqueeze(1)\
+                        .unsqueeze(1)\
+                        .repeat(1, sequence_length, view_count, 1, 1)\
+                        .to(dtype=dtype)
+                    pooled_text_embeddings = pooled_text_embeddings\
+                        .unsqueeze(1).unsqueeze(1)\
+                        .repeat(1, sequence_length, view_count, 1)\
+                        .to(dtype=dtype)
+                else:
+                    # all times and views use different text prompts
+                    text_embeddings = text_embeddings\
+                        .unflatten(0, parsed_shape).to(dtype=dtype)
+                    pooled_text_embeddings = pooled_text_embeddings\
+                        .unflatten(0, parsed_shape).to(dtype=dtype)
+
+                condition_embedding_list.append(text_embeddings)
+
+        # layout condition
+        condition_on_all_frames = common_config.get(
+            "condition_on_all_frames", False)
+        uncondition_image_color = common_config.get(
+            "uncondition_image_color", 0)
+        if "3dbox_images" in batch:
+            if condition_on_all_frames:
+                _3dbox_images = batch["3dbox_images"].to(device)
+            else:
+                _3dbox_images = batch["3dbox_images"][:, :1].to(device)
+
+            if _3dbox_condition_mask is not None:
+                _3dbox_images[
+                    _3dbox_condition_mask.logical_not().to(device)
+                ] = uncondition_image_color
+
+            if do_classifier_free_guidance:
+                _3dbox_images = torch.cat([
+                    torch.ones_like(_3dbox_images) * uncondition_image_color,
+                    _3dbox_images
+                ])
+
+            condition_image_list.append(_3dbox_images)
+
+        if "hdmap_images" in batch:
+            if condition_on_all_frames:
+                hdmap_images = batch["hdmap_images"].to(device)
+            else:
+                hdmap_images = batch["hdmap_images"][:, :1].to(device)
+
+            if hdmap_condition_mask is not None:
+                hdmap_images[
+                    hdmap_condition_mask.logical_not().to(device)
+                ] = uncondition_image_color
+
+            if do_classifier_free_guidance:
+                hdmap_images = torch.cat([
+                    torch.ones_like(hdmap_images) * uncondition_image_color,
+                    hdmap_images
+                ])
+
+            condition_image_list.append(hdmap_images)
+
+        if len(condition_embedding_list) > 0:
+            encoder_hidden_states = torch.cat(condition_embedding_list, -2)\
+                .to(dtype=dtype)
+        else:
+            encoder_hidden_states = None
+
+        if len(condition_image_list) > 0:
+            condition_image_tensor = torch.cat(condition_image_list, -3)
+        else:
+            condition_image_tensor = None
+
+        # additional numeric condition
+        if "added_time_ids" in common_config:
+            if common_config["added_time_ids"] == "fps_camera_transforms":
+                added_time_ids = torch.cat([
+                    batch["fps"].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                    .repeat(1, sequence_length, view_count, 1),
+                    CrossviewTemporalSD.get_camera_transform_ids(
+                        batch, common_config)
+                ], -1)
+                if do_classifier_free_guidance:
+                    added_time_ids = torch.cat(
+                        [added_time_ids, added_time_ids], 0)
+
+                added_time_ids = added_time_ids.to(device)
+
+            elif (
+                common_config["added_time_ids"] ==
+                "fps_camera_transforms_action"
+            ):
+                added_time_ids = torch.cat([
+                    batch["fps"].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                    .repeat(1, sequence_length, view_count, 1),
+                    CrossviewTemporalSD.get_camera_transform_ids(
+                        batch, common_config),
+                    CrossviewTemporalSD.get_action_ids(
+                        batch, common_config, action_condition_mask,
+                        streaming_mode, prev_ego_transforms)
+                ], -1)
+                if do_classifier_free_guidance:
+                    # action is allowed to be guidance scaled
+                    uncond_added_time_ids = torch.cat([
+                        added_time_ids[..., :-2],
+                        -1000 * torch.ones_like(added_time_ids[..., -2:])
+                    ], -1)
+                    added_time_ids = torch.cat(
+                        [uncond_added_time_ids, added_time_ids], 0)
+
+                added_time_ids = added_time_ids.to(device)
+
+            else:
+                added_time_ids = None
+
+        # required by the UniMLVG
+        if common_config.get("explicit_view_modeling", False):
+            assert "camera_intrinsics" in batch and \
+                "camera_transforms" in batch
+
+            # without ego_transforms or single frame
+            if "ego_transforms" not in batch:
+                ego_transforms = torch.eye(4).to(batch["camera_transforms"])
+                ego_transforms = ego_transforms.unsqueeze(0).unsqueeze(1).unsqueeze(2).expand(
+                    batch["camera_transforms"].shape[0],
+                    batch["camera_transforms"].shape[1],
+                    batch["camera_transforms"].shape[2], -1, -1)
+            else:
+                ego_transforms = batch["ego_transforms"][
+                    :, :, -batch["camera_transforms"].shape[2]:, ...]
+
+            camera2world = ego_transforms@batch["camera_transforms"]
+            camera2referego = torch.linalg.inv(
+                ego_transforms[:, 0, 0, :, :].unsqueeze(1).unsqueeze(2)) @ camera2world
+
+            camera_intrinsics_norm = batch["camera_intrinsics"].clone()
+            camera_intrinsics_norm[..., 0, 0] = \
+                camera_intrinsics_norm[..., 0, 0] / batch["image_size"][..., 0]
+            camera_intrinsics_norm[..., 1, 1] = \
+                camera_intrinsics_norm[..., 1, 1] / batch["image_size"][..., 1]
+            camera_intrinsics_norm[..., 0, 2] = \
+                camera_intrinsics_norm[..., 0, 2] / batch["image_size"][..., 0]
+            camera_intrinsics_norm[..., 1, 2] = \
+                camera_intrinsics_norm[..., 1, 2] / batch["image_size"][..., 1]
+
+            # adapt for datasets without camera calibration
+            if "is_uncalibrated" in batch:
+                camera_intrinsics_norm[batch["is_uncalibrated"], :, :] = \
+                    torch.eye(3).to(batch["camera_transforms"])
+                camera2referego[batch["is_uncalibrated"], :, :] = \
+                    torch.eye(4).to(batch["camera_transforms"])
+            if explicit_view_modeling_mask is not None:
+                camera_intrinsics_norm[
+                    explicit_view_modeling_mask.logical_not().to(device)] = \
+                    torch.eye(3).to(batch["camera_transforms"])
+                camera2referego[
+                    explicit_view_modeling_mask.logical_not().to(device)] = \
+                    torch.eye(4).to(batch["camera_transforms"])
+
+            # Real six-camera positions (CAM_ORDER packing), needed only by
+            # the model's Plucker-moment path. The virtual pano extrinsics sit
+            # at the ego origin, so without these every moment would be zero.
+            pano_camera_translations = batch.get("pano_camera_translations")
+
+            if do_classifier_free_guidance:
+                camera_intrinsics_norm = torch.cat(
+                    [camera_intrinsics_norm, camera_intrinsics_norm], 0)
+                camera2referego = torch.cat(
+                    [camera2referego, camera2referego], 0)
+                if pano_camera_translations is not None:
+                    pano_camera_translations = torch.cat(
+                        [pano_camera_translations,
+                         pano_camera_translations], 0)
+
+            camera_intrinsics_norm = camera_intrinsics_norm.to(device)
+            camera2referego = camera2referego.to(device)
+            if pano_camera_translations is not None:
+                pano_camera_translations = \
+                    pano_camera_translations.to(device)
+
+        # required by the HoloDrive
+        has_depth_input = "camera_intrinsics" in batch and \
+            "camera_transforms" in batch
+        if has_depth_input:
+            camera_intrinsics = batch["camera_intrinsics"].to(device)
+            camera_transforms = batch["camera_transforms"].to(device)
+            if do_classifier_free_guidance:
+                camera_intrinsics = torch.cat(
+                    [camera_intrinsics, camera_intrinsics])
+                camera_transforms = torch.cat(
+                    [camera_transforms, camera_transforms])
+
+        result = {
+            "encoder_hidden_states": encoder_hidden_states,
+            "condition_image_tensor": condition_image_tensor,
+
+            "disable_crossview": torch.tensor(
+                [common_config.get("disable_crossview", False)],
+                device=device).repeat(batch_size),
+
+            "disable_temporal": torch.tensor(
+                [common_config.get("disable_temporal", False)],
+                device=device).repeat(batch_size),
+
+            "crossview_attention_mask": (
+                torch.cat([batch["crossview_mask"], batch["crossview_mask"]])
+                    if do_classifier_free_guidance else batch["crossview_mask"]
+            ).to(device)
+            if "crossview_mask" in batch else None,
+
+            "camera_intrinsics": camera_intrinsics if has_depth_input else
+            None,
+            "camera_transforms": camera_transforms if has_depth_input else
+            None,
+
+            "camera_intrinsics_norm": camera_intrinsics_norm
+            if common_config.get("explicit_view_modeling", False) else None,
+
+            "camera2referego": camera2referego
+            if common_config.get("explicit_view_modeling", False) else None,
+
+            "pano_camera_translations": pano_camera_translations
+            if common_config.get("explicit_view_modeling", False) else None,
+
+            "added_time_ids": added_time_ids
+            if "added_time_ids" in common_config else None
+        }
+
+        if (
+            isinstance(model, diffusers.SD3Transformer2DModel) and
+            text_encoder is not None
+        ):
+            result["pooled_projections"] = pooled_text_embeddings
+
+        # for adopting temporal vae
+        if latents_shape is not None and latents_shape[1] != sequence_length:
+            pre = 1 if sequence_length % 2 == 1 else 0
+            stride = (sequence_length - pre)//(latents_shape[1] - pre)
+            for k in result:
+                if result[k] is not None and result[k].ndim > 1 and result[k].shape[1] == sequence_length:
+                    result[k] = torch.cat(
+                        [result[k][:, :pre], result[k][:, pre::stride]], dim=1)
+
+        return result
+
+    @staticmethod
+    def make_depth_loss(
+        batch_size: int, sequence_length: int, view_count: int,
+        depth_frustum_range: list, batch: dict, depth_features: torch.Tensor,
+        depth_loss_coef: float, point_count_limit_per_view: int,
+        point_bundle_size: int, device
+    ):
+        predicted_depth = depth_features.float().softmax(-3)
+        normalized_intrinsics = dwm.functional.make_homogeneous_matrix(
+            dwm.functional.normalize_intrinsic_transform(
+                batch["image_size"], batch["camera_intrinsics"]))
+        camera_from_lidar = torch.linalg.solve(
+            batch["ego_transforms"][:, :, 1:] @ batch["camera_transforms"],
+            batch["ego_transforms"][:, :, :1] @ batch["lidar_transforms"])
+        frustum_from_lidar = (
+            normalized_intrinsics @ camera_from_lidar).to(device)
+
+        p_list = []
+        fd_list = []
+        valid_sample_list = []
+        for i in range(batch_size):
+            for j in range(sequence_length):
+                points = dwm.functional.make_homogeneous_vector(
+                    batch["lidar_points"][i][j][:, :3].to(device)).t()
+                projected_points = frustum_from_lidar[i, j] @ points
+                p = (projected_points[:, 0:2] / projected_points[:, 2:3])\
+                    .transpose(-2, -1)
+                fd = (
+                    (projected_points[:, 2] - depth_frustum_range[0]) /
+                    depth_frustum_range[2]).round().long()
+                mask = torch.logical_and(
+                    p.abs().amax(dim=-1) < 1,
+                    torch.logical_and(fd >= 0, fd < predicted_depth.shape[-3]))
+
+                for k in range(view_count):
+                    view_mask = mask[k]
+                    count = torch.sum(view_mask.long())
+                    valid_sample_list.append(
+                        torch.arange(
+                            0, point_count_limit_per_view,
+                            device=p.device) < count)
+                    if count > 0:
+                        k_p = p[k, view_mask]
+                        k_fd = fd[k, view_mask]
+                        if count > point_count_limit_per_view:
+                            k_p = k_p[:point_count_limit_per_view]
+                            k_fd = k_fd[:point_count_limit_per_view]
+                        elif count < point_count_limit_per_view:
+                            k_p = torch.nn.functional.pad(
+                                k_p,
+                                (0, 0, 0, point_count_limit_per_view - count))
+                            k_fd = torch.nn.functional.pad(
+                                k_fd, (0, point_count_limit_per_view - count))
+
+                    else:
+                        k_p = torch.zeros(
+                            (point_count_limit_per_view, 2), dtype=p.dtype,
+                            device=p.device)
+                        k_fd = torch.zeros(
+                            (point_count_limit_per_view), dtype=fd.dtype,
+                            device=fd.device)
+
+                    p_list.append(k_p)
+                    fd_list.append(k_fd)
+
+        depth_samples = dwm.functional.grid_sample_sequence(
+            predicted_depth, torch.stack(p_list),
+            bundle_size=point_bundle_size, padding_mode="border")
+        ground_truth_depth = torch.nn.functional\
+            .one_hot(torch.stack(fd_list), predicted_depth.shape[-3])\
+            .transpose(-2, -1).float()
+        valid_sample = torch.stack(valid_sample_list)
+
+        depth_cross_entropy = torch.nn.functional.cross_entropy(
+            depth_samples.flatten(0, 2), ground_truth_depth,
+            reduction="none")
+        depth_estimation_loss = \
+            (depth_cross_entropy * valid_sample.float()).sum() / \
+            valid_sample.sum()
+        return depth_loss_coef * depth_estimation_loss
+
+    @staticmethod
+    def enum_depth_preds_and_targets(
+        batch_size: int, sequence_length: int, view_count: int,
+        depth_frustum_range: list, batch: dict, depth_features: torch.Tensor,
+        point_count_limit_per_view: int, point_bundle_size: int, device
+    ):
+        predicted_depth = depth_features.argmax(-3, keepdim=True).float()
+
+        normalized_intrinsics = dwm.functional.make_homogeneous_matrix(
+            dwm.functional.normalize_intrinsic_transform(
+                batch["image_size"], batch["camera_intrinsics"]))
+        camera_from_lidar = torch.linalg.solve(
+            batch["ego_transforms"][:, :, 1:] @ batch["camera_transforms"],
+            batch["ego_transforms"][:, :, :1] @ batch["lidar_transforms"])
+        frustum_from_lidar = (
+            normalized_intrinsics @ camera_from_lidar).to(device)
+
+        for i in range(batch_size):
+            i_p_list = []
+            i_fd_list = []
+            valid_count_list = []
+            for j in range(sequence_length):
+                points = dwm.functional.make_homogeneous_vector(
+                    batch["lidar_points"][i][j].to(device)).t()
+                projected_points = frustum_from_lidar[i, j] @ points
+                p = (projected_points[:, 0:2] / projected_points[:, 2:3])\
+                    .transpose(-2, -1)
+                fd = (projected_points[:, 2] - depth_frustum_range[0]) / \
+                    depth_frustum_range[2]
+                mask = torch.logical_and(
+                    p.abs().amax(dim=-1) < 1,
+                    torch.logical_and(
+                        fd >= -0.5, fd < depth_features.shape[-3] - 0.5))
+
+                for k in range(view_count):
+                    view_mask = mask[k]
+                    count = torch.sum(view_mask.long())
+                    valid_count_list.append(count)
+                    if count > 0:
+                        k_p = p[k, view_mask]
+                        k_fd = fd[k, view_mask]
+                        if count > point_count_limit_per_view:
+                            k_p = k_p[:point_count_limit_per_view]
+                            k_fd = k_fd[:point_count_limit_per_view]
+                        elif count < point_count_limit_per_view:
+                            k_p = torch.nn.functional.pad(
+                                k_p,
+                                (0, 0, 0, point_count_limit_per_view - count))
+
+                    else:
+                        k_p = torch.zeros(
+                            (point_count_limit_per_view, 2), dtype=p.dtype,
+                            device=p.device)
+                        k_fd = None
+
+                    i_p_list.append(k_p)
+                    i_fd_list.append(k_fd)
+
+            depth_samples = dwm.functional.grid_sample_sequence(
+                predicted_depth[i], torch.stack(i_p_list),
+                bundle_size=point_bundle_size, padding_mode="border")
+            for j in range(sequence_length):
+                for k in range(view_count):
+                    valid_count = valid_count_list[j * view_count + k]
+                    if valid_count > 0:
+                        pred_depth = depth_samples[j, k, 0, :valid_count] * \
+                            depth_frustum_range[2]
+                        target_depth = i_fd_list[j * view_count + k] * \
+                            depth_frustum_range[2]
+                        yield pred_depth, target_depth
+
+    @staticmethod
+    def try_make_input_for_prediction(
+        noisy_input: torch.Tensor, latents, timesteps: torch.Tensor,
+        training_config: dict, common_config: dict,
+        generator: torch.Generator = None,
+        reference_latent_count=None
+    ):
+        # for the reference frame augmentation
+        rf_scale = (
+            (
+                torch.randn(latents.shape[:2], generator=generator) *
+                training_config["reference_frame_scale_std"] + 1
+            ).view(*latents.shape[:2], 1, 1, 1, 1).to(latents.device)
+            if "reference_frame_scale_std" in training_config else 1
+        )
+        rf_offset = (
+            (
+                torch.randn(latents.shape[:2], generator=generator) *
+                training_config["reference_frame_offset_std"]
+            ).view(*latents.shape[:2], 1, 1, 1, 1).to(latents.device)
+            if "reference_frame_offset_std" in training_config else 0
+        )
+        batch_size, sequence_length, view_count = noisy_input.shape[:3]
+
+        frame_prediction_style = common_config.get(
+            "frame_prediction_style", None)
+        if (
+            frame_prediction_style == None or
+            frame_prediction_style == "diffusion_forcing"
+        ):
+            made_timesteps = timesteps
+            reference_frame_indicator = torch.zeros(
+                *latents.shape[:3], dtype=torch.bool, device=latents.device)
+            if frame_prediction_style == "diffusion_forcing":
+                # tasks divided by image_generation_ratio:
+                # * Y: image generation with temporal module disabled
+                # * N: video generation
+                disable_temporal = torch.rand(
+                    (batch_size, 1, 1), generator=generator) < \
+                    training_config.get("image_generation_ratio", 0.0)
+                made_noisy_input = torch.where(
+                    disable_temporal.view(batch_size, 1, 1, 1, 1, 1)
+                    .to(latents.device),
+                    noisy_input, noisy_input * rf_scale + rf_offset)
+                additional_condition = {
+                    "disable_temporal": disable_temporal.to(latents.device)
+                }
+
+            else:
+                made_noisy_input = noisy_input
+                additional_condition = None
+
+        elif frame_prediction_style == "ctsd":
+            # tasks divided by generation_task_ratio:
+            # * Y: generation tasks divided by image_generation_ratio
+            #   * Y: image generation with temporal module disabled
+            #   * N: video generation
+            # * N: prediction tasks divided by all_reference_visible_ratio
+            #   * Y: all reference frame visible
+            #   * N: partial reference frame visible (reference_visible_rate)
+
+            generation_task_indicator = \
+                torch.rand((batch_size, 1, 1), generator=generator) < \
+                training_config.get("generation_task_ratio", 0.0)
+            disable_temporal = torch.logical_and(
+                torch.rand((batch_size, 1, 1), generator=generator) <
+                training_config.get("image_generation_ratio", 0.0),
+                generation_task_indicator)
+
+            # the mask of referenced frame for predictive task
+            all_reference_visible_indicator = \
+                torch.rand((batch_size, 1, 1), generator=generator) < \
+                training_config.get("all_reference_visible_ratio", 0.0)
+            partial_reference_indicator = \
+                torch.rand(
+                    (batch_size, sequence_length, view_count),
+                    generator=generator) < \
+                training_config.get("reference_visible_rate", 1.0)
+
+            if isinstance(reference_latent_count, int):
+                reference_latent_count_tensor = reference_latent_count * \
+                    torch.ones((batch_size, 1, 1), dtype=torch.int32)
+            elif isinstance(reference_latent_count, dict):
+                count_list = torch.tensor(
+                    [int(i) for i in reference_latent_count.keys()],
+                    dtype=torch.int32)
+                ratio_cumsum_list = torch.tensor(
+                    list(itertools.accumulate(reference_latent_count.values())))
+                ratio_indices = torch.searchsorted(
+                    ratio_cumsum_list, torch.rand(
+                        (batch_size, 1, 1), generator=generator))
+                reference_latent_count_tensor = count_list[ratio_indices]
+            else:
+                raise Exception("Un implemented dynamic reference frame count")
+
+            reference_latent_count_indicator = torch\
+                .arange(sequence_length, dtype=torch.int32)\
+                .unsqueeze(0).unsqueeze(-1)\
+                .repeat(batch_size, 1, view_count) < \
+                reference_latent_count_tensor
+            reference_frame_indicator = torch.logical_and(
+                torch.logical_and(
+                    torch.logical_not(generation_task_indicator),
+                    torch.logical_or(
+                        all_reference_visible_indicator,
+                        partial_reference_indicator
+                    )),
+                reference_latent_count_indicator)
+
+            made_noisy_input = torch.where(
+                reference_frame_indicator.view(*latents.shape[:3], 1, 1, 1)
+                .to(latents.device),
+                latents * rf_scale + rf_offset, noisy_input)
+            made_timesteps = torch.where(
+                reference_frame_indicator.to(timesteps.device),
+                torch.zeros_like(timesteps), timesteps)
+            additional_condition = {
+                "disable_temporal": disable_temporal.to(latents.device)
+            }
+        else:
+            raise Exception("Unknown frame prediction type")
+
+        return made_noisy_input, made_timesteps, additional_condition, \
+            reference_frame_indicator
+
+    @staticmethod
+    def sd3_encode_prompt_with_t5(
+        text_encoder, tokenizer, common_config: dict,
+        max_sequence_length: int = 77, prompt=None,
+        num_images_per_prompt: int = 1, device=None,
+        joint_attention_dim: int = 4096,
+    ):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+
+        if text_encoder is None:
+            return torch.zeros(
+                (batch_size, max_sequence_length, joint_attention_dim),
+                device=device, dtype=torch.float16)
+
+        text_inputs = tokenizer(
+            prompt, padding="max_length", max_length=max_sequence_length,
+            truncation=True, add_special_tokens=True, return_tensors="pt")
+        prompt_embeds = text_encoder(text_inputs.input_ids.to(device))[0]
+
+        dtype = text_encoder.dtype
+        prompt_embeds = prompt_embeds.to(dtype=dtype, device=device)
+
+        _, seq_len, _ = prompt_embeds.shape
+
+        # duplicate text embeddings and attention mask for each generation per
+        # prompt, using mps friendly method
+        prompt_embeds = prompt_embeds.repeat(1, num_images_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(
+            batch_size * num_images_per_prompt, seq_len, -1)
+
+        return prompt_embeds
+
+    @staticmethod
+    def sd3_encode_prompt_with_clip(
+        text_encoder, tokenizer, common_config: dict, prompt: str, device,
+        num_images_per_prompt: int = 1
+    ):
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+        batch_size = len(prompt)
+
+        text_inputs = tokenizer(
+            prompt, padding="max_length", max_length=77, truncation=True,
+            return_tensors="pt")
+
+        text_input_ids = text_inputs.input_ids
+        text_embeddings = text_encoder(
+            text_input_ids.to(device), output_hidden_states=True)
+
+        pooled_text_embeddings = text_embeddings[0]
+        text_embeddings = text_embeddings.hidden_states[-2]
+        text_embeddings = text_embeddings.to(
+            dtype=text_encoder.dtype, device=device)
+
+        _, seq_len, _ = text_embeddings.shape
+        # duplicate text embeddings for each generation per prompt, using mps
+        # friendly method
+        text_embeddings = text_embeddings.repeat(1, num_images_per_prompt, 1)
+        text_embeddings = text_embeddings.view(
+            batch_size * num_images_per_prompt, seq_len, -1)
+
+        return text_embeddings, pooled_text_embeddings
+
+    @staticmethod
+    def sd3_compute_density_for_timestep_sampling(
+        weighting_scheme: str, size, logit_mean: float = None,
+        logit_std: float = None, mode_scale: float = None
+    ):
+        """Compute the density for sampling the timesteps when doing SD3
+        training.
+
+        Courtesy: This was contributed by Rafie Walker in
+        https://github.com/huggingface/diffusers/pull/8528.
+
+        SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+        """
+        if weighting_scheme == "logit_normal":
+            # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
+            u = torch.normal(
+                mean=logit_mean, std=logit_std, size=size,
+                device="cpu")
+            u = torch.nn.functional.sigmoid(u)
+        elif weighting_scheme == "mode":
+            u = torch.rand(size=size, device="cpu")
+            u = 1 - u - mode_scale * (torch.cos(math.pi * u / 2) ** 2 - 1 + u)
+        else:
+            u = torch.rand(size=size, device="cpu")
+
+        return u
+
+    @staticmethod
+    def sd3_get_sigmas(
+        noise_scheduler, timestep_indices, n_dim, device, dtype
+    ):
+        sigmas = noise_scheduler.sigmas[timestep_indices]\
+            .to(device=device, dtype=dtype)
+        while len(sigmas.shape) < n_dim:
+            sigmas = sigmas.unsqueeze(-1)
+
+        return sigmas
+
+    def __init__(
+        self, output_path, config: dict, device, common_config: dict,
+        training_config: dict, inference_config: dict,
+        pretrained_model_name_or_path: str, model, model_dtype=None,
+        model_checkpoint_path=None, model_load_state_args: dict = {},
+        metrics: dict = {}, resume_from=None
+    ):
+        self.should_save = not torch.distributed.is_initialized() or \
+            torch.distributed.get_rank() == 0
+        self.config = config
+        self.device = device
+        self.common_config = common_config
+        self.training_config = training_config
+        self.inference_config = inference_config
+
+        self.generator = torch.Generator()
+        if "generator_seed" in self.config:
+            self.generator.manual_seed(self.config["generator_seed"])
+        else:
+            self.generator.seed()
+
+        # load the diffusion model
+        self.model_dtype = model_dtype or torch.float32
+        self.model_wrapper = self.model = model.to(dtype=self.model_dtype)
+        self.model.enable_gradient_checkpointing()
+        distribution_framework = self.common_config.get(
+            "distribution_framework", "ddp")
+        if (
+            not torch.distributed.is_initialized() or
+            distribution_framework == "ddp"
+        ):
+            self.model.to(self.device)
+        elif (
+            distribution_framework == "fsdp" and
+            "fsdp_ignored_module_pattern" in common_config
+        ):
+            pattern = re.compile(common_config["fsdp_ignored_module_pattern"])
+            for name, module in self.model.named_modules():
+                if pattern.match(name) is not None:
+                    module.to(self.device)
+
+        # tokenizer & text encoder
+        text_encoder_load_args = self.common_config.get(
+            "text_encoder_load_args", {})
+        if isinstance(self.model, diffusers.UNetSpatioTemporalConditionModel):
+            self.tokenizer = transformers.CLIPTokenizer.from_pretrained(
+                pretrained_model_name_or_path, subfolder="tokenizer")
+            self.text_encoder = transformers.CLIPTextModel.from_pretrained(
+                pretrained_model_name_or_path, subfolder="text_encoder",
+                **text_encoder_load_args)
+            self.text_encoder.requires_grad_(False)
+            self.text_encoder.to(self.device)
+        elif isinstance(self.model, diffusers.SD3Transformer2DModel):
+            tokenizer = transformers.CLIPTokenizer.from_pretrained(
+                pretrained_model_name_or_path, subfolder="tokenizer")
+            tokenizer_2 = transformers.CLIPTokenizer.from_pretrained(
+                pretrained_model_name_or_path, subfolder="tokenizer_2")
+            tokenizer_3 = transformers.T5TokenizerFast.from_pretrained(
+                pretrained_model_name_or_path, subfolder="tokenizer_3")
+            self.tokenizers = [tokenizer, tokenizer_2, tokenizer_3]
+
+            text_encoder = transformers.CLIPTextModelWithProjection\
+                .from_pretrained(
+                    pretrained_model_name_or_path, subfolder="text_encoder",
+                    **text_encoder_load_args)
+            if text_encoder.device.type != device.type:
+                text_encoder.to(device)
+
+            text_encoder.requires_grad_(False)
+            text_encoder.eval()
+
+            text_encoder_2 = transformers.CLIPTextModelWithProjection\
+                .from_pretrained(
+                    pretrained_model_name_or_path, subfolder="text_encoder_2",
+                    **text_encoder_load_args)
+            if text_encoder_2.device.type != device.type:
+                text_encoder_2.to(device)
+
+            text_encoder_2.requires_grad_(False)
+            text_encoder_2.eval()
+
+            # FSDP is required for the T5 encoder
+            text_encoder_3 = transformers.T5EncoderModel.from_pretrained(
+                pretrained_model_name_or_path, subfolder="text_encoder_3",
+                **text_encoder_load_args)
+            if (
+                torch.distributed.is_initialized() and
+                distribution_framework == "fsdp"
+            ):
+                text_encoder_3.to(dtype=torch.float16)
+
+            text_encoder_3.requires_grad_(False)
+            text_encoder_3.eval()
+            if (
+                torch.distributed.is_initialized() and
+                distribution_framework == "fsdp" and
+                "t5_fsdp_wrapper_settings" in common_config
+            ):
+                text_encoder_3 = FSDP(
+                    text_encoder_3, device_id=torch.cuda.current_device(),
+                    **self.common_config["t5_fsdp_wrapper_settings"])
+            elif text_encoder_3.device.type != device.type:
+                text_encoder_3.to(device)
+
+            self.text_encoders = [text_encoder, text_encoder_2, text_encoder_3]
+        else:
+            raise Exception("Unsupported diffusion model type.")
+
+        # vae & image processor
+        vae_type = dwm.common.get_class(
+            self.common_config.get("vae", "diffusers.AutoencoderKL"))
+        vae_pretrained_model_name_or_path = self.common_config.get(
+            "vae_pretrained_model_name_or_path", pretrained_model_name_or_path)
+        self.vae = vae_type.from_pretrained(
+            vae_pretrained_model_name_or_path, subfolder="vae")
+        self.vae.requires_grad_(False)
+        self.vae.to(self.device)
+        self.image_processor = diffusers.image_processor.VaeImageProcessor(
+            vae_scale_factor=2 ** (len(self.vae.config.block_out_channels) - 1))
+        self.is_temporal_vae = isinstance(
+            self.vae, diffusers.models.autoencoders.autoencoder_kl_cogvideox.AutoencoderKLCogVideoX)
+
+        # scheduler
+        if isinstance(self.model, diffusers.UNetSpatioTemporalConditionModel):
+            train_scheduler_type = dwm.common.get_class(
+                self.training_config.get("scheduler", "diffusers.DDPMScheduler"))
+            self.train_scheduler = train_scheduler_type.from_pretrained(
+                pretrained_model_name_or_path, subfolder="scheduler")
+            test_scheduler_type = dwm.common.get_class(
+                self.inference_config.get(
+                    "scheduler", "diffusers.DDIMScheduler"))
+            self.test_scheduler = test_scheduler_type.from_pretrained(
+                pretrained_model_name_or_path, subfolder="scheduler")
+        elif isinstance(self.model, diffusers.SD3Transformer2DModel):
+            self.train_scheduler =\
+                diffusers.FlowMatchEulerDiscreteScheduler.from_pretrained(
+                    pretrained_model_name_or_path, subfolder="scheduler")
+            test_scheduler_type = dwm.common.get_class(
+                self.inference_config.get(
+                    "scheduler", "diffusers.FlowMatchEulerDiscreteScheduler"))
+            self.test_scheduler = test_scheduler_type.from_pretrained(
+                pretrained_model_name_or_path, subfolder="scheduler")
+
+        # load_state
+        if resume_from is not None:
+            state_dict = CrossviewTemporalSD.load_state(
+                os.path.join(
+                    output_path, "checkpoints", "{}.pth".format(resume_from)))
+            self.model.load_state_dict(state_dict)
+        elif model_checkpoint_path is not None:
+            state_dict = CrossviewTemporalSD.load_state(model_checkpoint_path)
+
+            # Our CTSD 2.1 model definition is based on SVD, when initializing
+            # from SD 2.1 weights, some keys need to be renamed.
+            if isinstance(
+                self.model, diffusers.UNetSpatioTemporalConditionModel
+            ):
+                state_dict = dwm.models.crossview_temporal_unet\
+                    .UNetCrossviewTemporalConditionModel\
+                    .try_to_convert_state_dict(state_dict)
+
+            missing_keys, unexpected_keys = self.model.load_state_dict(
+                state_dict, **model_load_state_args)
+            if (
+                self.should_save and
+                self.common_config.get("print_load_state_info", False)
+            ):
+                print(f"missing keys: {missing_keys}")
+                print(f"unexpected keys: {unexpected_keys}")
+
+        if "freezing_pattern" in training_config:
+            pattern = re.compile(training_config["freezing_pattern"])
+            frozen_module_count = 0
+            for name, module in self.model.named_modules():
+                if pattern.match(name) is not None:
+                    module.requires_grad_(False)
+                    frozen_module_count += 1
+                    if self.should_save:
+                        print("{} is frozen.".format(name))
+
+            if self.should_save:
+                print("{} modules are frozen.".format(frozen_module_count))
+
+        if self.should_save:
+            param_count = sum([
+                i.numel() for i in self.model.parameters() if i.requires_grad
+            ])
+            print(
+                "{:.1f} M parameters are trainable.".format(param_count / 1e6))
+
+        # setup training parts
+        self.loss_report_list = []
+        self.step_duration = 0
+
+        self.distribution_framework = self.common_config.get(
+            "distribution_framework", "ddp")
+        if self.training_config.get("enable_grad_scaler", False):
+            if (
+                not torch.distributed.is_initialized() or
+                self.distribution_framework == "ddp"
+            ):
+                self.grad_scaler = torch.amp.GradScaler()
+            elif self.distribution_framework == "fsdp":
+                self.grad_scaler = torch.distributed.fsdp.sharded_grad_scaler\
+                    .ShardedGradScaler()
+
+        if torch.distributed.is_initialized():
+            if self.distribution_framework == "ddp":
+                self.model_wrapper = torch.nn.parallel.DistributedDataParallel(
+                    self.model, device_ids=[int(os.environ["LOCAL_RANK"])],
+                    **self.common_config["ddp_wrapper_settings"])
+            elif self.distribution_framework == "fsdp":
+                if "fsdp_ignored_module_pattern" in common_config:
+                    pattern = re.compile(
+                        common_config["fsdp_ignored_module_pattern"])
+                    ignored_named_modules = [
+                        (name, module)
+                        for name, module in self.model.named_modules()
+                        if pattern.match(name) is not None
+                    ]
+                    ignored_modules = [i[1] for i in ignored_named_modules]
+                    if self.should_save:
+                        print(
+                            "{} modules are ignored by FSDP."
+                            .format(len(ignored_named_modules)))
+                        print(
+                            "These ignored modules are {}."
+                            .format([i[0] for i in ignored_named_modules]))
+                else:
+                    ignored_modules = None
+
+                self.model_wrapper = FSDP(
+                    self.model, device_id=torch.cuda.current_device(),
+                    ignored_modules=ignored_modules,
+                    **self.common_config["ddp_wrapper_settings"])
+            else:
+                raise Exception(
+                    "Unknown data parallel framework {}."
+                    .format(self.distribution_framework))
+
+        if self.should_save and output_path is not None:
+            self.summary = torch.utils.tensorboard.SummaryWriter(
+                os.path.join(output_path, "log"))
+
+        self.optimizer = dwm.common.create_instance_from_config(
+            config["optimizer"],
+            params=self.model_wrapper.parameters()
+        ) if "optimizer" in config else None
+
+        if resume_from is not None:
+            _dwm_distributed.distributed_load_optimizer_state(
+                self.model_wrapper, self.optimizer,
+                os.path.join(output_path, "optimizer"), str(resume_from))
+
+        self.lr_scheduler = dwm.common.create_instance_from_config(
+            config["lr_scheduler"], optimizer=self.optimizer) \
+            if "lr_scheduler" in config else None
+
+        self.metrics = metrics
+        for i in self.metrics.values():
+            i.to(self.device)
+
+        # dtype audit (rank 0 only) — diagnoses fp16/bf16/fp32 master + autocast +
+        # grad_scaler combo before training starts. Critical because train_step
+        # NaNs are otherwise opaque (esp. under FSDP where param dtype is what
+        # FSDP shows post-wrap, not what optimizer sees during step).
+        _is_rank0 = (
+            not torch.distributed.is_initialized()
+            or torch.distributed.get_rank() == 0)
+        if _is_rank0:
+            try:
+                _p = next(self.model.parameters())
+                _p_dtype = _p.dtype
+            except StopIteration:
+                _p_dtype = "no-params"
+            print(
+                f"[dtype audit] model_dtype={self.model_dtype} "
+                f"wrapped_param_dtype={_p_dtype} "
+                f"distribution_framework={self.distribution_framework} "
+                f"autocast={self.common_config.get('autocast')} "
+                f"grad_scaler_enabled={self.training_config.get('enable_grad_scaler', False)}",
+                flush=True)
+
+    def get_loss_coef(self, name):
+        loss_coef = 1
+        if "loss_coef_dict" in self.training_config:
+            loss_coef = self.training_config["loss_coef_dict"].get(name, 1.0)
+
+        return loss_coef
+
+    def get_latent_sequence_length(self, sequence_length):
+        pre = self.inference_config.get("vae_pre", 0)
+        stride = self.inference_config.get("vae_stride", 1)
+        assert sequence_length % stride == pre or sequence_length == 0, \
+            f"{sequence_length} vs {pre} vs {stride}"
+        return (sequence_length-pre)//stride + (1 if pre > 0 else 0)
+
+    def get_reference_latent_count(self):
+        reference_frame_count = self.training_config.get(
+            "reference_frame_count", 0)
+        if isinstance(reference_frame_count, int):
+            reference_latent_count = self.get_latent_sequence_length(
+                reference_frame_count)
+        elif isinstance(reference_frame_count, dict):
+            reference_latent_count = {
+                str(self.get_latent_sequence_length(int(k))): v
+                for k, v in reference_frame_count.items()}
+        else:
+            raise Exception("Un implemented dynamic reference frame count")
+        return reference_latent_count
+
+    def save_checkpoint(self, output_path: str, steps: int, upload: bool = True,
+                        keep_last_n: int = 0):
+        """Save model + optimizer to local disk, sync-upload to HF, then keep
+        only `steps` locally (older steps are pruned only after every upload
+        succeeds, so a failed upload leaves the previous state intact for
+        resume).
+
+        Subclasses that write extra files (e.g. EMA) should pass `upload=False`
+        and call `_upload_and_prune` themselves after their extra writes so the
+        extra files are included in the upload+prune cycle.
+
+        Layout:
+            <output_path>/checkpoints/<steps>.pth        full model state (rank0)
+            <output_path>/optimizer/<steps>/*.distcp     FSDP sharded optimizer
+
+        Env: HF_AUTO_UPLOAD_REPO + HF_TOKEN trigger upload; HF_BIN overrides hf cli.
+        """
+        if torch.distributed.is_initialized():
+            options = torch.distributed.checkpoint.state_dict.StateDictOptions(
+                full_state_dict=True, cpu_offload=True)
+            model_state_dict = torch.distributed.checkpoint.state_dict\
+                .get_model_state_dict(self.model_wrapper, options=options)
+        elif self.should_save:
+            model_state_dict = self.model.state_dict()
+
+        ckpt_dir = os.path.join(output_path, "checkpoints")
+        optim_dir = os.path.join(output_path, "optimizer")
+        os.makedirs(ckpt_dir, exist_ok=True)
+        os.makedirs(optim_dir, exist_ok=True)
+        ckpt_path = os.path.join(ckpt_dir, "{}.pth".format(steps))
+
+        if self.should_save:
+            torch.save(model_state_dict, ckpt_path)
+
+        # Optimizer state exists only so a run can be resumed. A one-shot
+        # fine-tune never is, and it is the largest single allocation in this
+        # function: AdamW m+v over 3.4 B fp32 parameters is ~27 GiB
+        # materialised on top of an already CPU-offloaded model. On a cluster
+        # that caps host RAM per GPU (HPC3: 240 GB) that is the difference
+        # between saving and an OOM kill. Opt in to skipping it; the default
+        # path is unchanged.
+        if os.environ.get("DWM_SKIP_OPTIMIZER_STATE") == "1":
+            if self.should_save:
+                print(
+                    "[ckpt] DWM_SKIP_OPTIMIZER_STATE=1: skipping "
+                    "optimizer/{} -- this run cannot be resumed".format(steps),
+                    flush=True)
+        else:
+            _dwm_distributed.distributed_save_optimizer_state(
+                self.model_wrapper, self.optimizer, optim_dir, str(steps))
+
+        if upload and self.should_save:
+            self._upload_and_prune(output_path, steps, keep_last_n=keep_last_n)
+
+    def _upload_and_prune(self, output_path: str, steps: int,
+                          keep_last_n: int = 0):
+        """rank 0: run the upload + prune in a background daemon thread so the
+        training loop returns immediately to the FSDP collectives. A blocking
+        upload here stalls rank 0 while the other ranks hit their next
+        all-gather, whose NCCL watchdog (10 min on FSDP subgroups) then tears
+        the job down."""
+        threading.Thread(
+            target=self._upload_and_prune_worker,
+            args=(output_path, steps, keep_last_n), daemon=True).start()
+
+    def _upload_and_prune_worker(self, output_path: str, steps: int,
+                                 keep_last_n: int = 0):
+        """rank 0: optional sync-upload step N's local files to HF, then
+        prune older steps locally per `keep_last_n`. Picks up any
+        `<steps>.pth` / `<steps>_*.pth` in checkpoints/ plus
+        `optimizer/<steps>/`. Retention: `keep_last_n=0` keeps every step
+        locally (no prune); `keep_last_n=N>0` keeps only the N most recent
+        step numbers. On any HF upload failure returns without pruning so
+        the previous step stays available for recovery."""
+        import subprocess
+        run_name = os.path.basename(os.path.normpath(output_path))
+        # Match DMD save_checkpoint: `CKPT_OUT_DIR` redirects ckpt I/O to
+        # compute-node `/local` to bypass shared-FS quota. Upload from there;
+        # prune there too. optim_root stays on shared FS (DMD skips optim).
+        ckpt_dir = os.environ.get("CKPT_OUT_DIR") \
+            or os.path.join(output_path, "checkpoints")
+        optim_root = os.path.join(output_path, "optimizer")
+        log_dir = os.path.join(output_path, "log")
+        os.makedirs(log_dir, exist_ok=True)
+
+        hf_repo = os.environ.get("HF_AUTO_UPLOAD_REPO")
+        if hf_repo:
+            hf_bin = os.environ.get("HF_BIN", "hf")
+            log_path = os.path.join(log_dir, f"hf_upload_{steps}.log")
+            uploads = []
+            for f in sorted(os.listdir(ckpt_dir)):
+                if not f.endswith(".pth"):
+                    continue
+                stem = f[:-len(".pth")]
+                num = stem.split("_", 1)[0]
+                if num.isdigit() and int(num) == steps:
+                    uploads.append((
+                        os.path.join(ckpt_dir, f),
+                        f"{run_name}/checkpoints/{f}",
+                        f"ckpt({stem})"))
+            for d in sorted(os.listdir(optim_root)):
+                p = os.path.join(optim_root, d)
+                num = d.split("_", 1)[0]
+                if num.isdigit() and int(num) == steps and os.path.isdir(p):
+                    uploads.append((
+                        p, f"{run_name}/optimizer/{d}/", f"optim({d})"))
+
+            print(f"[hf-upload] step={steps} starting (sync, {len(uploads)} item(s)) ...",
+                  flush=True)
+            t0 = time.time()
+            with open(log_path, "w") as log_f:
+                for src, dst, kind in uploads:
+                    rc = subprocess.call(
+                        [hf_bin, "upload", hf_repo, src, dst,
+                         "--commit-message", f"{run_name} {kind} step={steps}"],
+                        stdout=log_f, stderr=subprocess.STDOUT)
+                    if rc != 0:
+                        print(
+                            f"[hf-upload] FAILED {kind} step={steps} rc={rc} "
+                            f"(log: {log_path}). Keeping local files for recovery.",
+                            flush=True)
+                        return
+            print(
+                f"[hf-upload] step={steps} done in {int(time.time()-t0)}s "
+                f"→ {hf_repo}/{run_name}/", flush=True)
+
+        if keep_last_n <= 0:
+            return
+
+        step_nums = set()
+        for f in os.listdir(ckpt_dir):
+            if not f.endswith(".pth"):
+                continue
+            num = f[:-len(".pth")].split("_", 1)[0]
+            if num.isdigit():
+                step_nums.add(int(num))
+        if os.path.isdir(optim_root):
+            for d in os.listdir(optim_root):
+                num = d.split("_", 1)[0]
+                if num.isdigit() and os.path.isdir(
+                        os.path.join(optim_root, d)):
+                    step_nums.add(int(num))
+        keep = set(sorted(step_nums, reverse=True)[:keep_last_n])
+
+        for f in os.listdir(ckpt_dir):
+            if not f.endswith(".pth"):
+                continue
+            num = f[:-len(".pth")].split("_", 1)[0]
+            if num.isdigit() and int(num) not in keep:
+                os.remove(os.path.join(ckpt_dir, f))
+        if os.path.isdir(optim_root):
+            import shutil
+            for d in os.listdir(optim_root):
+                p = os.path.join(optim_root, d)
+                num = d.split("_", 1)[0]
+                if num.isdigit() and int(num) not in keep and os.path.isdir(p):
+                    shutil.rmtree(p)
+        print(
+            f"[prune] keep_last_n={keep_last_n} kept steps={sorted(keep)} "
+            f"locally", flush=True)
+
+    def log(self, global_step: int, log_steps: int):
+        if self.should_save:
+            # Try direct wandb logging — official quickstart pattern from
+            # https://docs.wandb.ai/quickstart/. More reliable than relying on
+            # sync_tensorboard auto-detection of SummaryWriter writes.
+            _wandb_run = None
+            try:
+                import wandb
+                _wandb_run = wandb.run  # None if wandb.init was not called
+            except ImportError:
+                pass
+
+            if len(self.loss_report_list) > 0 and \
+                    isinstance(self.loss_report_list[0], dict):
+                loss_values = {
+                    i: sum([j[i] for j in self.loss_report_list]) /
+                    len(self.loss_report_list)
+                    for i in self.loss_report_list[0].keys()
+                }
+                loss_message = ", ".join([
+                    "{}: {:.4f}".format(k, v) for k, v in loss_values.items()
+                ])
+                print(
+                    "Step {} ({:.1f} s/step), {}".format(
+                        global_step, self.step_duration / log_steps,
+                        loss_message))
+                _wandb_dict = {}
+                for key, value in loss_values.items():
+                    self.summary.add_scalar(
+                        "train/{}".format(key), value, global_step)
+                    _wandb_dict[f"train/{key}"] = value
+                if _wandb_run is not None:
+                    _wandb_dict["train/s_per_step"] = self.step_duration / log_steps
+                    _wandb_run.log(_wandb_dict, step=global_step)
+
+            else:
+                loss_value = sum(self.loss_report_list) / \
+                    len(self.loss_report_list)
+                print(
+                    "Step {} ({:.1f} s/step), loss: {:.4f}".format(
+                        global_step, self.step_duration / log_steps,
+                        loss_value))
+                self.summary.add_scalar("train/Loss", loss_value, global_step)
+                if _wandb_run is not None:
+                    _wandb_run.log({
+                        "train/Loss": loss_value,
+                        "train/s_per_step": self.step_duration / log_steps,
+                    }, step=global_step)
+
+        self.loss_report_list.clear()
+        self.step_duration = 0
+
+    def get_autocast_context(self):
+        if "autocast" in self.common_config:
+            return torch.autocast(**self.common_config["autocast"])
+        else:
+            return contextlib.nullcontext()
+
+    def train_step(self, batch: dict, global_step: int):
+        self.model_wrapper.train()
+
+        t0 = time.time()
+
+        batch_size, sequence_length, view_count = batch["vae_images"].shape[:3]
+        image_tensor = self.image_processor.preprocess(
+            batch["vae_images"].flatten(0, 2).to(self.device))
+
+        # prepare the training target
+        # use different shape for 3D and 2D vae
+        if self.is_temporal_vae:
+            image_tensor = einops.rearrange(
+                image_tensor, "(b t v) c h w -> (b v) c t h w",
+                t=sequence_length, v=view_count)
+
+        shift_factor = self.vae.config.shift_factor\
+            if self.vae.config.shift_factor is not None else 0
+        latents = dwm.functional.memory_efficient_split_call(
+            self.vae, image_tensor,
+            lambda block, tensor: (
+                block.encode(tensor).latent_dist.sample() - shift_factor
+            ) * block.config.scaling_factor,
+            self.common_config.get("memory_efficient_batch", -1))
+
+        if self.is_temporal_vae:
+            latents = einops.rearrange(
+                latents, "(b v) c t h w -> b t v c h w", v=view_count)
+        else:
+            latents = einops.rearrange(
+                latents, "(b t v) c h w -> b t v c h w",
+                t=sequence_length, v=view_count)
+
+        # latents = latents.unflatten(0, batch["vae_images"].shape[:3])
+        noise = torch.randn(
+            latents.shape, generator=self.generator).to(self.device)
+
+        if (
+            "frame_prediction_style" in self.common_config and
+            self.common_config["frame_prediction_style"] == "diffusion_forcing"
+        ):
+            timestep_shape_range = 2
+        else:
+            timestep_shape_range = 1
+
+        if isinstance(self.model, diffusers.UNetSpatioTemporalConditionModel):
+            timesteps = torch.randint(
+                0, self.train_scheduler.config.num_train_timesteps,
+                latents.shape[:timestep_shape_range], generator=self.generator
+            ).to(self.device)
+            noisy_latents = self.train_scheduler.add_noise(
+                latents, noise, timesteps)
+            if self.train_scheduler.config.prediction_type == "epsilon":
+                target = noise
+            elif self.train_scheduler.config.prediction_type == "v_prediction":
+                target = self.train_scheduler.get_velocity(
+                    latents, noise, timesteps)
+            else:
+                raise Exception("Unknown training target of the UNet.")
+
+        elif isinstance(self.model, diffusers.SD3Transformer2DModel):
+            u = CrossviewTemporalSD.sd3_compute_density_for_timestep_sampling(
+                weighting_scheme=self.training_config
+                .get("weighting_scheme", "logit_normal"),
+                size=latents.shape[:timestep_shape_range],
+                logit_mean=0.0, logit_std=1.0, mode_scale=1.29)
+            timestep_indices = (
+                u * self.train_scheduler.config.num_train_timesteps
+            ).long()
+            timesteps = self.train_scheduler.timesteps[timestep_indices]\
+                .to(self.device)
+
+            # Add noise according to flow matching.
+            sigmas = CrossviewTemporalSD.sd3_get_sigmas(
+                self.train_scheduler, timestep_indices, n_dim=latents.ndim,
+                dtype=latents.dtype, device=latents.device)
+            noisy_latents = sigmas * noise + (1.0 - sigmas) * latents
+            target = latents
+
+        # make sure the timesteps in the shape of (b, t, v)
+        while len(timesteps.shape) < 3:
+            timesteps = timesteps.unsqueeze(-1)\
+                .repeat_interleave(latents.shape[len(timesteps.shape)], -1)
+
+        # prepare conditions
+        text_condition_mask = (
+            torch.rand((batch_size,), generator=self.generator) <
+            self.training_config.get("text_prompt_condition_ratio", 1.0))\
+            .tolist()
+        _3dbox_condition_mask = (
+            torch.rand((batch_size,), generator=self.generator) <
+            self.training_config.get("3dbox_condition_ratio", 1.0))\
+            .to(self.device)
+        hdmap_condition_mask = (
+            torch.rand((batch_size,), generator=self.generator) <
+            self.training_config.get("hdmap_condition_ratio", 1.0))\
+            .to(self.device)
+        action_condition_mask = (
+            torch.rand((batch_size,), generator=self.generator) <
+            self.training_config.get("action_condition_ratio", 1.0))
+        if self.common_config.get("explicit_view_modeling", False):
+            explicit_view_modeling_mask = (
+                torch.rand((batch_size,), generator=self.generator) <
+                self.training_config.get("explicit_view_modeling_ratio", 1.0))\
+                .to(self.device)
+        else:
+            explicit_view_modeling_mask = None
+
+        loss_dict = {}
+        with self.get_autocast_context():
+            model_conditions = CrossviewTemporalSD.get_conditions(
+                self.model,
+                self.text_encoders
+                if isinstance(self.model, diffusers.SD3Transformer2DModel)
+                else self.text_encoder,
+                self.tokenizers
+                if isinstance(self.model, diffusers.SD3Transformer2DModel)
+                else self.tokenizer,
+                self.common_config, batch["vae_images"].shape, batch,
+                self.device, self.model_dtype, text_condition_mask,
+                _3dbox_condition_mask, hdmap_condition_mask,
+                action_condition_mask, explicit_view_modeling_mask,
+                latents_shape=latents.shape)
+
+            reference_latent_count = self.get_reference_latent_count()
+            if self.training_config.get("extra_reference_infer", 0) > 0:
+                # NOTE: infer temporal vae with only reference frames
+                # This setting is more aligned with inference stage
+                extra_image_tensor = image_tensor[
+                    :, :, :self.training_config.get("extra_reference_infer", 0)]
+                extra_latents = dwm.functional.memory_efficient_split_call(
+                    self.vae, extra_image_tensor,
+                    lambda block, tensor: (
+                        block.encode(tensor).latent_dist.sample() -
+                        shift_factor
+                    ) * block.config.scaling_factor,
+                    self.common_config.get("memory_efficient_batch", -1))
+                if self.is_temporal_vae:
+                    extra_latents = einops.rearrange(
+                        extra_latents, "(b v) c t h w -> b t v c h w", v=view_count)
+                else:
+                    raise Exception("Not support now.")
+                latents_for_prediction = torch.cat(
+                    [extra_latents, latents[:, extra_latents.shape[1]:]], dim=1)
+            else:
+                latents_for_prediction = latents
+
+            noisy_latents, timesteps, additional_conditions, \
+                reference_frame_indicator = \
+                CrossviewTemporalSD.try_make_input_for_prediction(
+                    noisy_latents, latents_for_prediction, timesteps,
+                    self.training_config, self.common_config,
+                    generator=self.generator,
+                    reference_latent_count=reference_latent_count)
+            # Offline Stage-1 SRR pilot: only replace the visible reference
+            # frames.  The future target remains the GT latent encoded above;
+            # its flow-matching noise and timestep are unchanged.  Clean
+            # control batches never carry this key and follow the old path.
+            generated_history = batch.get("_srr_generated_history")
+            if generated_history is not None:
+                n_reference = generated_history.shape[1]
+                expected = (batch_size, n_reference, view_count,
+                            *noisy_latents.shape[3:])
+                if tuple(generated_history.shape) != expected:
+                    raise ValueError(
+                        f"SRR reference shape {tuple(generated_history.shape)} "
+                        f"does not match {expected}")
+                if not bool(reference_frame_indicator[:, :n_reference].all()) or \
+                        bool(reference_frame_indicator[:, n_reference:].any()):
+                    raise ValueError("SRR needs exactly the first reference frames visible")
+                if not bool((timesteps[:, :n_reference] == 0).all()):
+                    raise ValueError("SRR reference timesteps must be zero")
+                generated_history = generated_history.to(
+                    device=noisy_latents.device, dtype=noisy_latents.dtype)
+                # Optional training-only junction ablation.  It softens the
+                # last historical frame with its same-timestamp GT latent;
+                # it never changes future GT targets.  A deployed rollout
+                # cannot use this GT blend, so report it separately.
+                end_blend = float(batch.get("_srr_history_end_blend", 0.0))
+                if not 0 <= end_blend <= 1:
+                    raise ValueError("SRR history-end blend must be in [0,1]")
+                if end_blend:
+                    generated_history = generated_history.clone()
+                    generated_history[:, -1] = (
+                        (1 - end_blend) * generated_history[:, -1] +
+                        end_blend * latents_for_prediction[:, n_reference - 1])
+                noisy_latents[:, :n_reference] = generated_history
+            if additional_conditions is not None:
+                model_conditions.update(additional_conditions)
+            if getattr(self.model_wrapper, "mask_module", None) is not None:
+                model_conditions["noise"] = noise
+
+            # §12.3 train-time causal AR retrofit. The mask shape depends on
+            # the model's `temporal_attention_type`:
+            #   - "pointwise": dense (T, T) -inf upper-triangular (per spatial
+            #     position attention is over T tokens only).
+            #   - "rowwise" / "full": LongLive-style block-causal `BlockMask`
+            #     constructed via FlexAttention (sparse, GPU-efficient).
+            # The model's temporal block uses a custom AttnProcessor that
+            # dispatches to flex_attention when a BlockMask is passed; see
+            # `dwm_pano/models/flex_block_causal.py`.
+            _tam_setting = self.training_config.get("temporal_attention_mask")
+            if _tam_setting == "causal":
+                _T_seq = latents.shape[1]
+                _attn_type = self.model.temporal_attention_type
+                if _attn_type == "pointwise":
+                    _causal = torch.zeros(
+                        _T_seq, _T_seq,
+                        device=self.device, dtype=self.model_dtype)
+                    _causal.masked_fill_(
+                        torch.triu(
+                            torch.ones(_T_seq, _T_seq, dtype=torch.bool,
+                                       device=self.device),
+                            diagonal=1),
+                        float("-inf"))
+                    model_conditions["temporal_attention_mask"] = _causal
+                elif _attn_type in ("rowwise", "full"):
+                    from dwm_pano.models.flex_block_causal import \
+                        make_blockwise_causal_block_mask
+                    # latent shape: (B, T, V, C, H_lat, W_lat); after model
+                    # patch_embed each (h, w) is divided by patch_size into
+                    # (h/p, w/p) tokens.
+                    _Hp = latents.shape[4] // self.model.config.patch_size
+                    _Wp = latents.shape[5] // self.model.config.patch_size
+                    _frame_seqlen = (
+                        _Wp if _attn_type == "rowwise" else _Hp * _Wp)
+                    model_conditions["temporal_attention_mask"] = \
+                        make_blockwise_causal_block_mask(
+                            self.device, num_frames=_T_seq,
+                            frame_seqlen=_frame_seqlen)
+                else:
+                    raise ValueError(
+                        f"unsupported temporal_attention_type={_attn_type!r}")
+            elif _tam_setting is not None:
+                raise ValueError(
+                    f"training_config['temporal_attention_mask'] only accepts "
+                    f"'causal' or None; got {_tam_setting!r}")
+
+            # forward and calculate the loss
+            sd_pred, _, _ = self.model_wrapper(
+                noisy_latents, timesteps, **model_conditions)
+
+            sd_pred_latent = sd_pred[0] * (-sigmas) + noisy_latents \
+                if isinstance(self.model, diffusers.SD3Transformer2DModel) \
+                else sd_pred[0]
+
+            if self.training_config.get("disable_reference_frame_loss", False):
+                reference_frame_loss_mask = ~reference_frame_indicator.view(
+                    *sd_pred_latent.shape[:3], 1, 1, 1).to(sd_pred_latent.device)
+                sd_pred_latent = sd_pred_latent*(reference_frame_loss_mask)
+                target = target*(reference_frame_loss_mask)
+
+            loss_dict["sd_loss"] = torch.nn.functional.mse_loss(
+                sd_pred_latent.float(), target.float(), reduction="mean"
+            ) * self.get_loss_coef("sd")
+
+        if len(sd_pred) > 1:
+            depth_features = sd_pred[1]
+            loss_dict["depth_loss"] = \
+                CrossviewTemporalSD.make_depth_loss(
+                    batch_size, sequence_length, view_count,
+                    self.model.depth_frustum_range, batch, depth_features,
+                    self.get_loss_coef("d"),
+                    self.common_config["point_count_limit_per_view"],
+                    self.common_config["point_bundle_size"], self.device)
+
+        loss = torch.stack([i[1] for i in loss_dict.items()]).sum()
+        loss_report = {"loss": loss.item()}
+
+        # debug code
+        report_detail = self.common_config.get("report_detail", False)
+        if hasattr(self.model, "hidden_states_var") and report_detail:
+            loss_report["h_var"] = self.model.hidden_states_var
+
+        if hasattr(self.model, "encoder_hidden_states_var") and report_detail:
+            loss_report["eh_var"] = self.model.encoder_hidden_states_var
+
+        if hasattr(self.model, "temporal_embedding_var") and report_detail:
+            loss_report["se_var"] = self.model.temporal_embedding_var
+
+        if len(loss_dict.items()) > 1:
+            for i in loss_dict.items():
+                loss_report[i[0]] = i[1].item()
+
+        self.loss_report_list.append(loss_report)
+
+        # post-loss audit — first N steps print finite/dtype info so we don't
+        # discover NaN-on-step-10 in tfevents an hour later. Opt-in via env var.
+        _audit_n = int(os.environ.get("DWM_AUDIT_STEPS", "0"))
+        _is_rank0 = (
+            not torch.distributed.is_initialized()
+            or torch.distributed.get_rank() == 0)
+        if _audit_n > 0 and global_step < _audit_n and _is_rank0:
+            _loss_finite = bool(torch.isfinite(loss).item())
+            _p = next(self.model.parameters())
+            print(
+                f"[audit step={global_step}] "
+                f"loss={loss.item():.4f} finite={_loss_finite} "
+                f"loss.dtype={loss.dtype} param.dtype={_p.dtype} "
+                f"grad_scaler={self.training_config.get('enable_grad_scaler', False)}",
+                flush=True)
+
+        # GPU memory probe at the SPECIFIED step (DWM_MEM_PROBE_STEP, default 10).
+        # Prints torch.cuda allocated/reserved per-rank. Single-shot, fires once.
+        _mem_probe_step = int(os.environ.get("DWM_MEM_PROBE_STEP", "10"))
+        if global_step == _mem_probe_step:
+            _rank = (torch.distributed.get_rank()
+                     if torch.distributed.is_initialized() else 0)
+            _alloc = torch.cuda.memory_allocated() / (1024**3)
+            _reserv = torch.cuda.memory_reserved() / (1024**3)
+            _peak_alloc = torch.cuda.max_memory_allocated() / (1024**3)
+            _peak_reserv = torch.cuda.max_memory_reserved() / (1024**3)
+            _hostname = os.uname().nodename
+            print(
+                f"[mem-probe rank={_rank} host={_hostname} step={global_step}] "
+                f"alloc={_alloc:.1f}GB reserved={_reserv:.1f}GB "
+                f"peak_alloc={_peak_alloc:.1f}GB peak_reserved={_peak_reserv:.1f}GB",
+                flush=True)
+
+        if self.training_config.get("enable_grad_scaler", False):
+            self.grad_scaler.scale(loss).backward()
+        else:
+            loss.backward()
+
+        should_optimize = \
+            "gradient_accumulation_steps" not in self.training_config or \
+            (global_step + 1) % \
+            self.training_config["gradient_accumulation_steps"] == 0
+        if should_optimize:
+            if "max_norm_for_grad_clip" in self.training_config:
+                if self.training_config.get("enable_grad_scaler", False):
+                    self.grad_scaler.unscale_(self.optimizer)
+
+                if (
+                    torch.distributed.is_initialized() and
+                    self.distribution_framework == "fsdp"
+                ):
+                    self.model_wrapper.clip_grad_norm_(
+                        self.training_config["max_norm_for_grad_clip"])
+                else:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        self.training_config["max_norm_for_grad_clip"])
+
+            if self.training_config.get("enable_grad_scaler", False):
+                self.grad_scaler.step(self.optimizer)
+                self.grad_scaler.update()
+            else:
+                self.optimizer.step()
+
+            self.optimizer.zero_grad()
+
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step()
+
+        self.step_duration += time.time() - t0
+
+    def inference_pipeline(
+        self, latent_shape, batch, output_type, image_latents=None,
+        reference_frame_count: int = 0, start_timestep: int = 0,
+        stop_timestep=None, take_time: int = 0
+    ):
+        self.model_wrapper.eval()
+
+        diffusion_forcing_mode = (
+            "frame_prediction_style" in self.common_config and
+            self.common_config["frame_prediction_style"] == "diffusion_forcing"
+        )
+        if diffusion_forcing_mode:
+            clear_reference_frame_count = self.inference_config.get(
+                "clear_reference_frame_count", 0)
+            assert self.inference_config["inference_steps"] % \
+                (latent_shape[1] - clear_reference_frame_count) == 0
+            steps_per_inference = \
+                self.inference_config["inference_steps"] // \
+                (latent_shape[1] - clear_reference_frame_count)
+
+        do_classifier_free_guidance = "guidance_scale" in self.inference_config
+        guidance_scale = self.inference_config.get("guidance_scale", 1)
+
+        preview_depth = self.model.depth_net is not None and \
+            "camera_intrinsics" in batch and "camera_transforms" in batch
+        depth_result = []
+
+        shift_factor = self.vae.config.shift_factor \
+            if self.vae.config.shift_factor is not None else 0
+        self.test_scheduler.set_timesteps(
+            self.inference_config["inference_steps"], self.device)
+        if diffusion_forcing_mode and image_latents is not None:
+            latents = image_latents
+        else:
+            # full sequence denoising
+            latents = torch\
+                .randn(latent_shape, generator=self.generator).to(self.device) * \
+                getattr(self.test_scheduler, "init_noise_sigma", 1)
+
+        model_conditions = CrossviewTemporalSD.get_conditions(
+            self.model,
+            self.text_encoders
+            if isinstance(self.model, diffusers.SD3Transformer2DModel)
+            else self.text_encoder,
+            self.tokenizers
+            if isinstance(self.model, diffusers.SD3Transformer2DModel)
+            else self.tokenizer,
+            self.common_config, latent_shape, batch, self.device,
+            self.model_dtype,
+            do_classifier_free_guidance=do_classifier_free_guidance,
+            latents_shape=latents.shape)
+
+        # §12.3 causal AR retrofit (mirrors train_step). Mask shape depends on
+        # the model's `temporal_attention_type`:
+        #   - "pointwise": dense (T, T) -inf upper-triangular.
+        #   - "rowwise" / "full": LongLive-style block-causal `BlockMask` via
+        #     FlexAttention (see `dwm_pano/models/flex_block_causal.py`).
+        # CFG cond+uncond batches share the same mask (B=H=None for BlockMask;
+        # 2D dense mask is broadcast by the model's _expand_temporal_mask).
+        _tam_setting = self.inference_config.get("temporal_attention_mask")
+        if _tam_setting == "causal":
+            _T_seq = latent_shape[1]
+            _attn_type = getattr(
+                self.model, "temporal_attention_type", "pointwise")
+            if _attn_type == "pointwise":
+                _causal = torch.zeros(
+                    _T_seq, _T_seq, device=self.device, dtype=self.model_dtype)
+                _causal.masked_fill_(
+                    torch.triu(
+                        torch.ones(_T_seq, _T_seq, dtype=torch.bool,
+                                   device=self.device),
+                        diagonal=1),
+                    float("-inf"))
+                model_conditions["temporal_attention_mask"] = _causal
+            elif _attn_type in ("rowwise", "full"):
+                from dwm_pano.models.flex_block_causal import \
+                    make_blockwise_causal_block_mask
+                _Hp = latent_shape[4] // self.model.config.patch_size
+                _Wp = latent_shape[5] // self.model.config.patch_size
+                _frame_seqlen = (
+                    _Wp if _attn_type == "rowwise" else _Hp * _Wp)
+                model_conditions["temporal_attention_mask"] = \
+                    make_blockwise_causal_block_mask(
+                        self.device, num_frames=_T_seq,
+                        frame_seqlen=_frame_seqlen)
+            else:
+                raise ValueError(
+                    f"unsupported temporal_attention_type={_attn_type!r}")
+        elif _tam_setting is not None:
+            raise ValueError(
+                f"inference_config['temporal_attention_mask'] only accepts "
+                f"'causal' or None; got {_tam_setting!r}")
+
+        result = {}
+        stop_timestep = (
+            self.inference_config["inference_steps"]
+            if stop_timestep is None
+            else stop_timestep
+        )
+        for i in range(start_timestep, stop_timestep):
+            # make the denoising timesteps
+            if diffusion_forcing_mode:
+                timestep_indices = torch\
+                    .tensor([
+                        min(
+                            i - take_time * steps_per_inference,
+                            max(0, i - j * steps_per_inference))
+                        for j in range(latent_shape[1])
+                    ], dtype=torch.int32, device=self.device).unsqueeze(0)\
+                    .unsqueeze(-1).repeat(latent_shape[0], 1, latent_shape[2])
+                timesteps = self.test_scheduler.timesteps[timestep_indices]
+            else:
+                t = self.test_scheduler.timesteps[i]
+                timesteps = t.unsqueeze(-1).unsqueeze(-1)\
+                    .repeat(*latent_shape[:3])
+
+            latent_model_input = latents
+            if not diffusion_forcing_mode and image_latents is not None:
+                # the reference frame injection for the full sequence denoising
+                latent_model_input = torch.cat([
+                    image_latents[:, :reference_frame_count],
+                    latent_model_input[:, reference_frame_count:]
+                ], 1)
+                timesteps = torch.cat([
+                    torch.zeros((
+                        timesteps.shape[0], reference_frame_count,
+                        timesteps.shape[2]
+                    ), dtype=timesteps.dtype, device=self.device),
+                    timesteps[:, reference_frame_count:]
+                ], 1)
+
+            latent_model_input = latent_model_input.to(dtype=self.model_dtype)
+            if hasattr(self.test_scheduler, "scale_model_input"):
+                latent_model_input = self.test_scheduler\
+                    .scale_model_input(
+                        latent_model_input,
+                        timesteps if diffusion_forcing_mode else t)\
+                    .to(dtype=self.model_dtype)
+
+            if do_classifier_free_guidance:
+                latent_model_input = torch.cat(
+                    [latent_model_input, latent_model_input])
+                timesteps_input = torch.cat([timesteps, timesteps])
+            else:
+                timesteps_input = timesteps
+
+            with self.get_autocast_context():
+                model_output, _, _ = self.model_wrapper(
+                    latent_model_input, timesteps_input, **model_conditions)
+
+            # update the noisy latent
+            noise_pred = model_output[0]
+            if do_classifier_free_guidance:
+                noise_pred_uncond, noise_pred_cond = noise_pred.chunk(2)
+                noise_pred = noise_pred_uncond + guidance_scale * \
+                    (noise_pred_cond - noise_pred_uncond)
+
+            if diffusion_forcing_mode:
+                if hasattr(self.test_scheduler, "step_by_indices"):
+                    staging_latents = self.test_scheduler.step_by_indices(
+                        noise_pred, timestep_indices.cpu(), latents
+                    ).prev_sample
+                else:
+                    staging_latents = self.test_scheduler\
+                        .step(noise_pred, timesteps.cpu(), latents).prev_sample
+
+                # only update the latents in the schedule range so finally the
+                # timesteps in the queue become progrssive
+                in_schedule_range = torch\
+                    .tensor([
+                        i - j * steps_per_inference >= 0
+                        for j in range(latent_shape[1])
+                    ], device=self.device).unsqueeze(0).unsqueeze(-1)\
+                    .unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                latents = torch.where(
+                    in_schedule_range, staging_latents, latents)
+            else:
+                latents = self.test_scheduler.step(noise_pred, t, latents)\
+                    .prev_sample
+
+            # update the depth visualization
+            if preview_depth and len(model_output) > 1:
+                depth_features = model_output[1].chunk(2)[1] \
+                    if do_classifier_free_guidance else model_output[1]
+
+                noisy_image_tensor = dwm.functional.memory_efficient_split_call(
+                    self.vae, latents.flatten(0, 2).to(dtype=self.vae.dtype),
+                    lambda block, tensor: block.decode(
+                        tensor / block.config.scaling_factor + shift_factor,
+                        return_dict=False
+                    )[0],
+                    self.common_config.get("memory_efficient_batch", -1))
+                noisy_images = self.image_processor.postprocess(
+                    noisy_image_tensor, output_type="pt")
+
+                depth_images = (
+                    1 - depth_features.argmax(-3) / depth_features.shape[-3]
+                ).flatten(0, 2).unsqueeze(1)
+                depth_images = torch.nn.functional.interpolate(
+                    depth_images, noisy_images.shape[-2:])
+                depth_images = depth_images.unflatten(0, latents.shape[:3])\
+                    .repeat_interleave(3, dim=-3).permute(3, 0, 1, 4, 2, 5)
+                noisy_images = noisy_images.unflatten(0, latents.shape[:3])\
+                    .permute(3, 0, 1, 4, 2, 5)
+                depth_result.append(
+                    torch.cat([noisy_images, depth_images], -3).flatten(-2)
+                    .flatten(-4, -2))
+
+        if diffusion_forcing_mode:
+            # NOTE if is_temporal_vae, the tranport of different duration is not straightforward
+            # which mean: for time-window_pos, [0-0, 1-1, 2-2] --(out 0-0)--> [1-0, 2-1, 3-2] is required
+            # this coming from that temporal vae is not position independent
+            cur_latents = latents[:, take_time].flatten(
+                0, 1).to(dtype=self.vae.dtype)
+            if self.is_temporal_vae:
+                view_count = latents.shape[2]
+                cur_latents = torch.cat(
+                    [cur_latents[:, :, None], cur_latents[:, :, None]*0], dim=2)
+            image_tensor = self.vae.decode(
+                cur_latents / self.vae.config.scaling_factor + shift_factor,
+                return_dict=False)[0]
+            if self.is_temporal_vae:
+                image_tensor = image_tensor.chunk(2, dim=2)[0]
+                image_tensor = einops.rearrange(
+                    image_tensor, "(b v) c t h w -> (b t v) c h w", v=view_count)
+        else:
+            if image_latents is not None:
+                latents = torch.cat([
+                    image_latents[:, :reference_frame_count],
+                    latents[:, reference_frame_count:]
+                ], 1)
+            if self.is_temporal_vae:
+                view_count = latents.shape[2]
+                cur_latents = einops.rearrange(
+                    latents, "b t v c h w -> (b v) c t h w")
+            else:
+                cur_latents = latents.flatten(0, 2)
+            image_tensor = dwm.functional.memory_efficient_split_call(
+                self.vae, cur_latents.to(dtype=self.vae.dtype),
+                lambda block, tensor: block.decode(
+                    tensor / block.config.scaling_factor + shift_factor,
+                    return_dict=False
+                )[0],
+                self.common_config.get("memory_efficient_batch", -1))
+            if self.is_temporal_vae:
+                image_tensor = einops.rearrange(
+                    image_tensor, "(b v) c t h w -> (b t v) c h w", v=view_count)
+
+        result = {
+            "images": self.image_processor.postprocess(
+                image_tensor, output_type=output_type),
+            "latents": latents
+        }
+        if preview_depth and len(model_output) > 1:
+            result["depth"] = depth_result
+            result["depth_features"] = depth_features
+
+        return result
+
+    def autoregressive_inference_pipeline(
+        self, latent_shape, batch, output_type
+    ):
+        total_frame_count = batch["pts"].shape[1]
+        diffusion_forcing_mode = (
+            "frame_prediction_style" in self.common_config and
+            self.common_config["frame_prediction_style"] == "diffusion_forcing"
+        )
+        if diffusion_forcing_mode:
+            # Relaxed 2026-04-28 from `>` to `>=` to support single-iteration AR
+            # (total_frame_count == sl_per_iter, e.g. our 16-frame clip with
+            # sl_per_iter=16 + reference_frame_count=15: 1 iteration generating
+            # frame 15 given frames 0-14 as reference). The AR loop body
+            # `range(0, total-sl_per_iter+1, sl_per_iter-ref_frame_count)`
+            # = `range(0, 1, 1)` = [0] handles this correctly.
+            assert total_frame_count >= \
+                self.inference_config["sequence_length_per_iteration"]
+            clear_reference_frame_count = self.inference_config.get(
+                "clear_reference_frame_count", 0)
+            steps_per_inference = \
+                self.inference_config["inference_steps"] // \
+                (latent_shape[1] - clear_reference_frame_count)
+            queue_head = -1
+
+        reference_frame_count = self.inference_config.get(
+            "reference_frame_count", 1)
+        if self.inference_config.get("generate_frames_for_reference", True):
+            image_latents = None
+        else:
+            raw_image_tensor = \
+                batch["vae_images"][:, :reference_frame_count]
+            image_tensor = self.image_processor.preprocess(
+                raw_image_tensor.flatten(0, 2).to(self.device))
+            shift_factor = self.vae.config.shift_factor \
+                if self.vae.config.shift_factor is not None else 0
+            # use different shape for 3D and 2D vae
+            if self.is_temporal_vae:
+                image_tensor = einops.rearrange(image_tensor, "(b t v) c h w -> (b v) c t h w",
+                                                t=raw_image_tensor.shape[1], v=raw_image_tensor.shape[2])
+            image_latents = dwm.functional.memory_efficient_split_call(
+                self.vae, image_tensor,
+                lambda block, tensor: (
+                    block.encode(tensor).latent_dist.mode() - shift_factor
+                ) * block.config.scaling_factor,
+                self.common_config.get("memory_efficient_batch", -1))
+            if self.is_temporal_vae:
+                image_latents = einops.rearrange(
+                    image_latents, "(b v) c t h w -> b t v c h w", v=raw_image_tensor.shape[2])
+            else:
+                image_latents = image_latents.unflatten(
+                    0, raw_image_tensor.shape[:3])
+
+        result = {
+            "images": []
+        }
+        iteration_sequence_length = self.inference_config["sequence_length_per_iteration"]
+        exception_for_take_sequence = self.inference_config.get(
+            "autoregression_data_exception_for_take_sequence", [])
+        if diffusion_forcing_mode:
+            iteration_batch = {
+                k: (
+                    v
+                    if k in exception_for_take_sequence
+                    else dwm.functional.take_sequence_clip(
+                        v, 0, iteration_sequence_length)
+                )
+                for k, v in batch.items()
+            }
+            stop_timestep = self.inference_config["inference_steps"] - \
+                steps_per_inference
+            iteration_output = self.inference_pipeline(
+                latent_shape, iteration_batch, output_type, image_latents,
+                reference_frame_count=0, start_timestep=0,
+                stop_timestep=stop_timestep)
+            image_latents = iteration_output["latents"]
+
+        for i in range(
+            0, total_frame_count - iteration_sequence_length + 1,
+            iteration_sequence_length - reference_frame_count
+        ):
+            iteration_batch = {
+                k: (
+                    v
+                    if k in exception_for_take_sequence
+                    else dwm.functional.take_sequence_clip(
+                        v, i, i + iteration_sequence_length)
+                )
+                for k, v in batch.items()
+            }
+
+            # prepare the reference frames
+            this_ref_frame_count = 0 if image_latents is None \
+                else reference_frame_count
+            if diffusion_forcing_mode:
+                if queue_head < clear_reference_frame_count:
+                    this_ref_frame_count = latent_shape[1]
+                    queue_head += 1
+
+                iteration_output = self.inference_pipeline(
+                    latent_shape, iteration_batch, output_type, image_latents,
+                    reference_frame_count=this_ref_frame_count,
+                    start_timestep=(
+                        self.inference_config["inference_steps"] +
+                        (queue_head - 1) * steps_per_inference
+                    ),
+                    stop_timestep=(
+                        self.inference_config["inference_steps"] +
+                        queue_head * steps_per_inference
+                    ),
+                    take_time=queue_head)
+                if self.is_temporal_vae and i == 0:
+                    result["images"].append(
+                        iteration_output["images"].chunk(4)[-1])
+                else:
+                    result["images"].append(iteration_output["images"])
+                is_finished = torch.tensor(
+                    [j <= queue_head for j in range(latent_shape[1])],
+                    device=self.device
+                ).unflatten(0, (1, -1, 1, 1, 1, 1))
+                image_latents = torch.where(
+                    is_finished, image_latents, iteration_output["latents"])
+                if (
+                    queue_head == clear_reference_frame_count and
+                    i + iteration_sequence_length - reference_frame_count <
+                    total_frame_count - iteration_sequence_length + 1
+                ):
+                    # dequeue and enqueue
+                    image_latents = torch.cat([
+                        image_latents[:, 1:],
+                        torch.randn(
+                            (latent_shape[0], 1) + latent_shape[2:],
+                            generator=self.generator).to(self.device) *
+                        getattr(self.test_scheduler, "init_noise_sigma", 1)
+                    ], 1)
+
+            else:
+                iteration_output = self.inference_pipeline(
+                    latent_shape, iteration_batch, output_type, image_latents,
+                    reference_frame_count=self.get_latent_sequence_length(
+                        this_ref_frame_count))
+                result["images"].append(
+                    iteration_output["images"]
+                    [latent_shape[0] * this_ref_frame_count * latent_shape[2]:])
+                if (
+                    i + iteration_sequence_length - reference_frame_count <
+                    total_frame_count - iteration_sequence_length + 1
+                ):
+                    reference_latent_count = self.get_latent_sequence_length(
+                        reference_frame_count)
+                    image_latents = iteration_output["latents"][
+                        :, -reference_latent_count:
+                    ]
+
+        if diffusion_forcing_mode:
+            # flushing the tailing frames by reusing the last iteration_batch
+            for i in range(queue_head + 1, latent_shape[1]):
+                stop_timestep = (
+                    self.inference_config["inference_steps"] +
+                    (i + 1) * steps_per_inference
+                )
+                iteration_output = self.inference_pipeline(
+                    latent_shape, iteration_batch, output_type, image_latents,
+                    reference_frame_count=latent_shape[1],
+                    start_timestep=(
+                        self.inference_config["inference_steps"] +
+                        (i - 1) * steps_per_inference
+                    ),
+                    stop_timestep=(
+                        self.inference_config["inference_steps"] +
+                        i * steps_per_inference
+                    ),
+                    take_time=i)
+                result["images"].append(iteration_output["images"])
+                is_finished = torch.tensor(
+                    [j <= i for j in range(latent_shape[1])],
+                    device=self.device
+                ).unflatten(0, (1, -1, 1, 1, 1, 1))
+                image_latents = torch.where(
+                    is_finished, image_latents, iteration_output["latents"])
+
+        if output_type == "pt":
+            result["images"] = torch.cat(result["images"])
+
+        return result
+
+    @torch.no_grad()
+    def preview_pipeline(
+        self, batch: dict, output_path: str, global_step: int
+    ):
+        batch_size, sequence_length, view_count = batch["vae_images"].shape[:3]
+        latent_height = batch["vae_images"].shape[-2] // \
+            (2 ** (len(self.vae.config.down_block_types) - 1))
+        latent_width = batch["vae_images"].shape[-1] // \
+            (2 ** (len(self.vae.config.down_block_types) - 1))
+        if "sequence_length_per_iteration" in self.inference_config:
+            latent_shape = (
+                batch_size,
+                self.get_latent_sequence_length(
+                    self.inference_config["sequence_length_per_iteration"]),
+                view_count, self.vae.config.latent_channels, latent_height,
+                latent_width
+            )
+            pipeline_output = self.autoregressive_inference_pipeline(
+                latent_shape, batch, "pt")
+        else:
+            latent_shape = (
+                batch_size, self.get_latent_sequence_length(
+                    sequence_length), view_count,
+                self.vae.config.latent_channels, latent_height,
+                latent_width
+            )
+            pipeline_output = self.inference_pipeline(
+                latent_shape, batch, "pt")
+
+        if self.should_save or (
+            torch.distributed.is_initialized() and
+            self.inference_config.get("all_rank_preview", False)
+        ):
+            os.makedirs(os.path.join(output_path, "preview"), exist_ok=True)
+            filename = (
+                "{}_{}".format(global_step, torch.distributed.get_rank())
+                if self.inference_config.get("all_rank_preview", False)
+                else str(global_step)
+            )
+            preview_tensor = dwm.utils.preview.make_ctsd_preview_tensor(
+                pipeline_output["images"], batch, self.inference_config)
+            if sequence_length == 1:
+                image_output_path = os.path.join(
+                    output_path, "preview", "{}.png".format(filename))
+                torchvision.transforms.functional.to_pil_image(preview_tensor)\
+                    .save(image_output_path)
+            else:
+                video_output_path = os.path.join(
+                    output_path, "preview", "{}.mp4".format(filename))
+                dwm.utils.preview.save_tensor_to_video(
+                    video_output_path, "libx264", batch["fps"][0].item(),
+                    preview_tensor)
+
+            preview_depth = self.model.depth_net is not None and \
+                "camera_intrinsics" in batch and "camera_transforms" in batch
+            if preview_depth and "depth" in pipeline_output:
+                os.makedirs(os.path.join(
+                    output_path, "preview_depth"), exist_ok=True)
+                video_output_path = os.path.join(
+                    output_path, "preview_depth", "{}.mp4".format(filename))
+                dwm.utils.preview.save_tensor_to_video(
+                    video_output_path, "libx264", 5, pipeline_output["depth"])
+
+    @torch.no_grad()
+    def evaluate_pipeline(
+        self, global_step: int, dataset_length: int,
+        validation_dataloader: torch.utils.data.DataLoader,
+        validation_datasampler=None
+    ):
+        if torch.distributed.is_initialized():
+            validation_datasampler.set_epoch(0)
+
+        world_size = torch.distributed.get_world_size() \
+            if torch.distributed.is_initialized() else 1
+        iteration_count = \
+            self.inference_config["evaluation_item_count"] // world_size \
+            if "evaluation_item_count" in self.inference_config else None
+        # Manual per-batch print for eval progress (rank 0 only). tqdm in
+        # non-tty mode (SLURM log redirect) silently buffers — even with
+        # mininterval, updates only flush at iteration boundaries which
+        # require very long inference time (193s/clip), so tqdm output
+        # lags hard. Plain print(flush=True) works reliably.
+        _eval_total = (
+            iteration_count if iteration_count is not None
+            else len(validation_dataloader))
+        if self.should_save:
+            import time
+            _eval_t0 = time.time()
+            print(f"[eval] step={global_step} starting "
+                  f"({_eval_total} batches/rank × {world_size} ranks "
+                  f"= {_eval_total * world_size} clips total) ...",
+                  flush=True)
+        for i, batch in enumerate(validation_dataloader):
+            batch_size, sequence_length, view_count = \
+                batch["vae_images"].shape[:3]
+            if (
+                iteration_count is not None and
+                i * batch_size >= iteration_count
+            ):
+                break
+
+            latent_height = batch["vae_images"].shape[-2] // \
+                (2 ** (len(self.vae.config.down_block_types) - 1))
+            latent_width = batch["vae_images"].shape[-1] // \
+                (2 ** (len(self.vae.config.down_block_types) - 1))
+            if "sequence_length_per_iteration" in self.inference_config:
+                latent_shape = (
+                    batch_size,
+                    self.get_latent_sequence_length(
+                        self.inference_config["sequence_length_per_iteration"]),
+                    view_count, self.vae.config.latent_channels, latent_height,
+                    latent_width
+                )
+                pipeline_output = self.autoregressive_inference_pipeline(
+                    latent_shape, batch, "pt")
+            else:
+                latent_shape = (
+                    batch_size, self.get_latent_sequence_length(
+                        sequence_length), sequence_length, view_count,
+                    self.vae.config.latent_channels, latent_height,
+                    latent_width
+                )
+                pipeline_output = self.inference_pipeline(
+                    latent_shape, batch, "pt")
+
+            # Pano dedup: stitch V=2 halves into V=1 panorama. See
+            # `stitch_pano_halves`; hard butt-joint unless
+            # PANDWM_PANO_BLEND_W asks for a cross-fade.
+            _stitch_pano = stitch_pano_halves
+
+            if "fid" in self.metrics:
+                fake_images = pipeline_output["images"]\
+                    .unflatten(0, (batch_size, -1, view_count))
+                start = 0 \
+                    if "sequence_length_per_iteration" \
+                    not in self.inference_config \
+                    or self.inference_config.get(
+                        "generate_frames_for_reference", True) \
+                    else self.inference_config.get("reference_frame_count", 1)
+                stop = start + fake_images.shape[1]
+                _real_stitched = _stitch_pano(
+                    batch["vae_images"][:, start:stop].to(self.device))
+                _fake_stitched = _stitch_pano(fake_images)
+                self.metrics["fid"].update(
+                    _real_stitched.flatten(0, 2), real=True)
+                self.metrics["fid"].update(
+                    _fake_stitched.flatten(0, 2), real=False)
+
+            if "fvd" in self.metrics:
+                fake_images = pipeline_output["images"]\
+                    .unflatten(0, (batch_size, -1, view_count))
+                start = 0 \
+                    if "sequence_length_per_iteration" \
+                    not in self.inference_config \
+                    or self.inference_config.get(
+                        "generate_frames_for_reference", True) \
+                    else self.inference_config.get("reference_frame_count", 1)
+                stop = start + fake_images.shape[1]
+                _real_stitched = _stitch_pano(
+                    batch["vae_images"][:, start:stop].to(self.device))
+                _fake_stitched = _stitch_pano(fake_images)
+                self.metrics["fvd"].update(
+                    einops.rearrange(
+                        _real_stitched, "b t v c h w -> (b v) t c h w"),
+                    real=True)
+                self.metrics["fvd"].update(
+                    einops.rearrange(
+                        _fake_stitched, "b t v c h w -> (b v) t c h w"),
+                    real=False)
+
+                # Instance appearance consistency reuses the panoramas the
+                # FVD block just stitched. Unlike FVD it needs to know *which*
+                # object sits where, so it also takes the frame timestamps and
+                # looks the GT boxes up itself -- no dataset schema change.
+                # Dispatch by type, not by the literal key "iac": several
+                # arms of this metric (one per descriptor) run side by side in
+                # one evaluation and must each carry a distinct config key.
+                # Name-keyed dispatch silently fed none of them and every arm
+                # reported nan with pairs=0.
+                from dwm_pano.metrics.instance_consistency import (
+                    InstanceAppearanceConsistency)
+                _iac = [m for m in self.metrics.values()
+                        if isinstance(m, InstanceAppearanceConsistency)]
+                if _iac:
+                    if "frame_timestamps_us" not in batch:
+                        raise KeyError(
+                            "the iac metric needs batch['frame_timestamps_us']; "
+                            "rebuild the dataset with a version that emits it")
+                    _ts = batch["frame_timestamps_us"][:, start:stop]
+                    for _metric in _iac:
+                        _metric.update(
+                            _real_stitched[:, :, 0], _ts, real=True)
+                        _metric.update(
+                            _fake_stitched[:, :, 0], _ts, real=False)
+
+                # Seam profile and temporal smoothness both score exactly the
+                # panoramas the FVD block stitched, so a run that carries them
+                # reports numbers about the same pixels FVD saw.
+                if "seam" in self.metrics:
+                    _real_halves = batch["vae_images"][:, start:stop]\
+                        .to(self.device)
+                    self.metrics["seam"].update(
+                        _real_stitched[:, :, 0], real=True)
+                    self.metrics["seam"].update(
+                        _fake_stitched[:, :, 0], real=False)
+                    self.metrics["seam"].update_halves(
+                        _real_halves, real=True)
+                    self.metrics["seam"].update_halves(
+                        fake_images, real=False)
+
+                if "smooth" in self.metrics:
+                    self.metrics["smooth"].update(
+                        _real_stitched[:, :, 0], real=True)
+                    self.metrics["smooth"].update(
+                        _fake_stitched[:, :, 0], real=False)
+
+                # Paired, so it takes both arms in one call.
+                if "frameprof" in self.metrics:
+                    self.metrics["frameprof"].update(
+                        _fake_stitched[:, :, 0], _real_stitched[:, :, 0])
+
+                # Protocol bridge: resample the very panoramas FVD just
+                # scored into the six REAL nuScenes cameras, so this arm can
+                # be stated in the space published numbers live in. Needs the
+                # batch because the calibration is per sample -- and it must
+                # be the `pano_camera_*` keys, which hold the real rig; the
+                # `camera_*` keys are the virtual pano camera. Band limited by
+                # construction (the pano is a +-16.67 deg band), so its output
+                # is never comparable to a published full-frame number.
+                if "n6bridge" in self.metrics:
+                    self.metrics["n6bridge"].update_from_canvas(
+                        _real_stitched[:, :, 0], batch, start, real=True)
+                    self.metrics["n6bridge"].update_from_canvas(
+                        _fake_stitched[:, :, 0], batch, start, real=False)
+
+            # ``n6bridge`` is also a complete standalone FVD instrument.  It
+            # must not silently depend on enabling the legacy panorama
+            # metric merely because both need the same stitched canvas.  The
+            # branch above reuses the panorama FVD tensors when available;
+            # this branch constructs them only for a bridge-only run.
+            if "n6bridge" in self.metrics and "fvd" not in self.metrics:
+                fake_images = pipeline_output["images"]\
+                    .unflatten(0, (batch_size, -1, view_count))
+                start = 0 \
+                    if "sequence_length_per_iteration" \
+                    not in self.inference_config \
+                    or self.inference_config.get(
+                        "generate_frames_for_reference", True) \
+                    else self.inference_config.get("reference_frame_count", 1)
+                stop = start + fake_images.shape[1]
+                _real_stitched = _stitch_pano(
+                    batch["vae_images"][:, start:stop].to(self.device))
+                _fake_stitched = _stitch_pano(fake_images)
+                self.metrics["n6bridge"].update_from_canvas(
+                    _real_stitched[:, :, 0], batch, start, real=True)
+                self.metrics["n6bridge"].update_from_canvas(
+                    _fake_stitched[:, :, 0], batch, start, real=False)
+
+            # Metric-standardization hook. Off unless PANDWM_FID_DUMP_DIR is
+            # set, so the frozen eval protocol is untouched by default. When
+            # on, it persists the same stitched panoramas the fid/fvd blocks
+            # above just scored, letting an ADM/TensorFlow evaluator score
+            # identical pixels and pin a torchmetrics <-> ADM conversion.
+            _fid_dump_dir = os.environ.get("PANDWM_FID_DUMP_DIR")
+            if _fid_dump_dir:
+                fake_images = pipeline_output["images"]\
+                    .unflatten(0, (batch_size, -1, view_count))
+                start = 0 \
+                    if "sequence_length_per_iteration" \
+                    not in self.inference_config \
+                    or self.inference_config.get(
+                        "generate_frames_for_reference", True) \
+                    else self.inference_config.get("reference_frame_count", 1)
+                stop = start + fake_images.shape[1]
+                dump_stitched_panos(
+                    _fid_dump_dir, global_step, i,
+                    torch.distributed.get_rank()
+                    if torch.distributed.is_initialized() else 0,
+                    _stitch_pano(
+                        batch["vae_images"][:, start:stop].to(self.device)),
+                    _stitch_pano(fake_images))
+
+            if "rmse" in self.metrics:
+                # the depth evaluation only available for non-temporal mode
+                assert "sequence_length_per_iteration" \
+                    not in self.inference_config
+
+                preds_target_generator = CrossviewTemporalSD\
+                    .enum_depth_preds_and_targets(
+                        *batch["vae_images"].shape[:3],
+                        self.model.depth_frustum_range, batch,
+                        pipeline_output["depth_features"],
+                        self.common_config["point_count_limit_per_view"],
+                        self.common_config["point_bundle_size"], self.device)
+                for preds, target in preds_target_generator:
+                    self.metrics["rmse"].update(preds, target)
+
+            # Per-batch eval progress (rank 0). Each iteration of this loop
+            # processes one clip batch (~193s at 256x2304 high res). Print
+            # after each batch so log shows live progress without tqdm magic.
+            if self.should_save:
+                _elapsed = time.time() - _eval_t0
+                _per_batch = _elapsed / (i + 1)
+                _eta = _per_batch * (_eval_total - i - 1)
+                print(
+                    f"[eval] step={global_step} "
+                    f"batch {i+1}/{_eval_total} "
+                    f"elapsed {_elapsed:.0f}s "
+                    f"per-batch {_per_batch:.0f}s "
+                    f"ETA {_eta:.0f}s",
+                    flush=True)
+
+        text = "Step {},".format(global_step)
+        # Mirror eval scalars to wandb (rank 0 only).
+        _wandb_run = None
+        try:
+            import wandb
+            _wandb_run = wandb.run
+        except ImportError:
+            pass
+        _wandb_eval_dict = {}
+        per_camera_lines = []
+        for k, metric in self.metrics.items():
+            value = metric.compute()
+            # Must run before `reset()` clears the accumulators.
+            per_camera = None
+            if hasattr(metric, "compute_per_camera"):
+                try:
+                    per_camera = metric.compute_per_camera()
+                except RuntimeError as e:
+                    # Too few samples per camera is not worth losing an
+                    # otherwise finished evaluation over.
+                    print("[per-camera {}] skipped: {}".format(k, e))
+            metric.reset()
+
+            # Some metrics report a family of related numbers (e.g. `iac`
+            # returns its ratio alongside the raw drifts and the separation
+            # sanity companion, which must be read together).
+            items = list(value.items()) if isinstance(value, dict) \
+                else [(k, value)]
+            for label, number in items:
+                # A metric may report a non-numeric field (a mode name, a
+                # backbone id). Formatting it with `{:.3f}` used to raise at
+                # the very end of an evaluation, throwing away every generated
+                # sample; print it and skip the scalar logging instead.
+                if isinstance(number, (bool, str)):
+                    text += " {}: {}".format(label, number)
+                    continue
+                text += " {}: {:.3f}".format(label, number)
+                if self.should_save:
+                    self.summary.add_scalar(
+                        "evaluation/{}".format(label), number, global_step)
+                    _wandb_eval_dict[f"evaluation/{label}"] = float(number)
+
+            if per_camera is not None and self.should_save:
+                # Reported on its own line so the existing
+                # "Step N, fid: .. fvd: .." format stays parseable.
+                per_camera_lines.append(
+                    "Step {}, per-camera {}: {}".format(
+                        global_step, k, " ".join(
+                            "{}={:.3f}".format(name, v)
+                            for name, v in per_camera.items())))
+                for name, v in per_camera.items():
+                    self.summary.add_scalar(
+                        "evaluation/{}_{}".format(k, name), v, global_step)
+                    _wandb_eval_dict[f"evaluation/{k}_{name}"] = float(v)
+
+        if self.should_save:
+            print(text)
+            for line in per_camera_lines:
+                print(line)
+            if _wandb_run is not None and _wandb_eval_dict:
+                _wandb_run.log(_wandb_eval_dict, step=global_step)
+
+
+class PanoCrossviewTemporalSD(CrossviewTemporalSD):
+    """2-pano fork of CrossviewTemporalSD.
+
+    Renamed 2026-04-28 from `StreamingCrossviewTemporalSD` (the old name was
+    misleading because the class supports BOTH full-clip and streaming
+    inference via `inference_config["sequence_length_per_iteration"]`, and
+    BOTH bidirectional and causal training/inference via
+    `training_config["temporal_attention_mask"]` /
+    `inference_config["temporal_attention_mask"]`).
+
+    Backward-compat alias `StreamingCrossviewTemporalSD` is kept below so
+    legacy configs (A4/A4.5/A5.1, overfit, etc.) loading by class-name string
+    still resolve. New configs should use `PanoCrossviewTemporalSD`.
+    """
+
+    def reset_streaming(self, latent_shape, output_type):
+        assert (
+            "frame_prediction_style" in self.common_config and
+            self.common_config["frame_prediction_style"] == "diffusion_forcing"
+        )
+
+        self.conditions = {}
+        self.condition_count = 0
+        self.latents = None
+        self.text_prompt_counter = 0
+        self.frames = []
+        self.latent_shape = latent_shape
+        self.output_type = output_type
+        self.test_scheduler.set_timesteps(
+            self.inference_config["inference_steps"], self.device)
+
+        # cache the last ego transform to calculate the action
+        self.prev_ego_transforms = None
+
+    def _fifo_step(
+        self, latent_shape, start_timestep: int = 0, stop_timestep=None,
+        take_time: int = 0
+    ):
+        # Renamed 2026-04-28 from `inference_pipeline` (which shadowed the parent
+        # CrossviewTemporalSD.inference_pipeline at line 1544 with a different
+        # signature). Parent's autoregressive_inference_pipeline /
+        # evaluate_pipeline / preview_pipeline (else branch) call
+        # self.inference_pipeline(reference_frame_count=N), which TypeError'd
+        # when our streaming override was dispatched. After rename, parent paths
+        # see the parent's signature, while fifo_inference_pipeline (streaming
+        # AR helper, dead path in our use but kept for backward compat) calls
+        # self._fifo_step explicitly.
+        self.model_wrapper.eval()
+
+        assert self.inference_config["inference_steps"] % latent_shape[1] == 0
+
+        do_classifier_free_guidance = "guidance_scale" in self.inference_config
+        guidance_scale = self.inference_config.get("guidance_scale", 1)
+        steps_per_inference = \
+            self.inference_config["inference_steps"] // latent_shape[1]
+        latents = self.latents
+        stop_timestep = \
+            stop_timestep or self.inference_config["inference_steps"]
+        for i in range(start_timestep, stop_timestep):
+            # make the denoising timesteps
+            timestep_indices = torch\
+                .tensor([
+                    min(
+                        i - take_time * steps_per_inference,
+                        max(0, i - j * steps_per_inference))
+                    for j in range(latent_shape[1])
+                ], dtype=torch.int32, device=self.device).unsqueeze(0)\
+                .unsqueeze(-1).repeat(latent_shape[0], 1, latent_shape[2])
+            timesteps = self.test_scheduler.timesteps[timestep_indices]
+
+            latent_model_input = latents.to(dtype=self.model_dtype)
+            if do_classifier_free_guidance:
+                latent_model_input = torch.cat(
+                    [latent_model_input, latent_model_input])
+                timesteps_input = torch.cat([timesteps, timesteps])
+            else:
+                timesteps_input = timesteps
+
+            with self.get_autocast_context():
+                model_output, _, _ = self.model_wrapper(
+                    latent_model_input, timesteps_input, **self.conditions)
+
+            # update the noisy latent
+            noise_pred = model_output[0]
+            if do_classifier_free_guidance:
+                noise_pred_uncond, noise_pred_cond = noise_pred.chunk(2)
+                noise_pred = noise_pred_uncond + guidance_scale * \
+                    (noise_pred_cond - noise_pred_uncond)
+
+            staging_latents = self.test_scheduler.step_by_indices(
+                noise_pred, timestep_indices.cpu(), latents
+            ).prev_sample
+
+            # only update the latents in the schedule range so finally the
+            # timesteps in the queue become progrssive
+            in_schedule_range = torch\
+                .tensor([
+                    i - j * steps_per_inference >= 0
+                    for j in range(latent_shape[1])
+                ], device=self.device).unsqueeze(0).unsqueeze(-1)\
+                .unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            latents = torch.where(
+                in_schedule_range, staging_latents, latents)
+
+        if stop_timestep >= self.inference_config["inference_steps"]:
+            shift_factor = self.vae.config.shift_factor \
+                if self.vae.config.shift_factor is not None else 0
+            image_tensor = self.vae.decode(
+                latents[:, take_time].flatten(0, 1).to(dtype=self.vae.dtype) /
+                self.vae.config.scaling_factor + shift_factor,
+                return_dict=False)[0]
+            self.frames.append(
+                self.image_processor.postprocess(
+                    image_tensor, self.output_type))
+
+        return latents
+
+    @torch.no_grad()
+    def send_frame_condition(self, frame_condition_data):
+        do_classifier_free_guidance = "guidance_scale" in self.inference_config
+        steps_per_inference = \
+            self.inference_config["inference_steps"] // self.latent_shape[1]
+
+        if frame_condition_data is None:
+            # flushing
+            assert (
+                self.condition_count ==
+                self.inference_config["sequence_length_per_iteration"]
+            )
+            for i in range(1, self.latent_shape[1]):
+                latents = self._fifo_step(
+                    self.latent_shape,
+                    start_timestep=(
+                        self.inference_config["inference_steps"] +
+                        (i - 1) * steps_per_inference
+                    ),
+                    stop_timestep=(
+                        self.inference_config["inference_steps"] +
+                        i * steps_per_inference
+                    ),
+                    take_time=i)
+                is_finished = torch.tensor(
+                    [j <= i for j in range(self.latent_shape[1])],
+                    device=self.device
+                ).unflatten(0, (1, -1, 1, 1, 1, 1))
+                self.latents = torch.where(
+                    is_finished, self.latents, latents)
+
+        else:
+            frame_conditions = CrossviewTemporalSD.get_conditions(
+                self.model,
+                self.text_encoders if self.text_prompt_counter == 0 else None,
+                self.tokenizers
+                if isinstance(self.model, diffusers.SD3Transformer2DModel)
+                else self.tokenizer,
+                self.common_config,
+                (self.latent_shape[0], 1) + self.latent_shape[2:],
+                frame_condition_data, self.device, self.model_dtype,
+                streaming_mode=True,
+                prev_ego_transforms=self.prev_ego_transforms,
+                do_classifier_free_guidance=do_classifier_free_guidance)
+            if "ego_transforms" in frame_condition_data:
+                self.prev_ego_transforms = frame_condition_data["ego_transforms"]
+
+            if self.text_prompt_counter > 0:
+                frame_conditions["encoder_hidden_states"] = \
+                    self.conditions["encoder_hidden_states"][:, -1:]
+                frame_conditions["pooled_projections"] = \
+                    self.conditions["pooled_projections"][:, -1:]
+
+            self.text_prompt_counter = (
+                (self.text_prompt_counter + 1) %
+                self.inference_config.get("text_prompt_interval", 1)
+            )
+
+            if (
+                self.condition_count <
+                self.inference_config["sequence_length_per_iteration"]
+            ):
+                # gathering conditions
+                for k, v in frame_conditions.items():
+                    if (k not in self.conditions or k in self.inference_config[
+                        "autoregression_condition_exception_for_take_sequence"
+                    ]):
+                        self.conditions[k] = v
+                    else:
+                        self.conditions[k] = torch.cat(
+                            [self.conditions[k], v], dim=1)
+
+                self.condition_count += 1
+                if (
+                    self.condition_count ==
+                    self.inference_config["sequence_length_per_iteration"]
+                ):
+                    # transfer to streaming state
+                    self.latents = (
+                        torch.randn(
+                            self.latent_shape, generator=self.generator
+                        ).to(self.device) *
+                        getattr(self.test_scheduler, "init_noise_sigma", 1)
+                    )
+                    self.latents = self._fifo_step(
+                        self.latent_shape, start_timestep=0,
+                        stop_timestep=self.inference_config["inference_steps"])
+
+            else:
+                # streaming
+                for k, v in frame_conditions.items():
+                    if (k not in self.conditions or k in self.inference_config[
+                        "autoregression_condition_exception_for_take_sequence"
+                    ]):
+                        self.conditions[k] = v
+                    else:
+                        self.conditions[k] = torch.cat(
+                            [self.conditions[k][:, 1:], v], dim=1)
+
+                self.latents = torch.cat([
+                    self.latents[:, 1:],
+                    torch.randn(
+                        (self.latent_shape[0], 1) + self.latent_shape[2:],
+                        generator=self.generator).to(self.device) *
+                    getattr(self.test_scheduler, "init_noise_sigma", 1)
+                ], 1)
+                self.latents = self._fifo_step(
+                    self.latent_shape,
+                    start_timestep=(
+                        self.inference_config["inference_steps"] -
+                        steps_per_inference
+                    ),
+                    stop_timestep=(
+                        self.inference_config["inference_steps"]
+                    ))
+
+    def receive_frame(self):
+        if len(self.frames) == 0:
+            return None
+
+        return (
+            [
+                i.resize(self.inference_config["preview_image_size"])
+                for i in self.frames.pop(0)
+            ]
+            if self.output_type == "pil"
+            else self.frames.pop(0)
+        )
+
+    def fifo_inference_pipeline(
+        self, latent_shape, batch, output_type
+    ):
+        total_frame_count = batch["pts"].shape[1]
+        assert (
+            "frame_prediction_style" in self.common_config and
+            self.common_config["frame_prediction_style"] == "diffusion_forcing"
+        )
+        assert (
+            total_frame_count >
+            self.inference_config["sequence_length_per_iteration"]
+        )
+        exception_for_take_sequence = self.inference_config[
+            "autoregression_data_exception_for_take_sequence"
+        ]
+        result = {
+            "images": []
+        }
+        self.reset_streaming(latent_shape, output_type)
+        for i in range(total_frame_count):
+            self.send_frame_condition({
+                k: (
+                    v
+                    if k in exception_for_take_sequence
+                    else dwm.functional.take_sequence_clip(v, i, i + 1)
+                )
+                for k, v in batch.items()
+            })
+            image = self.receive_frame()
+            if image is not None:
+                result["images"].append(image)
+
+        self.send_frame_condition(None)
+        while True:
+            image = self.receive_frame()
+            if image is not None:
+                result["images"].append(image)
+            else:
+                break
+
+        if output_type == "pt":
+            result["images"] = torch.cat(result["images"])
+
+        return result
+
+    @torch.no_grad()
+    def preview_pipeline(
+        self, batch: dict, output_path: str, global_step: int
+    ):
+        if self.should_save:
+            import time
+            _t_preview = time.time()
+            print(f"[preview] step={global_step} generating preview ...",
+                  flush=True)
+        batch_size, sequence_length, view_count = batch["vae_images"].shape[:3]
+        latent_height = batch["vae_images"].shape[-2] // \
+            (2 ** (len(self.vae.config.down_block_types) - 1))
+        latent_width = batch["vae_images"].shape[-1] // \
+            (2 ** (len(self.vae.config.down_block_types) - 1))
+        assert "sequence_length_per_iteration" in self.inference_config
+        # Use VAE-aware sequence_length (matches official ctsd.py:1847-1850
+        # `get_latent_sequence_length()`). For SD3.5 2D VAE (vae_stride=1,
+        # vae_pre=0) this is identity but kept for protocol parity.
+        latent_shape = (
+            batch_size,
+            self.get_latent_sequence_length(
+                self.inference_config["sequence_length_per_iteration"]),
+            view_count, self.vae.config.latent_channels, latent_height,
+            latent_width
+        )
+
+        # Per-slot deterministic preview seed: same dataset_index → same noise
+        # at every training step. Visual diff across cycles = pure model weight
+        # evolution, NOT generator-state drift. Critical for clean Phase 1.6
+        # scaling evaluation. Save+restore generator state so training
+        # stochasticity is preserved post-preview.
+        # Opt-in via inference_config.preview_seed_base (None = legacy behavior).
+        _preview_seed_base = self.inference_config.get("preview_seed_base")
+        _gen_saved_state = None
+        _preview_slot_seed = None
+        if _preview_seed_base is not None and "dataset_index" in batch:
+            _gen_saved_state = self.generator.get_state()
+            _slot = int(batch["dataset_index"][0].item())
+            # collision-proof seed: base + split_offset + dataset_index
+            # split_offset = 0 for train pkl, 10_000_000 for val pkl
+            # ensures train pkl idx 500 and val pkl idx 500 don't share a seed
+            _split_str = (
+                batch["split"][0]
+                if "split" in batch and len(batch["split"]) > 0
+                else "train")
+            _split_offset = 10_000_000 if _split_str == "val" else 0
+            _preview_slot_seed = int(_preview_seed_base) + _split_offset + _slot
+            self.generator.manual_seed(_preview_slot_seed)
+        try:
+            # Switched 2026-04-28 from `fifo_inference_pipeline` (streaming, asserts
+            # total_frame_count > sequence_length_per_iteration which fails for
+            # full-clip preview where total == sl_per_iter == 16) to
+            # `autoregressive_inference_pipeline` — same path the official
+            # CrossviewTemporalSD.preview_pipeline takes (ctsd.py:1852).
+            pipeline_output = self.autoregressive_inference_pipeline(
+                latent_shape, batch, "pt")
+        finally:
+            if _gen_saved_state is not None:
+                self.generator.set_state(_gen_saved_state)
+
+        if self.should_save or (
+            torch.distributed.is_initialized() and
+            self.inference_config.get("all_rank_preview", False)
+        ):
+            os.makedirs(os.path.join(output_path, "preview"), exist_ok=True)
+            # Append a row to preview_debug.csv so the user can decode
+            # {global_step}.mp4 → which clip without guessing DDP truncation /
+            # cycle order. dataset_index is the ORIGINAL base-dataset index
+            # (Subset wrapping is transparent — see nuscenes_pano.__getitem__).
+            try:
+                _csv_path = os.path.join(output_path, "preview", "preview_debug.csv")
+                _write_header = not os.path.exists(_csv_path)
+                _ds_idx = (
+                    int(batch["dataset_index"][0].item())
+                    if "dataset_index" in batch else -1)
+                _ts = (
+                    int(batch["anchor_timestamp_us"][0].item())
+                    if "anchor_timestamp_us" in batch else -1)
+                _scene = (
+                    batch["scene_token"][0]
+                    if "scene_token" in batch and len(batch["scene_token"]) > 0
+                    else "")
+                _source_split = (
+                    batch["split"][0]
+                    if "split" in batch and len(batch["split"]) > 0
+                    else "")
+                _fps = (
+                    float(batch["fps"][0].item())
+                    if "fps" in batch else -1.0)
+                _cap = ""
+                if "clip_text" in batch and len(batch["clip_text"]) > 0:
+                    _frame0 = batch["clip_text"][0]
+                    if isinstance(_frame0, list) and len(_frame0) > 0:
+                        _v0 = _frame0[0]
+                        _cap = (_v0[0] if isinstance(_v0, list) and _v0 else str(_v0))
+                _cap = (_cap or "").replace("\n", " ").replace(",", ";")[:120]
+                with open(_csv_path, "a") as _f:
+                    if _write_header:
+                        _f.write("global_step,source_split,dataset_index,scene_token,fps,anchor_timestamp_us,seed,caption\n")
+                    _f.write(
+                        f"{global_step},{_source_split},{_ds_idx},{_scene},{_fps:.1f},{_ts},{_preview_slot_seed if _preview_slot_seed is not None else 'None'},{_cap}\n")
+            except Exception as _e:
+                # Never let debug logging break preview saving
+                print(f"[preview_debug.csv] WARN: {_e}", flush=True)
+            filename = (
+                "{}_{}".format(global_step, torch.distributed.get_rank())
+                if self.inference_config.get("all_rank_preview", False)
+                else str(global_step)
+            )
+            # Pano dedup: stitch left + right halves (drop right's overlap)
+            # before make_ctsd_preview_tensor. Stitched frame becomes single
+            # 360° panorama (V=1). preview_image_size is overridden so the
+            # internal interpolate preserves panorama aspect ratio.
+            _PANO_OVERLAP_W = PANO_OVERLAP_W
+            _output_unflat = pipeline_output["images"].unflatten(
+                0, (batch_size, -1, view_count))
+            _output_stitched = stitch_pano_halves(_output_unflat)
+            _output_stitched_flat = _output_stitched.flatten(0, 2)
+
+            # When `generate_frames_for_reference=False` (CD / DMD), the AR
+            # pipeline strips the first `reference_frame_count` ref frames
+            # from its output (autoregressive_inference_pipeline:2049-2051),
+            # so generated[i] aligns with GT[i + ref_count]. Pre-offset GT
+            # by ref_count to display synchronized frame-by-frame; otherwise
+            # the generated row looks `ref_count` frames "ahead" of GT.
+            _output_seq_len = _output_unflat.shape[1]
+            _ref_offset = (
+                0 if self.inference_config.get(
+                    "generate_frames_for_reference", True
+                ) else self.inference_config.get("reference_frame_count", 0)
+            )
+
+            _batch_dedup = dict(batch)
+            for _k in ("vae_images", "3dbox_images", "hdmap_images"):
+                if _k in batch:
+                    _v = batch[_k][:, _ref_offset:_ref_offset + _output_seq_len]
+                    _batch_dedup[_k] = stitch_pano_halves(_v)
+
+            _inference_config_dedup = dict(self.inference_config)
+            _pw, _ph = self.inference_config["preview_image_size"]
+            _inference_config_dedup["preview_image_size"] = [
+                _pw + (_pw - _PANO_OVERLAP_W), _ph]
+
+            preview_tensor = dwm.utils.preview.make_ctsd_preview_tensor(
+                _output_stitched_flat, _batch_dedup, _inference_config_dedup)
+            if sequence_length == 1:
+                image_output_path = os.path.join(
+                    output_path, "preview", "{}.png".format(filename))
+                torchvision.transforms.functional.to_pil_image(preview_tensor)\
+                    .save(image_output_path)
+            else:
+                video_output_path = os.path.join(
+                    output_path, "preview", "{}.mp4".format(filename))
+                dwm.utils.preview.save_tensor_to_video(
+                    video_output_path, "libx264", batch["fps"][0].item(),
+                    preview_tensor)
+
+            preview_depth = self.model.depth_net is not None and \
+                "camera_intrinsics" in batch and "camera_transforms" in batch
+            if preview_depth and "depth" in pipeline_output:
+                os.makedirs(os.path.join(
+                    output_path, "preview_depth"), exist_ok=True)
+                video_output_path = os.path.join(
+                    output_path, "preview_depth", "{}.mp4".format(filename))
+                dwm.utils.preview.save_tensor_to_video(
+                    video_output_path, "libx264", 5, pipeline_output["depth"])
+        if self.should_save:
+            print(f"[preview] step={global_step} done in "
+                  f"{time.time() - _t_preview:.1f}s", flush=True)
+
+
+# Backward-compat alias — preserves loading of legacy configs that reference
+# `dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD` (A4/A4.5/A5.1,
+# overfit, etc.). New configs should use `PanoCrossviewTemporalSD`.
+StreamingCrossviewTemporalSD = PanoCrossviewTemporalSD

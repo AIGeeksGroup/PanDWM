@@ -1,0 +1,390 @@
+{
+  "kind": "srr_teacher_eval",
+  "mode": "ladder",
+  "tasks": [
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 0,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 42,
+      "arm": "init",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 0,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 42,
+      "arm": "control",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "scene_index": 0,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "scene_index": 21,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "scene_index": 41,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "scene_index": 62,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 0,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    },
+    {
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "scene_index": 82,
+      "seed": 42,
+      "arm": "recovery",
+      "windows": 12,
+      "mode": "ladder"
+    }
+  ]
+}

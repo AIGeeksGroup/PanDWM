@@ -1,0 +1,14 @@
+{
+ "note": "2026-10-16 review149 long videos (user request, v84i4250 EMA temporarily locked); dev76_index = Dev-149 clip index; the 2 non-test Dev-149 scenes without a valid 10-window clip, longest clip that fits",
+ "count": 2,
+ "scenes": [
+  {
+   "dev76_index": 17,
+   "scene_token": "c65c4acf86954f8cbd53a3541a3bfa3a"
+  },
+  {
+   "dev76_index": 45,
+   "scene_token": "93608f0d57794ba6b014314c488e2b4a"
+  }
+ ]
+}

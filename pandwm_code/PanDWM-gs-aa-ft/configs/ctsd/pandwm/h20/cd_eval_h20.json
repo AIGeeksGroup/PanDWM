@@ -1,0 +1,567 @@
+{
+    "device": "cuda",
+    "ddp_backend": "nccl",
+    "train_epochs": 6,
+    "generator_seed": 0,
+    "data_shuffle": true,
+    "fix_training_data_order": true,
+    "global_state": {
+        "device_mesh": {
+            "_class_name": "torch.distributed.device_mesh.init_device_mesh",
+            "device_type": "cuda",
+            "mesh_shape": [
+                2,
+                4
+            ]
+        }
+    },
+    "optimizer": {
+        "_class_name": "torch.optim.AdamW",
+        "lr": 2e-06,
+        "betas": [
+            0.0,
+            0.999
+        ],
+        "weight_decay": 0.01
+    },
+    "pipeline": {
+        "_class_name": "dwm_pano.pipelines.ctsd_pano_consistency_distillation.PanoCrossviewTemporalConsistencyDistillation",
+        "common_config": {
+            "frame_prediction_style": "ctsd",
+            "cat_condition": true,
+            "cond_with_action": false,
+            "condition_on_all_frames": true,
+            "explicit_view_modeling": true,
+            "distribution_framework": "fsdp",
+            "ddp_wrapper_settings": {
+                "sharding_strategy": {
+                    "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+                    "value": 4
+                },
+                "device_mesh": {
+                    "_class_name": "dwm.common.get_state",
+                    "key": "device_mesh"
+                },
+                "auto_wrap_policy": {
+                    "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+                    "module_classes": [
+                        {
+                            "_class_name": "get_class",
+                            "class_name": "diffusers.models.attention.JointTransformerBlock"
+                        },
+                        {
+                            "_class_name": "get_class",
+                            "class_name": "dwm.models.crossview_temporal.VTSelfAttentionBlock"
+                        }
+                    ]
+                },
+                "mixed_precision": {
+                    "_class_name": "torch.distributed.fsdp.MixedPrecision",
+                    "param_dtype": {
+                        "_class_name": "get_class",
+                        "class_name": "torch.float16"
+                    }
+                },
+                "cpu_offload": {
+                    "_class_name": "torch.distributed.fsdp.CPUOffload",
+                    "offload_params": true
+                },
+                "forward_prefetch": true
+            },
+            "t5_fsdp_wrapper_settings": {
+                "sharding_strategy": {
+                    "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+                    "value": 4
+                },
+                "device_mesh": {
+                    "_class_name": "dwm.common.get_state",
+                    "key": "device_mesh"
+                },
+                "auto_wrap_policy": {
+                    "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+                    "module_classes": [
+                        {
+                            "_class_name": "get_class",
+                            "class_name": "transformers.models.t5.modeling_t5.T5Block"
+                        }
+                    ]
+                },
+                "forward_prefetch": true
+            },
+            "text_encoder_load_args": {
+                "torch_dtype": {
+                    "_class_name": "get_class",
+                    "class_name": "torch.float16"
+                }
+            },
+            "memory_efficient_batch": 12
+        },
+        "training_config": {
+            "text_prompt_condition_ratio": 0.8,
+            "3dbox_condition_ratio": 0.8,
+            "hdmap_condition_ratio": 0.8,
+            "explicit_view_modeling_ratio": 0.8,
+            "reference_frame_count": 3,
+            "generation_task_ratio": 0.2,
+            "image_generation_ratio": 0.5,
+            "all_reference_visible_ratio": 0.8,
+            "reference_visible_rate": 0.5,
+            "disable_reference_frame_loss": true,
+            "enable_grad_scaler": true,
+            "max_norm_for_grad_clip": 10.0,
+            "temporal_attention_mask": "causal"
+        },
+        "inference_config": {
+            "guidance_scale": 3,
+            "inference_steps": 50,
+            "preview_image_size": [
+                2304,
+                256
+            ],
+            "generate_frames_for_reference": false,
+            "sequence_length_per_iteration": 19,
+            "reference_frame_count": 3,
+            "autoregression_data_exception_for_take_sequence": [
+                "crossview_mask",
+                "scene_token",
+                "split",
+                "dataset_index",
+                "anchor_timestamp_us",
+                "fps"
+            ],
+            "evaluation_item_count": 480,
+            "temporal_attention_mask": "causal"
+        },
+        "model": {
+            "_class_name": "dwm_pano.models.crossview_temporal_dit_pano.DiTCrossviewTemporalConditionModel",
+            "attention_head_dim": 64,
+            "caption_projection_dim": 1536,
+            "in_channels": 16,
+            "joint_attention_dim": 4096,
+            "num_attention_heads": 24,
+            "num_layers": 24,
+            "out_channels": 16,
+            "patch_size": 2,
+            "pooled_projection_dim": 2048,
+            "pos_embed_max_size": 192,
+            "sample_size": 128,
+            "perspective_modeling_type": "explicit",
+            "enable_crossview": true,
+            "crossview_attention_type": "rowwise",
+            "crossview_block_layers": [
+                1,
+                5,
+                9,
+                13,
+                17,
+                21
+            ],
+            "crossview_gradient_checkpointing": true,
+            "enable_temporal": true,
+            "temporal_attention_type": "full",
+            "temporal_block_layers": [
+                1,
+                5,
+                9,
+                13,
+                17,
+                21
+            ],
+            "temporal_gradient_checkpointing": true,
+            "mixer_type": "AlphaBlender",
+            "merge_factor": 2,
+            "condition_image_adapter_config": {
+                "in_channels": 6,
+                "channels": [
+                    1536,
+                    1536,
+                    1536,
+                    1536,
+                    1536,
+                    1536
+                ],
+                "is_downblocks": [
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false
+                ],
+                "num_res_blocks": 2,
+                "downscale_factor": 8,
+                "use_zero_convs": true
+            }
+        },
+        "pretrained_model_name_or_path": "/path/to/pandwm_root/ckpts/stable-diffusion-3.5-medium",
+        "model_checkpoint_path": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "metrics": {
+            "fid": {
+                "_class_name": "torchmetrics.image.fid.FrechetInceptionDistance",
+                "normalize": true
+            },
+            "fvd": {
+                "_class_name": "dwm_pano.metrics.fvd_pano.PanoPatchFrechetVideoDistance",
+                "inception_3d_checkpoint_path": "/path/to/pandwm_root/code/TATS_fvd/i3d_pretrained_400.pt",
+                "sequence_count": 16
+            }
+        },
+        "generator_ckpt": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "generator_fsdp_wrap_strategy": "size",
+        "real_score_fsdp_wrap_strategy": "size",
+        "fake_score_fsdp_wrap_strategy": "size",
+        "real_name": "OpenDWM-CTSD-Pano-Causal-Teacher",
+        "text_encoder_fsdp_wrap_strategy": "size",
+        "denoising_step_list": [
+            1000,
+            750,
+            500,
+            250
+        ],
+        "warp_denoising_step": true,
+        "ts_schedule": false,
+        "num_train_timestep": 1000,
+        "timestep_shift": 5.0,
+        "guidance_scale": 3.0,
+        "denoising_loss_type": "flow",
+        "mixed_precision": true,
+        "seed": 0,
+        "wandb_host": "https://api.wandb.ai",
+        "wandb_key": null,
+        "wandb_entity": null,
+        "wandb_project": "pandwm-unimlvg",
+        "sharding_strategy": "hybrid_full",
+        "lr": 2e-06,
+        "lr_critic": 4e-07,
+        "beta1": 0.0,
+        "beta2": 0.999,
+        "beta1_critic": 0.0,
+        "beta2_critic": 0.999,
+        "batch_size": 1,
+        "ema_weight": 0.99,
+        "ema_start_step": 200,
+        "total_batch_size": 8,
+        "log_iters": 1000,
+        "negative_prompt": "\u8272\u8c03\u8273\u4e3d\uff0c\u8fc7\u66dd\uff0c\u9759\u6001\uff0c\u7ec6\u8282\u6a21\u7cca\u4e0d\u6e05\uff0c\u5b57\u5e55\uff0c\u98ce\u683c\uff0c\u4f5c\u54c1\uff0c\u753b\u4f5c\uff0c\u753b\u9762\uff0c\u9759\u6b62\uff0c\u6574\u4f53\u53d1\u7070\uff0c\u6700\u5dee\u8d28\u91cf\uff0c\u4f4e\u8d28\u91cf\uff0cJPEG\u538b\u7f29\u6b8b\u7559\uff0c\u4e11\u964b\u7684\uff0c\u6b8b\u7f3a\u7684\uff0c\u591a\u4f59\u7684\u624b\u6307\uff0c\u753b\u5f97\u4e0d\u597d\u7684\u624b\u90e8\uff0c\u753b\u5f97\u4e0d\u597d\u7684\u8138\u90e8\uff0c\u7578\u5f62\u7684\uff0c\u6bc1\u5bb9\u7684\uff0c\u5f62\u6001\u7578\u5f62\u7684\u80a2\u4f53\uff0c\u624b\u6307\u878d\u5408\uff0c\u9759\u6b62\u4e0d\u52a8\u7684\u753b\u9762\uff0c\u6742\u4e71\u7684\u80cc\u666f\uff0c\u4e09\u6761\u817f\uff0c\u80cc\u666f\u4eba\u5f88\u591a\uff0c\u5012\u7740\u8d70",
+        "dfake_gen_update_ratio": 5,
+        "image_or_video_shape": [
+            1,
+            19,
+            2,
+            16,
+            32,
+            288
+        ],
+        "distribution_loss": "dmd",
+        "trainer": "consistency_distillation",
+        "gradient_checkpointing": true,
+        "num_frame_per_block": 1,
+        "load_raw_video": false,
+        "model_kwargs": {
+            "timestep_shift": 5.0
+        },
+        "data_path": "OpenDWM training_dataset section",
+        "grad_accum": 1,
+        "spatial_sf": true,
+        "teacher_forcing": true,
+        "causal": true,
+        "is_causal": true,
+        "discrete_cd_N": 48,
+        "consistency_teacher_checkpoint_path": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "consistency_ema_checkpoint_path": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "consistency_discrete_steps": 48,
+        "consistency_guidance_scale": 3.0,
+        "consistency_ema_decay": 0.99,
+        "consistency_ema_start_step": 200
+    },
+    "training_dataset": {
+        "_class_name": "dwm.datasets.common.DatasetAdapter",
+        "base_dataset": {
+            "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+            "pkl_path": "/path/to/pandwm_root/data/pickle/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+            "rgb_dir": "/path/to/pandwm_root/data/val/rgb",
+            "bbox_dir": "/path/to/pandwm_root/data/bbox",
+            "hdmap_dir": "/path/to/pandwm_root/data/hdmap",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/data/nuscenes_meta/v1.0-trainval",
+            "split": "train",
+            "sequence_length": 19,
+            "fps_stride_tuples": [
+                [
+                    10,
+                    0.1
+                ]
+            ],
+            "half_size": [
+                2304,
+                256
+            ],
+            "enable_3dbox": true,
+            "enable_hdmap": true,
+            "enable_camera_transforms": true,
+            "enable_ego_transforms": true,
+            "enable_description": true,
+            "bad_timestamps_us": [
+                1531884295049111
+            ],
+            "stub_key_data_dict": {
+                "crossview_mask": [
+                    "content",
+                    {
+                        "_class_name": "torch.tensor",
+                        "data": {
+                            "_class_name": "json.loads",
+                            "s": "[[1,1],[1,1]]"
+                        },
+                        "dtype": {
+                            "_class_name": "get_class",
+                            "class_name": "torch.bool"
+                        }
+                    }
+                ]
+            }
+        },
+        "transform_list": [
+            {
+                "old_key": "images",
+                "new_key": "vae_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "3dbox_images",
+                "new_key": "3dbox_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "hdmap_images",
+                "new_key": "hdmap_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "image_description",
+                "new_key": "clip_text",
+                "transform": {
+                    "_class_name": "dwm.datasets.common.Copy"
+                },
+                "stack": false
+            }
+        ],
+        "pop_list": [
+            "images",
+            "lidar_points",
+            "image_description"
+        ]
+    },
+    "validation_dataset": {
+        "_class_name": "dwm.datasets.common.DatasetAdapter",
+        "base_dataset": {
+            "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+            "pkl_path": "/path/to/pandwm_root/data/pickle/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+            "rgb_dir": "/path/to/pandwm_root/data/val/rgb",
+            "bbox_dir": "/path/to/pandwm_root/data/bbox",
+            "hdmap_dir": "/path/to/pandwm_root/data/hdmap",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/data/nuscenes_meta/v1.0-trainval",
+            "split": "val",
+            "sequence_length": 35,
+            "fps_stride_tuples": [
+                [
+                    10,
+                    20
+                ]
+            ],
+            "half_size": [
+                2304,
+                256
+            ],
+            "enable_3dbox": true,
+            "enable_hdmap": true,
+            "enable_camera_transforms": true,
+            "enable_ego_transforms": true,
+            "enable_description": true,
+            "bad_timestamps_us": [],
+            "stub_key_data_dict": {
+                "crossview_mask": [
+                    "content",
+                    {
+                        "_class_name": "torch.tensor",
+                        "data": {
+                            "_class_name": "json.loads",
+                            "s": "[[1,1],[1,1]]"
+                        },
+                        "dtype": {
+                            "_class_name": "get_class",
+                            "class_name": "torch.bool"
+                        }
+                    }
+                ]
+            }
+        },
+        "transform_list": [
+            {
+                "old_key": "images",
+                "new_key": "vae_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "3dbox_images",
+                "new_key": "3dbox_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "hdmap_images",
+                "new_key": "hdmap_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            },
+            {
+                "old_key": "image_description",
+                "new_key": "clip_text",
+                "transform": {
+                    "_class_name": "dwm.datasets.common.Copy"
+                },
+                "stack": false
+            }
+        ],
+        "pop_list": [
+            "images",
+            "lidar_points",
+            "image_description"
+        ]
+    },
+    "training_dataloader": {
+        "batch_size": 1,
+        "num_workers": 3,
+        "prefetch_factor": 3,
+        "collate_fn": {
+            "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+            "keys": [
+                "clip_text"
+            ]
+        },
+        "persistent_workers": true
+    },
+    "validation_dataloader": {
+        "batch_size": 1,
+        "num_workers": 3,
+        "prefetch_factor": 3,
+        "collate_fn": {
+            "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+            "keys": [
+                "clip_text"
+            ]
+        },
+        "persistent_workers": true
+    },
+    "preview_dataloader": {
+        "batch_size": 1,
+        "num_workers": 3,
+        "prefetch_factor": 1,
+        "shuffle": true,
+        "drop_last": true,
+        "collate_fn": {
+            "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+            "keys": [
+                "clip_text"
+            ]
+        },
+        "persistent_workers": true
+    },
+    "informations": {
+        "source_config": "/path/to/pandwm_root/code/PanDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
+        "stage": "causal_forcing_plus_plus_consistency_distillation",
+        "initial_causal_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "notes": "OpenDWM pano adaptation of Causal-Forcing++ consistency distillation; keeps CTSD pano conditions and causal temporal mask.",
+        "official_stage2_config_source": "externals/Causal-Forcing/configs/causal_cd_framewise.yaml",
+        "official_stage2_parameters_preserved": true,
+        "opendwm_pano_latent_shape": [
+            1,
+            19,
+            2,
+            16,
+            32,
+            288
+        ]
+    }
+}

@@ -1,0 +1,55 @@
+{
+ "note": "Test-L extension 2026-10-24: the 12 added scenes (dev76_index = Dev-149 clip index), 12 windows",
+ "windows": 12,
+ "count": 12,
+ "scenes": [
+  {
+   "dev76_index": 9,
+   "scene_token": "2f56eb47c64f43df8902d9f88aa8a019"
+  },
+  {
+   "dev76_index": 64,
+   "scene_token": "ed242d80ccb34b139aaf9ab89859332e"
+  },
+  {
+   "dev76_index": 73,
+   "scene_token": "9068766ee9374872a380fe75fcfb299e"
+  },
+  {
+   "dev76_index": 85,
+   "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d"
+  },
+  {
+   "dev76_index": 95,
+   "scene_token": "380ff00ec86447e3b986edc8e82ffba7"
+  },
+  {
+   "dev76_index": 106,
+   "scene_token": "85651af9c04945c3a394cf845cb480a6"
+  },
+  {
+   "dev76_index": 121,
+   "scene_token": "5521cd85ed0e441f8d23938ed09099dd"
+  },
+  {
+   "dev76_index": 146,
+   "scene_token": "0dae482684ce4cd69a7258f55bc98d73"
+  },
+  {
+   "dev76_index": 58,
+   "scene_token": "3363f396bb43405fbdd17d65dc123d4e"
+  },
+  {
+   "dev76_index": 84,
+   "scene_token": "4bb9626f13184da7a67ba1b241c19558"
+  },
+  {
+   "dev76_index": 110,
+   "scene_token": "3a2d9bf6115f40898005d1c1df2b7282"
+  },
+  {
+   "dev76_index": 135,
+   "scene_token": "7052d21b95fc4bae8761b8d9524f3e42"
+  }
+ ]
+}

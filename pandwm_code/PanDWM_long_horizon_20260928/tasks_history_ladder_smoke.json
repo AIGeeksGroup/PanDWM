@@ -1,0 +1,15 @@
+{
+  "kind": "ladder_smoke",
+  "tasks": [
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "ladder",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "full",
+      "windows": 2
+    }
+  ]
+}

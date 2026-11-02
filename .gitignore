@@ -1,10 +1,13 @@
-__pycache__
-.vscode
-build
-dist
-*.egg-info
-output
-/externals/chamferdist/chamferdist/*.so
-work_dirs
-wandb
-taming
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.npz
+*.log
+# local additions placed inside pandwm_code/ (see README, Paths)
+pandwm_code/TATS_fvd/
+pandwm_code/third_party/

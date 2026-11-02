@@ -1,0 +1,25 @@
+{
+ "note": "scene-0018 scene-start clip (val scene 150 of 150), admitted with relaxed_sync.py (50.49 ms > 50 ms sync tolerance); dataset = cd_eval_frozen149_hpc3.json validation dataset + relaxed_sync, fps_stride_tuples [[10, 20]]; with dev149_manifest_20261018.json it forms the 150-scene val set",
+ "dataset_fps_stride_tuples": [
+  [
+   10,
+   20
+  ]
+ ],
+ "dataset_len": 150,
+ "count": 1,
+ "clips": [
+  {
+   "test_index": 149,
+   "dataset_index": 7,
+   "scene_token": "b51869782c0e464b8021eb798609f35f",
+   "offset_s": 0.0,
+   "anchor_timestamp_us": 1531885792049139,
+   "max_time_error_us": 50491,
+   "relaxed_tolerance_us": 51000,
+   "frames": 35,
+   "context_frames": 3,
+   "fps": 10
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+# One-clip end-to-end check for the task-matched protocol.
+configs: horizondrive_hpc3_common.yaml
+
+validation_kwargs:
+  max_validation_samples: 1

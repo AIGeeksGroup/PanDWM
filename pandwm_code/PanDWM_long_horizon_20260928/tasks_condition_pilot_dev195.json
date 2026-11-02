@@ -1,0 +1,325 @@
+{
+  "kind": "condition_pilot",
+  "tasks": [
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 0,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "full",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_box",
+      "windows": 12
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map_box",
+      "windows": 12
+    }
+  ]
+}

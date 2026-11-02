@@ -1,0 +1,495 @@
+{
+  "device": "cuda",
+  "ddp_backend": "nccl",
+  "train_epochs": 100,
+  "generator_seed": 0,
+  "data_shuffle": true,
+  "fix_training_data_order": true,
+  "global_state": {
+    "device_mesh": {
+      "_class_name": "torch.distributed.device_mesh.init_device_mesh",
+      "device_type": "cuda",
+      "mesh_shape": [
+        1,
+        2
+      ]
+    }
+  },
+  "optimizer": {
+    "_class_name": "torch.optim.AdamW",
+    "lr": 1e-05
+  },
+  "pipeline": {
+    "_class_name": "dwm_pano_d2.pipeline.PanoD2RefinerSD",
+    "common_config": {
+      "frame_prediction_style": "ctsd",
+      "cat_condition": true,
+      "cond_with_action": false,
+      "condition_on_all_frames": true,
+      "explicit_view_modeling": true,
+      "distribution_framework": "fsdp",
+      "ddp_wrapper_settings": {
+        "sharding_strategy": {
+          "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+          "value": 4
+        },
+        "device_mesh": {
+          "_class_name": "dwm.common.get_state",
+          "key": "device_mesh"
+        },
+        "auto_wrap_policy": {
+          "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+          "module_classes": [
+            {
+              "_class_name": "get_class",
+              "class_name": "diffusers.models.attention.JointTransformerBlock"
+            },
+            {
+              "_class_name": "get_class",
+              "class_name": "dwm.models.crossview_temporal.VTSelfAttentionBlock"
+            }
+          ]
+        },
+        "mixed_precision": {
+          "_class_name": "torch.distributed.fsdp.MixedPrecision",
+          "param_dtype": {
+            "_class_name": "get_class",
+            "class_name": "torch.float16"
+          }
+        },
+        "forward_prefetch": true,
+        "use_orig_params": true
+      },
+      "t5_fsdp_wrapper_settings": {
+        "sharding_strategy": {
+          "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+          "value": 4
+        },
+        "device_mesh": {
+          "_class_name": "dwm.common.get_state",
+          "key": "device_mesh"
+        },
+        "auto_wrap_policy": {
+          "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+          "module_classes": [
+            {
+              "_class_name": "get_class",
+              "class_name": "transformers.models.t5.modeling_t5.T5Block"
+            }
+          ]
+        },
+        "forward_prefetch": true
+      },
+      "text_encoder_load_args": {
+        "torch_dtype": {
+          "_class_name": "get_class",
+          "class_name": "torch.float16"
+        }
+      },
+      "memory_efficient_batch": 12,
+      "print_load_state_info": true
+    },
+    "training_config": {
+      "text_prompt_condition_ratio": 0.8,
+      "3dbox_condition_ratio": 0.5,
+      "hdmap_condition_ratio": 0.5,
+      "explicit_view_modeling_ratio": 0.8,
+      "reference_frame_count": 3,
+      "generation_task_ratio": 0.3,
+      "image_generation_ratio": 0.0,
+      "all_reference_visible_ratio": 1.0,
+      "reference_visible_rate": 1.0,
+      "disable_reference_frame_loss": true,
+      "enable_grad_scaler": true,
+      "temporal_attention_mask": "causal"
+    },
+    "inference_config": {
+      "guidance_scale": 3,
+      "inference_steps": 50,
+      "preview_image_size": [
+        2304,
+        256
+      ],
+      "generate_frames_for_reference": false,
+      "sequence_length_per_iteration": 19,
+      "reference_frame_count": 3,
+      "autoregression_data_exception_for_take_sequence": [
+        "crossview_mask",
+        "scene_token",
+        "split",
+        "dataset_index",
+        "anchor_timestamp_us",
+        "fps"
+      ],
+      "evaluation_item_count": 480,
+      "temporal_attention_mask": "causal"
+    },
+    "model": {
+      "_class_name": "dwm_pano_d2.model.D2RenderDiT",
+      "attention_head_dim": 64,
+      "caption_projection_dim": 1536,
+      "in_channels": 16,
+      "joint_attention_dim": 4096,
+      "num_attention_heads": 24,
+      "num_layers": 24,
+      "out_channels": 16,
+      "patch_size": 2,
+      "pooled_projection_dim": 2048,
+      "pos_embed_max_size": 192,
+      "sample_size": 128,
+      "perspective_modeling_type": "explicit",
+      "enable_crossview": true,
+      "crossview_attention_type": "rowwise",
+      "crossview_block_layers": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "crossview_gradient_checkpointing": true,
+      "enable_temporal": true,
+      "temporal_attention_type": "full",
+      "temporal_block_layers": [
+        1,
+        5,
+        9,
+        13,
+        17,
+        21
+      ],
+      "temporal_gradient_checkpointing": true,
+      "mixer_type": "AlphaBlender",
+      "merge_factor": 2,
+      "condition_image_adapter_config": {
+        "in_channels": 6,
+        "channels": [
+          1536,
+          1536,
+          1536,
+          1536,
+          1536,
+          1536
+        ],
+        "is_downblocks": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "num_res_blocks": 2,
+        "downscale_factor": 8,
+        "use_zero_convs": true
+      },
+      "render_condition_channels": 17,
+      "render_condition_scale": 10.0
+    },
+    "pretrained_model_name_or_path": "/path/to/pandwm_root/pandwm_data/stable-diffusion-3.5-medium",
+    "model_checkpoint_path": "/path/to/pandwm_root/pandwm_data/stage1_causal_20000.pth",
+    "metrics": {},
+    "d2_config": {
+      "render_dropout": 0.1,
+      "max_start": 16,
+      "forbidden_scene_manifest": "/path/to/pandwm_root/pandwm_code/PanDWM_long_horizon_20260928/inputs/split_195_scene_manifest.json"
+    },
+    "model_load_state_args": {
+      "strict": false
+    }
+  },
+  "training_dataset": {
+    "_class_name": "dwm_pano_d2.data.D2RenderDataset",
+    "base": {
+      "_class_name": "dwm.datasets.common.DatasetAdapter",
+      "base_dataset": {
+        "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+        "pkl_path": "/path/to/pandwm_root/pandwm_recovered_metadata_20260929/nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl",
+        "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700_20260929/rgb",
+        "bbox_dir": "/path/to/pandwm_root/pandwm_full_train_700_20260929/bbox",
+        "hdmap_dir": "/path/to/pandwm_root/pandwm_full_train_700_20260929/hdmap",
+        "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+        "split": "train",
+        "sequence_length": 35,
+        "fps_stride_tuples": [
+          [
+            10,
+            2.0
+          ]
+        ],
+        "half_size": [
+          2304,
+          256
+        ],
+        "enable_3dbox": true,
+        "enable_hdmap": true,
+        "enable_camera_transforms": true,
+        "enable_ego_transforms": true,
+        "enable_description": true,
+        "bad_timestamps_us": [
+          1531884295049111
+        ],
+        "stub_key_data_dict": {
+          "crossview_mask": [
+            "content",
+            {
+              "_class_name": "torch.tensor",
+              "data": {
+                "_class_name": "json.loads",
+                "s": "[[1,1],[1,1]]"
+              },
+              "dtype": {
+                "_class_name": "get_class",
+                "class_name": "torch.bool"
+              }
+            }
+          ]
+        },
+        "emit_instance_tracks": false,
+        "time_weather_source": "fixed"
+      },
+      "transform_list": [
+        {
+          "old_key": "images",
+          "new_key": "vae_images",
+          "transform": {
+            "_class_name": "torchvision.transforms.Compose",
+            "transforms": [
+              {
+                "_class_name": "torchvision.transforms.Resize",
+                "size": [
+                  256,
+                  2304
+                ]
+              },
+              {
+                "_class_name": "torchvision.transforms.ToTensor"
+              }
+            ]
+          }
+        },
+        {
+          "old_key": "3dbox_images",
+          "new_key": "3dbox_images",
+          "transform": {
+            "_class_name": "torchvision.transforms.Compose",
+            "transforms": [
+              {
+                "_class_name": "torchvision.transforms.Resize",
+                "size": [
+                  256,
+                  2304
+                ]
+              },
+              {
+                "_class_name": "torchvision.transforms.ToTensor"
+              }
+            ]
+          }
+        },
+        {
+          "old_key": "hdmap_images",
+          "new_key": "hdmap_images",
+          "transform": {
+            "_class_name": "torchvision.transforms.Compose",
+            "transforms": [
+              {
+                "_class_name": "torchvision.transforms.Resize",
+                "size": [
+                  256,
+                  2304
+                ]
+              },
+              {
+                "_class_name": "torchvision.transforms.ToTensor"
+              }
+            ]
+          }
+        },
+        {
+          "old_key": "image_description",
+          "new_key": "clip_text",
+          "transform": {
+            "_class_name": "dwm.datasets.common.Copy"
+          },
+          "stack": false
+        }
+      ],
+      "pop_list": [
+        "images",
+        "lidar_points",
+        "image_description"
+      ]
+    },
+    "render_root": "/path/to/pandwm_root/pandwm_runs/d2_refiner_20261021/smoke_pairs",
+    "min_items": 1
+  },
+  "validation_dataset": {
+    "_class_name": "dwm.datasets.common.DatasetAdapter",
+    "base_dataset": {
+      "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+      "pkl_path": "/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+      "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
+      "bbox_dir": "/path/to/pandwm_root/pandwm_data/bbox",
+      "hdmap_dir": "/path/to/pandwm_root/pandwm_data/hdmap",
+      "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+      "split": "val",
+      "sequence_length": 19,
+      "fps_stride_tuples": [
+        [
+          10,
+          0.1
+        ]
+      ],
+      "half_size": [
+        2304,
+        256
+      ],
+      "enable_3dbox": true,
+      "enable_hdmap": true,
+      "enable_camera_transforms": true,
+      "enable_ego_transforms": true,
+      "enable_description": true,
+      "bad_timestamps_us": [
+        1531884295049111
+      ],
+      "stub_key_data_dict": {
+        "crossview_mask": [
+          "content",
+          {
+            "_class_name": "torch.tensor",
+            "data": {
+              "_class_name": "json.loads",
+              "s": "[[1,1],[1,1]]"
+            },
+            "dtype": {
+              "_class_name": "get_class",
+              "class_name": "torch.bool"
+            }
+          }
+        ]
+      },
+      "emit_instance_tracks": false,
+      "time_weather_source": "fixed"
+    },
+    "transform_list": [
+      {
+        "old_key": "images",
+        "new_key": "vae_images",
+        "transform": {
+          "_class_name": "torchvision.transforms.Compose",
+          "transforms": [
+            {
+              "_class_name": "torchvision.transforms.Resize",
+              "size": [
+                256,
+                2304
+              ]
+            },
+            {
+              "_class_name": "torchvision.transforms.ToTensor"
+            }
+          ]
+        }
+      },
+      {
+        "old_key": "3dbox_images",
+        "new_key": "3dbox_images",
+        "transform": {
+          "_class_name": "torchvision.transforms.Compose",
+          "transforms": [
+            {
+              "_class_name": "torchvision.transforms.Resize",
+              "size": [
+                256,
+                2304
+              ]
+            },
+            {
+              "_class_name": "torchvision.transforms.ToTensor"
+            }
+          ]
+        }
+      },
+      {
+        "old_key": "hdmap_images",
+        "new_key": "hdmap_images",
+        "transform": {
+          "_class_name": "torchvision.transforms.Compose",
+          "transforms": [
+            {
+              "_class_name": "torchvision.transforms.Resize",
+              "size": [
+                256,
+                2304
+              ]
+            },
+            {
+              "_class_name": "torchvision.transforms.ToTensor"
+            }
+          ]
+        }
+      },
+      {
+        "old_key": "image_description",
+        "new_key": "clip_text",
+        "transform": {
+          "_class_name": "dwm.datasets.common.Copy"
+        },
+        "stack": false
+      }
+    ],
+    "pop_list": [
+      "images",
+      "lidar_points",
+      "image_description"
+    ]
+  },
+  "training_dataloader": {
+    "batch_size": 1,
+    "num_workers": 3,
+    "prefetch_factor": 2,
+    "collate_fn": {
+      "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+      "keys": [
+        "clip_text"
+      ]
+    },
+    "persistent_workers": true
+  },
+  "validation_dataloader": {
+    "batch_size": 1,
+    "num_workers": 3,
+    "prefetch_factor": 3,
+    "collate_fn": {
+      "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+      "keys": [
+        "clip_text"
+      ]
+    },
+    "persistent_workers": true
+  },
+  "preview_dataloader": {
+    "batch_size": 1,
+    "num_workers": 3,
+    "prefetch_factor": 1,
+    "shuffle": true,
+    "drop_last": true,
+    "collate_fn": {
+      "_class_name": "dwm.datasets.common.CollateFnIgnoring",
+      "keys": [
+        "clip_text"
+      ]
+    },
+    "persistent_workers": true
+  },
+  "informations": {
+    "experiment": "D2 refiner (PanDWM-d2-refiner-20261021/D2_PLAN_20261021.md)",
+    "init": "/path/to/pandwm_root/pandwm_data/stage1_causal_20000.pth",
+    "lr": 1e-05,
+    "gpus": 2,
+    "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, conditioned on the clip's degraded C2b GS render (16 latent ch + coverage)",
+    "render_root": "/path/to/pandwm_root/pandwm_runs/d2_refiner_20261021/smoke_pairs"
+  }
+}

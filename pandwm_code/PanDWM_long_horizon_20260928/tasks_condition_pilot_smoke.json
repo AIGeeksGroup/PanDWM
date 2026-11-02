@@ -1,0 +1,15 @@
+{
+  "kind": "condition_pilot_smoke",
+  "tasks": [
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "seed": 42,
+      "mode": "condition",
+      "history_mode": "flow_noise",
+      "noise_sigma": 0.05,
+      "condition_mask": "no_map",
+      "windows": 2
+    }
+  ]
+}

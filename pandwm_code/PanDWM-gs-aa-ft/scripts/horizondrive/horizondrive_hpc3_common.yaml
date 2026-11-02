@@ -1,0 +1,95 @@
+# Primary task-matched comparison protocol (not the HorizonDrive paper setup):
+# exactly the same 149 PanDWM val clips, 35 frames at 10 Hz, first 3 frames as
+# context, then two 19-frame windows that generate 16 + 16 future frames.
+format: civitai
+pipeline: videox_fun.pipeline.WanFunUnifiedPipeline
+
+transformer_additional_kwargs:
+  transformer_subpath: ./
+  dict_mapping: {in_dim: in_channels, dim: hidden_size}
+  position_embedding_kwargs:
+    type: videox_fun.models.wan_transformer3d_unified_6v.RopeEmb
+  additional_condition_kwargs:
+    action:
+      type: videox_fun.models.wan_transformer3d_unified_6v.ActionConditioningProj
+    bbox:
+      type: videox_fun.models.wan_transformer3d_unified_6v.ImageConditioningProj
+      kwargs: {in_dim: 16}
+    hdmap:
+      type: videox_fun.models.wan_transformer3d_unified_6v.ImageConditioningProj
+      kwargs: {in_dim: 16}
+
+vae_kwargs:
+  vae_subpath: horizondrive-vae.pkl
+  temporal_compression_ratio: 1
+  spatial_compression_ratio: 8
+
+text_encoder_kwargs:
+  text_encoder_subpath: models_t5_umt5-xxl-enc-bf16.pth
+  tokenizer_subpath: google/umt5-xxl
+  text_length: 512
+  vocab: 256384
+  dim: 4096
+  dim_attn: 4096
+  dim_ffn: 10240
+  num_heads: 64
+  num_layers: 24
+  num_buckets: 32
+  shared_pos: false
+  dropout: 0.0
+
+scheduler_kwargs:
+  scheduler_subpath: null
+  num_train_timesteps: 1000
+  shift: 5.0
+  use_dynamic_shifting: false
+  base_shift: 0.5
+  max_shift: 1.15
+  base_image_seq_len: 256
+  max_image_seq_len: 4096
+
+image_encoder_kwargs:
+  image_encoder_subpath: models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth
+
+trainer_kwargs:
+  train_type: rollout_dmd
+  train_mode: unified
+  use_t_variant_noise: true
+  denoising_step_indices_list: [1000, 700, 500, 50]
+
+validation_kwargs:
+  dataset_kwargs:
+    nuscenes_common_val:
+      type: dwm_pano.datasets.horizondrive_pano.HorizonDrivePanoBandDataset
+      kwargs:
+        ann_path: ${oc.env:HD_ANN_PATH}
+        samples_path: ${oc.env:HD_PANO_RGB_DIR}
+        pano_rgb_dir: ${oc.env:HD_PANO_RGB_DIR}
+        pano_bbox_dir: ${oc.env:HD_PANO_BBOX_DIR}
+        pano_hdmap_dir: ${oc.env:HD_PANO_HDMAP_DIR}
+        valid_conditions: [action, bbox, hdmap]
+        video_length: full
+        temporal_compression_ratio: 1
+        mode: val
+        camera_names: [camera_front]
+        common_sequence_length: 35
+        common_fps: 10
+        common_stride_s: 20
+        expected_clip_count: 149
+        pano_half_size: [2304, 256]
+  val_modes:
+    i2v_common_3ctx_32pred:
+      dataset_name: nuscenes_common_val
+      kwargs:
+        model_mode: i2v
+        resolution: [19, 384, 768]
+        conditions: [action, bbox, hdmap]
+      pipeline_kwargs:
+        num_condition_images: 3
+        num_unroll_steps: 2
+        infer_image_len: -1
+        latent_rollout: true
+  # Native HorizonDrive metrics use different feature extractors.  Lossless
+  # dumps are scored later by the shared PanDWM/HorizonDrive evaluator.
+  eval_metrics: []
+  max_validation_samples: 149

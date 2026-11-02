@@ -1,0 +1,14 @@
+# HorizonDrive revision 4deaa25d5d756fab6f7c629f544f9cab98b68843.
+66fdf9b5a478e18f272bdb35b41a1a1a96025083bde15639acd8590be68f7892  horizondrive-dit.safetensors
+d963b839335c39a7ad17ac2c9d38cb3e61a2f5339ed31d5a8ec4f69a35ce7318  horizondrive-vae.pkl
+# Wan-AI/Wan2.1-T2V-1.3B revision 37ec512624d61f7aa208f7ea8140a131f93afc9a.
+ab37994c43740513f94b3ba6233a784035a67b43c8cde83c8f31aa90468c67ce  Wan2.1-T2V-1.3B/config.json
+96b6b242ca1c2f24e9d02cd6596066fab6d310e2d7538f33ae267cb18d957e8f  Wan2.1-T2V-1.3B/diffusion_pytorch_model.safetensors
+7cace0da2b446bbbbc57d031ab6cf163a3d59b366da94e5afe36745b746fd81d  Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+7b8a9f5040adb67b5805abdfd42c1f8d0f3d0e711f10726580eb3789cd0ad61d  Wan2.1-T2V-1.3B/google/umt5-xxl/special_tokens_map.json
+e3909a67b780650b35cf529ac782ad2b6b26e6d1f849d3fbb6a872905f452458  Wan2.1-T2V-1.3B/google/umt5-xxl/spiece.model
+6e197b4d3dbd71da14b4eb255f4fa91c9c1f2068b20a2de2472967ca3d22602b  Wan2.1-T2V-1.3B/google/umt5-xxl/tokenizer.json
+ed9a3a8b0faa71a70a32847e0435fe036e6e112d4df4edb7bb48a921e344dc05  Wan2.1-T2V-1.3B/google/umt5-xxl/tokenizer_config.json
+# Upstream evaluation backbones.
+bec6519f66ea534e953026b4ae2c65553c17bf105611c746d904657e5860a5e2  fvd/styleganv/i3d_torchscript.pt
+6726825d0af5f729cebd5821db510b11b1cfad8faad88a03f1befd49fb9129b2  fid/weights-inception-2015-12-05-6726825d.pth

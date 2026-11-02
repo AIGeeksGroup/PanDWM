@@ -1,0 +1,589 @@
+{
+  "source_manifest": "valid_195_scene_manifest.json",
+  "selection_rule": "Fixed 8-scene development set including the 3 previously inspected 195-frame scenes and 5 spread positions; remaining 75 are held out until method/config lock.",
+  "dev": [
+    {
+      "index": 0,
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "first_timestamp_us": 1532400339698223,
+      "last_timestamp_us": 1532400359114977,
+      "max_time_error_us": 41400
+    },
+    {
+      "index": 14,
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "first_timestamp_us": 1535730460896709,
+      "last_timestamp_us": 1535730480280342,
+      "max_time_error_us": 41602
+    },
+    {
+      "index": 21,
+      "scene_token": "9068766ee9374872a380fe75fcfb299e",
+      "first_timestamp_us": 1537295946898999,
+      "last_timestamp_us": 1537295966282929,
+      "max_time_error_us": 35779
+    },
+    {
+      "index": 32,
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "first_timestamp_us": 1535657714051146,
+      "last_timestamp_us": 1535657733423564,
+      "max_time_error_us": 45852
+    },
+    {
+      "index": 41,
+      "scene_token": "380ff00ec86447e3b986edc8e82ffba7",
+      "first_timestamp_us": 1538448804147438,
+      "last_timestamp_us": 1538448823573106,
+      "max_time_error_us": 42401
+    },
+    {
+      "index": 49,
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "first_timestamp_us": 1537298085698796,
+      "last_timestamp_us": 1537298105115521,
+      "max_time_error_us": 43082
+    },
+    {
+      "index": 62,
+      "scene_token": "5521cd85ed0e441f8d23938ed09099dd",
+      "first_timestamp_us": 1538984969897455,
+      "last_timestamp_us": 1538984989281286,
+      "max_time_error_us": 41034
+    },
+    {
+      "index": 82,
+      "scene_token": "0dae482684ce4cd69a7258f55bc98d73",
+      "first_timestamp_us": 1542799662147889,
+      "last_timestamp_us": 1542799681531350,
+      "max_time_error_us": 42508
+    }
+  ],
+  "heldout": [
+    {
+      "index": 1,
+      "scene_token": "91f797db8fb34ae5b32ba85eecae47c9",
+      "first_timestamp_us": 1531281961798921,
+      "last_timestamp_us": 1531281981216209,
+      "max_time_error_us": 41957
+    },
+    {
+      "index": 2,
+      "scene_token": "b07358651c604e2d83da7c4d4755de73",
+      "first_timestamp_us": 1535639636700162,
+      "last_timestamp_us": 1535639656067571,
+      "max_time_error_us": 42321
+    },
+    {
+      "index": 3,
+      "scene_token": "26a6b03c8e2f4e6692f174a7074e54ff",
+      "first_timestamp_us": 1535639656701289,
+      "last_timestamp_us": 1535639676117914,
+      "max_time_error_us": 41513
+    },
+    {
+      "index": 4,
+      "scene_token": "4962cb207a824e57bd10a2af49354b16",
+      "first_timestamp_us": 1535639676700723,
+      "last_timestamp_us": 1535639696117552,
+      "max_time_error_us": 41766
+    },
+    {
+      "index": 5,
+      "scene_token": "d7bacba9119840f78f3c804134ceece0",
+      "first_timestamp_us": 1535639716699138,
+      "last_timestamp_us": 1535639736116416,
+      "max_time_error_us": 45651
+    },
+    {
+      "index": 6,
+      "scene_token": "6a24a80e2ea3493c81f5fdb9fe78c28a",
+      "first_timestamp_us": 1535639736700247,
+      "last_timestamp_us": 1535639756117638,
+      "max_time_error_us": 40264
+    },
+    {
+      "index": 7,
+      "scene_token": "16e50a63b809463099cb4c378fe0641e",
+      "first_timestamp_us": 1535489136047705,
+      "last_timestamp_us": 1535489155479656,
+      "max_time_error_us": 35443
+    },
+    {
+      "index": 8,
+      "scene_token": "6f83169d067343658251f72e1dd17dbc",
+      "first_timestamp_us": 1535489296047917,
+      "last_timestamp_us": 1535489315448527,
+      "max_time_error_us": 42116
+    },
+    {
+      "index": 9,
+      "scene_token": "f2541977a00a448db9b46a32187d9059",
+      "first_timestamp_us": 1535489316047944,
+      "last_timestamp_us": 1535489335446341,
+      "max_time_error_us": 42122
+    },
+    {
+      "index": 10,
+      "scene_token": "3363f396bb43405fbdd17d65dc123d4e",
+      "first_timestamp_us": 1535489336046302,
+      "last_timestamp_us": 1535489355422034,
+      "max_time_error_us": 41190
+    },
+    {
+      "index": 11,
+      "scene_token": "3f90afe9f7dc49399347ae1626502aed",
+      "first_timestamp_us": 1535730273898775,
+      "last_timestamp_us": 1535730293313769,
+      "max_time_error_us": 49605
+    },
+    {
+      "index": 12,
+      "scene_token": "952cb0bcd89b4ca4b904cdcbbf595523",
+      "first_timestamp_us": 1535730318896475,
+      "last_timestamp_us": 1535730338279313,
+      "max_time_error_us": 42922
+    },
+    {
+      "index": 13,
+      "scene_token": "0e7ede02718341558414865d5c604745",
+      "first_timestamp_us": 1535730400896089,
+      "last_timestamp_us": 1535730420273939,
+      "max_time_error_us": 48597
+    },
+    {
+      "index": 15,
+      "scene_token": "30a1a4ccd60047b4a22ee3bf0645f3ad",
+      "first_timestamp_us": 1535730494896554,
+      "last_timestamp_us": 1535730514279485,
+      "max_time_error_us": 49274
+    },
+    {
+      "index": 16,
+      "scene_token": "8e3364691ee94c698458e0913a29af78",
+      "first_timestamp_us": 1535730594896682,
+      "last_timestamp_us": 1535730614281055,
+      "max_time_error_us": 49905
+    },
+    {
+      "index": 17,
+      "scene_token": "0ac05652a4c44374998be876ba5cd6fd",
+      "first_timestamp_us": 1537295813898777,
+      "last_timestamp_us": 1537295833314699,
+      "max_time_error_us": 48882
+    },
+    {
+      "index": 18,
+      "scene_token": "3ada261efee347cba2e7557794f1aec8",
+      "first_timestamp_us": 1537295833898809,
+      "last_timestamp_us": 1537295853300503,
+      "max_time_error_us": 49314
+    },
+    {
+      "index": 19,
+      "scene_token": "5301151d8b6a42b0b252e95634bd3995",
+      "first_timestamp_us": 1537295873900491,
+      "last_timestamp_us": 1537295893298338,
+      "max_time_error_us": 41001
+    },
+    {
+      "index": 20,
+      "scene_token": "991d65cab952449a821deb32e971ff19",
+      "first_timestamp_us": 1537295913899429,
+      "last_timestamp_us": 1537295933282904,
+      "max_time_error_us": 42353
+    },
+    {
+      "index": 22,
+      "scene_token": "b789de07180846cc972118ee6d1fb027",
+      "first_timestamp_us": 1537295986951036,
+      "last_timestamp_us": 1537296006315315,
+      "max_time_error_us": 42916
+    },
+    {
+      "index": 23,
+      "scene_token": "9088db17416043e5880a53178bfa461c",
+      "first_timestamp_us": 1537296035899073,
+      "last_timestamp_us": 1537296055281802,
+      "max_time_error_us": 40414
+    },
+    {
+      "index": 24,
+      "scene_token": "7210f928860043b5a7e0d3dd4b3e80ff",
+      "first_timestamp_us": 1537296055898536,
+      "last_timestamp_us": 1537296075282741,
+      "max_time_error_us": 41260
+    },
+    {
+      "index": 25,
+      "scene_token": "7bd098ac88cb4221addd19202a7ea5de",
+      "first_timestamp_us": 1537296075899673,
+      "last_timestamp_us": 1537296095249681,
+      "max_time_error_us": 49992
+    },
+    {
+      "index": 26,
+      "scene_token": "19d97841d6f64eba9f6eb9b6e8c257dc",
+      "first_timestamp_us": 1537296115948908,
+      "last_timestamp_us": 1537296135366863,
+      "max_time_error_us": 42511
+    },
+    {
+      "index": 27,
+      "scene_token": "f5b29a1e09d04355adcd60ab72de006b",
+      "first_timestamp_us": 1537296195898137,
+      "last_timestamp_us": 1537296215281528,
+      "max_time_error_us": 43532
+    },
+    {
+      "index": 28,
+      "scene_token": "aedcd3cf7c4a49d7a4a43ab7443a9eb1",
+      "first_timestamp_us": 1535657531048384,
+      "last_timestamp_us": 1535657550465143,
+      "max_time_error_us": 35261
+    },
+    {
+      "index": 29,
+      "scene_token": "21a7ba093614493b83838b9656b3558d",
+      "first_timestamp_us": 1535657569048387,
+      "last_timestamp_us": 1535657588448987,
+      "max_time_error_us": 36238
+    },
+    {
+      "index": 30,
+      "scene_token": "96e5f1f0944946f391b4ef33ad623008",
+      "first_timestamp_us": 1535657649049003,
+      "last_timestamp_us": 1535657668448533,
+      "max_time_error_us": 41017
+    },
+    {
+      "index": 31,
+      "scene_token": "4bb9626f13184da7a67ba1b241c19558",
+      "first_timestamp_us": 1535657694048916,
+      "last_timestamp_us": 1535657713467218,
+      "max_time_error_us": 41002
+    },
+    {
+      "index": 33,
+      "scene_token": "656bb27689dc4e9b8e4559e3f6a7e534",
+      "first_timestamp_us": 1535657772047849,
+      "last_timestamp_us": 1535657791482926,
+      "max_time_error_us": 41200
+    },
+    {
+      "index": 34,
+      "scene_token": "57dc3221a3d845b5ab17ff0f98ce336f",
+      "first_timestamp_us": 1535657792049525,
+      "last_timestamp_us": 1535657811466175,
+      "max_time_error_us": 40857
+    },
+    {
+      "index": 35,
+      "scene_token": "7061c08f7eec4495979a0cf68ab6bb79",
+      "first_timestamp_us": 1535657812050099,
+      "last_timestamp_us": 1535657831490385,
+      "max_time_error_us": 40286
+    },
+    {
+      "index": 36,
+      "scene_token": "40209c4e465d4b4e8341ebd52be0d842",
+      "first_timestamp_us": 1535657832048501,
+      "last_timestamp_us": 1535657851481641,
+      "max_time_error_us": 36701
+    },
+    {
+      "index": 37,
+      "scene_token": "50ff554b3ecb4d208849d042b7643715",
+      "first_timestamp_us": 1535657852048534,
+      "last_timestamp_us": 1535657871482215,
+      "max_time_error_us": 42420
+    },
+    {
+      "index": 38,
+      "scene_token": "36f27b26ef4c423c9b79ac984dc33bae",
+      "first_timestamp_us": 1538448724147906,
+      "last_timestamp_us": 1538448743531189,
+      "max_time_error_us": 42349
+    },
+    {
+      "index": 39,
+      "scene_token": "c5224b9b454b4ded9b5d2d2634bbda8a",
+      "first_timestamp_us": 1538448744447639,
+      "last_timestamp_us": 1538448763880871,
+      "max_time_error_us": 35417
+    },
+    {
+      "index": 40,
+      "scene_token": "f24b4682fbb9482aba149534deed1cc9",
+      "first_timestamp_us": 1538448764147400,
+      "last_timestamp_us": 1538448783531219,
+      "max_time_error_us": 41267
+    },
+    {
+      "index": 42,
+      "scene_token": "ec7b7459461e4da1a236ba23e22377c9",
+      "first_timestamp_us": 1538448824198317,
+      "last_timestamp_us": 1538448843596543,
+      "max_time_error_us": 41507
+    },
+    {
+      "index": 43,
+      "scene_token": "07aed9dae37340a997535ad99138e243",
+      "first_timestamp_us": 1538448844146362,
+      "last_timestamp_us": 1538448863564316,
+      "max_time_error_us": 35464
+    },
+    {
+      "index": 44,
+      "scene_token": "6741d407b1b44511853e5ec7aaee2992",
+      "first_timestamp_us": 1538448884147511,
+      "last_timestamp_us": 1538448903522980,
+      "max_time_error_us": 42201
+    },
+    {
+      "index": 45,
+      "scene_token": "c164a8e8e8b8489f964f711f472789be",
+      "first_timestamp_us": 1537297945698626,
+      "last_timestamp_us": 1537297965065044,
+      "max_time_error_us": 42090
+    },
+    {
+      "index": 46,
+      "scene_token": "dce6f3f2bf6b4859abcf3268581969d3",
+      "first_timestamp_us": 1537297985700323,
+      "last_timestamp_us": 1537298005067394,
+      "max_time_error_us": 35597
+    },
+    {
+      "index": 47,
+      "scene_token": "d01e7279da2649ef896dc42f6b9ee7ab",
+      "first_timestamp_us": 1537298025699833,
+      "last_timestamp_us": 1537298045066368,
+      "max_time_error_us": 34363
+    },
+    {
+      "index": 48,
+      "scene_token": "7e8ff24069ff4023ac699669b2c920de",
+      "first_timestamp_us": 1537298045699839,
+      "last_timestamp_us": 1537298065116673,
+      "max_time_error_us": 49857
+    },
+    {
+      "index": 50,
+      "scene_token": "197a7e4d3de84e57af17b3d65fcb3893",
+      "first_timestamp_us": 1537298125699377,
+      "last_timestamp_us": 1537298145116663,
+      "max_time_error_us": 41606
+    },
+    {
+      "index": 51,
+      "scene_token": "a2b005c4dd654af48194ada18662c8ca",
+      "first_timestamp_us": 1537298205699504,
+      "last_timestamp_us": 1537298225115957,
+      "max_time_error_us": 49626
+    },
+    {
+      "index": 52,
+      "scene_token": "3a2d9bf6115f40898005d1c1df2b7282",
+      "first_timestamp_us": 1537298345699057,
+      "last_timestamp_us": 1537298365133233,
+      "max_time_error_us": 43082
+    },
+    {
+      "index": 53,
+      "scene_token": "325cef682f064c55a255f2625c533b75",
+      "first_timestamp_us": 1538984233547259,
+      "last_timestamp_us": 1538984252947312,
+      "max_time_error_us": 35211
+    },
+    {
+      "index": 54,
+      "scene_token": "223096a415cc45bf8ecd4c3a42251fd7",
+      "first_timestamp_us": 1538984293547931,
+      "last_timestamp_us": 1538984312948011,
+      "max_time_error_us": 34113
+    },
+    {
+      "index": 55,
+      "scene_token": "76ceedbcc6a54b158eba9945a160a7bc",
+      "first_timestamp_us": 1538984433548077,
+      "last_timestamp_us": 1538984452982815,
+      "max_time_error_us": 41081
+    },
+    {
+      "index": 56,
+      "scene_token": "955ff42a1990442d868cdfc0c01583d4",
+      "first_timestamp_us": 1538984453548690,
+      "last_timestamp_us": 1538984472947612,
+      "max_time_error_us": 41056
+    },
+    {
+      "index": 57,
+      "scene_token": "112ca771e318478a88cfa692f61ffcac",
+      "first_timestamp_us": 1538984488547727,
+      "last_timestamp_us": 1538984507948320,
+      "max_time_error_us": 34792
+    },
+    {
+      "index": 58,
+      "scene_token": "04219bfdc9004ba2af16d3079ecc4353",
+      "first_timestamp_us": 1538984560547586,
+      "last_timestamp_us": 1538984579947094,
+      "max_time_error_us": 42086
+    },
+    {
+      "index": 59,
+      "scene_token": "32185f91e68f4069ab3cdd2f4f1a4ff1",
+      "first_timestamp_us": 1538984829897279,
+      "last_timestamp_us": 1538984849264160,
+      "max_time_error_us": 41170
+    },
+    {
+      "index": 60,
+      "scene_token": "696a45dbd11346b794fdce43fa0a1770",
+      "first_timestamp_us": 1538984909897929,
+      "last_timestamp_us": 1538984929314575,
+      "max_time_error_us": 49672
+    },
+    {
+      "index": 61,
+      "scene_token": "c4df079d260241ff8015218e29b42ea7",
+      "first_timestamp_us": 1538984949897432,
+      "last_timestamp_us": 1538984969297468,
+      "max_time_error_us": 41499
+    },
+    {
+      "index": 63,
+      "scene_token": "a04daf2d0f194b2ab2ff2a47dfebc1d7",
+      "first_timestamp_us": 1538985029898073,
+      "last_timestamp_us": 1538985049297279,
+      "max_time_error_us": 49509
+    },
+    {
+      "index": 64,
+      "scene_token": "e60ef590e3614187b7800db3e5284e1a",
+      "first_timestamp_us": 1538985049946748,
+      "last_timestamp_us": 1538985069364133,
+      "max_time_error_us": 41877
+    },
+    {
+      "index": 65,
+      "scene_token": "2086743226764f268fe8d4b0b7c19590",
+      "first_timestamp_us": 1537852755198120,
+      "last_timestamp_us": 1537852774564635,
+      "max_time_error_us": 41583
+    },
+    {
+      "index": 66,
+      "scene_token": "c92fdd793fbb4401b12782a9b8d4a499",
+      "first_timestamp_us": 1537852859296907,
+      "last_timestamp_us": 1537852878730627,
+      "max_time_error_us": 43262
+    },
+    {
+      "index": 67,
+      "scene_token": "6776b91389394ff18e57b269863b4dbf",
+      "first_timestamp_us": 1537852899197343,
+      "last_timestamp_us": 1537852918564118,
+      "max_time_error_us": 41160
+    },
+    {
+      "index": 68,
+      "scene_token": "931c5c57011944459bba3825ab8777a9",
+      "first_timestamp_us": 1537852954198290,
+      "last_timestamp_us": 1537852973564683,
+      "max_time_error_us": 42255
+    },
+    {
+      "index": 69,
+      "scene_token": "aacd6706a091407fb1b0e5343d27da7e",
+      "first_timestamp_us": 1537852974197780,
+      "last_timestamp_us": 1537852993614961,
+      "max_time_error_us": 42802
+    },
+    {
+      "index": 70,
+      "scene_token": "e005041f659c47e194cd5b18ea6fc346",
+      "first_timestamp_us": 1537853034197549,
+      "last_timestamp_us": 1537853053564066,
+      "max_time_error_us": 35083
+    },
+    {
+      "index": 71,
+      "scene_token": "034dee1695304630b0692da8c1f153fc",
+      "first_timestamp_us": 1542799322148077,
+      "last_timestamp_us": 1542799341531383,
+      "max_time_error_us": 42859
+    },
+    {
+      "index": 72,
+      "scene_token": "7052d21b95fc4bae8761b8d9524f3e42",
+      "first_timestamp_us": 1542799342148091,
+      "last_timestamp_us": 1542799361531926,
+      "max_time_error_us": 41669
+    },
+    {
+      "index": 73,
+      "scene_token": "e8099a6136804f3bb9b38ff94d98eb64",
+      "first_timestamp_us": 1542799402147043,
+      "last_timestamp_us": 1542799421532048,
+      "max_time_error_us": 41963
+    },
+    {
+      "index": 74,
+      "scene_token": "e6f1a7e6218a4737bfedc6af90926b3e",
+      "first_timestamp_us": 1542799422148195,
+      "last_timestamp_us": 1542799441532033,
+      "max_time_error_us": 49767
+    },
+    {
+      "index": 75,
+      "scene_token": "6af9b75e439e4811ad3b04dc2220657a",
+      "first_timestamp_us": 1542799482148234,
+      "last_timestamp_us": 1542799501531526,
+      "max_time_error_us": 41619
+    },
+    {
+      "index": 76,
+      "scene_token": "f97bf749746c4c3a8ad9f1c11eab6444",
+      "first_timestamp_us": 1542799522398224,
+      "last_timestamp_us": 1542799541781515,
+      "max_time_error_us": 42006
+    },
+    {
+      "index": 77,
+      "scene_token": "afbc2583cc324938b2e8931d42c83e6b",
+      "first_timestamp_us": 1542799562397703,
+      "last_timestamp_us": 1542799581781550,
+      "max_time_error_us": 41333
+    },
+    {
+      "index": 78,
+      "scene_token": "16be583c31a2403caa6c158bb55ae616",
+      "first_timestamp_us": 1542799582398280,
+      "last_timestamp_us": 1542799601781020,
+      "max_time_error_us": 42156
+    },
+    {
+      "index": 79,
+      "scene_token": "e8834785d9ff4783a5950281a4579943",
+      "first_timestamp_us": 1542799602147257,
+      "last_timestamp_us": 1542799621564643,
+      "max_time_error_us": 41105
+    },
+    {
+      "index": 80,
+      "scene_token": "d29527ec841045d18d04a933e7a0afd2",
+      "first_timestamp_us": 1542799622147843,
+      "last_timestamp_us": 1542799641530765,
+      "max_time_error_us": 49935
+    },
+    {
+      "index": 81,
+      "scene_token": "85889db3628342a482c5c0255e5347e9",
+      "first_timestamp_us": 1542799642147315,
+      "last_timestamp_us": 1542799661531175,
+      "max_time_error_us": 42947
+    }
+  ]
+}

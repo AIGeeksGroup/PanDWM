@@ -1,222 +1,167 @@
-# Open Driving World Models (OpenDWM)
+# PanDWM: Panoramic 4D Driving World Models
 
-[![Youtube](https://badges.aleen42.com/src/youtube.svg)](https://youtu.be/j9RRj-xzOA4) [<img src=https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E7%AE%80%E4%BB%8B-blue>](README_intro_zh.md) 
+Code implementation for the paper:
 
-https://github.com/user-attachments/assets/649d3b81-3b1f-44f9-9f51-4d1ed7756476
+> **PanDWM: Panoramic 4D Driving World Models**
+>
+> TODO: authors
+>
+> ### [Paper](TODO) | [Website](TODO) | [Model](https://huggingface.co/AIGeeksGroup/PanDWM)
 
-Welcome to the OpenDWM project! This is an open-source initiative, focusing on autonomous driving video generation. Our mission is to provide a high-quality, controllable tool for generating autonomous driving videos using the latest technology. We aim to build a codebase that is both user-friendly and highly reusable, and hope to continuously improve the project through the collective wisdom of the community.
-
-The driving world models generate multi-view images or videos of autonomous driving scenes based on text and road environment layout conditions. Whether it's the environment, weather conditions, vehicle type, or driving path, you can adjust them according to your needs.
-
-The highlights are as follows:
-
-1. **Transparent and reproducable training.** We provide complete training codes and configurations, allowing everyone to reproduce experiments, fine-tune on their own data, and customize development features as needed.
-
-2. **Significant improvement in the environmental diversity.** Through the use of multiple datasets, the model's generalization ability has been enhanced like never before. Take the example of a generation task controlled by layout conditions, such as a snowy city street or a lakeside highway with distant snow mountains, these scenarios are impossible tasks for generative models trained with a single dataset.
-
-3. **Greatly improved generation quality.** Support for popular model architectures (SD 2.1, 3.5) enables more convenient utilization of the advanced pre-training generation capabilities within the community. Various training techniques, including multitasking and self-supervision, allow the model to utilize the information in autonomous driving video data more effectively.
-
-4. **Convenient evaluation.** Evaluation follows the popular framework `torchmetrics`, which is easy to configure, develop, and integrate into the pipeline. Public configurations (such as FID, FVD on the nuScenes validation set) are provided to align other research works.
-
-Furthermore, our code modules are designed with high reusability in mind, for easy application in other projects.
-
-Currently, the project has implemented the following papers:
-
-> [UniMLVG: Unified Framework for Multi-view Long Video Generation with Comprehensive Control Capabilities for Autonomous Driving](https://sensetime-fvg.github.io/UniMLVG)<br>
-> Rui Chen<sup>1,2</sup>, Zehuan Wu<sup>2</sup>, Yichen Liu<sup>2</sup>, Yuxin Guo<sup>2</sup>, Jingcheng Ni<sup>2</sup>, Haifeng Xia<sup>1</sup>, Siyu Xia<sup>1</sup><br>
-> <sup>1</sup>Southeast University <sup>2</sup>SenseTime Research
-
-> [MaskGWM: A Generalizable Driving World Model with Video Mask Reconstruction](https://sensetime-fvg.github.io/MaskGWM)<br>
-> Jingcheng Ni, Yuxin Guo, Yichen Liu, Rui Chen, Lewei Lu, Zehuan Wu<br>
-> SenseTime Research
-
-## News
-
-* [2025/5/6] Release the [CTSD 3.5 with CogVideoX VAE](#video-models) for faster generation.
-* [2025/4/23] Update the [LiDAR VQVAE (including KITTI-360), LiDAR generation models](#lidar-models), and release the [DFoT on CTSD 3.5 model](#video-models).
-* [2025/3/17] Experimental release the [Interactive Generation with Carla](docs/InteractiveGeneration.md)
-* [2025/3/7] Release the [LiDAR Generation](#lidar-models)
-* [2025/3/4] Release the [CTSD 3.5 with layout condition](#video-models)
-* [2025/2/7] Release the [UniMLVG](#video-models)
-
-## Setup
-
-Hardware requirement:
-
-* Training and testing multi-view image generation or short video (<= 6 frames per iteration) generation requires 32GB GPU memory (e.g. V100)
-* Training and testing multi-view long video (6 ~ 40 frames per iteration) generation requires 80GB GPU memory (e.g. A100, H100)
-
-Software requirement:
-
-* git (>= 2.25)
-* python (>= 3.9)
-
-Install the [PyTorch](https://pytorch.org/) >= 2.5:
-
-```
-python -m pip install torch==2.5.1 torchvision==0.20.1
-```
-
-Clone the repository, then install the dependencies.
-
-```
-cd OpenDWM
-git submodule update --init --recursive
-python -m pip install -r requirements.txt
-```
-
-## Models
-
-### Video Models
-
-Our cross-view temporal SD (CTSD) pipeline support loading the pretrained SD 2.1, 3.0, 3.5, or the checkpoints we trained on the autonomous driving datasets.
-
-| Base model | Text conditioned <br/> driving generation | Text and layout (box, map) <br/> conditioned driving generation |
-| :-: | :-: | :-: |
-| [SD 2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1) | [Config](configs/ctsd/multi_datasets/ctsd_21_tirda_nwao.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_21_tirda_nwao_30k.pth?download=true) | [Config](configs/ctsd/multi_datasets/ctsd_21_tirda_bm_nwa.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_21_tirda_bm_nwa_30k.pth?download=true) |
-| [SD 3.0](https://huggingface.co/stabilityai/stable-diffusion-3-medium-diffusers) | | [UniMLVG Config](configs/ctsd/unimlvg/ctsd_unimlvg_stage3_tirda_bm_nwa.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_unimlvg_tirda_bm_nwa_60k.pth?download=true) |
-| [SD 3.5](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium) | [Config](configs/ctsd/multi_datasets/ctsd_35_tirda_nwao.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_35_tirda_nwao_20k.pth?download=true) | [Config](configs/ctsd/multi_datasets/ctsd_35_tirda_bm_nwao.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_35_tirda_bm_nwao_40k.pth?download=true) |
-| [DFoT](https://arxiv.org/abs/2502.06764) on [SD 3.5](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium) | | [Config](configs/ctsd/multi_datasets/ctsd_35_df16_tirda_bm_nwao.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_35_df16_tirda_bm_nwao_40k.pth?download=true) |
-| [SD 3.5](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium) with [CogVideoX VAE](https://huggingface.co/THUDM/CogVideoX-2b) | | [Config](configs/ctsd/multi_datasets/ctsd_35_tvae_f17_tirda_bm_nwao.json), [Download](https://huggingface.co/wzhgba/opendwm-models/resolve/main/ctsd_35_tvae_f17_tirda_bm_nwao_50k.pth?download=true) |
-
-The FVD evaluation results for all downloadable models can be found at the bottom of the corresponding configuration files.
-
-### LiDAR Models
-
-You can download our pre-trained tokenzier and generation model in the following link.
-
-| Model Architecture | Dataset | Configs | Checkpoint Download |
-| :-: | :-: | :-: | :-: |
-| VQVAE | nuscene, waymo, argoverse | [Config](configs/lidar/lidar_vqvae_nwa.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_vqvae_nwa_60k.pth?download=true), [blank code](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_vqvae_nwa_60k_blank_code.pkl?download=true) |
-| | nuscene, waymo, argoverse, kitti360 | [Config](configs/lidar/lidar_vqvae_nwak.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_vqvae_nwak_80k.pth?download=true), [blank code](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_vqvae_nwak_80k_blank_code.pkl?download=true) |
-| VAE | nuscene, waymo, argoverse, kitti360 | [Config](configs/lidar/lidar_vae_nwak.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_vae_nwak_45k.pth?download=true) |
-| MaskGIT | nuscene | [Config](configs/lidar/lidar_maskgit_layout_ns.json) | [ckpt_with_vqvae_nwa](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_maskgit_nusc_150k.pth?download=true) <br> [ckpt_with_vqvae_nwak](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_maskgit_vq80k_layout_ns_120k.pth?download=true) |
-| | kitti360 | [Config](configs/lidar/lidar_maskgit_vq80k_layout_kt.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_maskgit_vq80k_layout_kt_120k.pth?download=true)|
-| Temporal MaskGIT | nuscene | [Config](configs/lidar/lidar_maskgit_temporal_vq80k_layout_ns.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_maskgit_temporal_vq80k_layout_ns_150k.pth?download=true) |
-| | kitti360 | [Config](configs/lidar/lidar_maskgit_temporal_vq80k_layout_kt.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_maskgit_temporal_vq80k_layout_kt_150k.pth?download=true)|
-| Temporal DiT | nuscene | [Config](configs/lidar/lidar_diffusion_dit_temporal_ns.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_dit_temporal_layout_ns_150k.pth?download=true) |
-| | kitti360 | [Config](configs/lidar/lidar_diffusion_dit_temporal_kt.json) | [checkpoint](https://huggingface.co/wzhgba/opendwm-models/resolve/main/lidar_dit_temporal_layout_kt_150k.pth?download=true)|
-## Examples
-
-### T2I, T2V generation with CTSD pipeline
-
-Download base model (for VAE, text encoders, scheduler config) and driving generation model checkpoint, and edit the [path](examples/ctsd_35_6views_image_generation.json#L102) and [prompts](examples/ctsd_35_6views_image_generation.json#L221) in the JSON config, then run this command.
-
-```bash
-PYTHONPATH=src python examples/ctsd_generation_example.py -c examples/ctsd_35_6views_image_generation.json -o output/ctsd_35_6views_image_generation
-```
-
-### Layout conditioned T2V generation with CTSD pipeline
-
-1. Download base model (for VAE, text encoders, scheduler config) and driving generation model checkpoint, and edit the [path](examples/ctsd_35_6views_video_generation_with_layout.json#L156) in the JSON config.
-2. Download layout resource package ([nuscenes_scene-0627_package.zip](https://huggingface.co/datasets/wzhgba/opendwm-data/resolve/main/nuscenes_scene-0627_package.zip?download=true), or [carla_town04_package](https://huggingface.co/datasets/wzhgba/opendwm-data/resolve/main/carla_town04_package.zip?download=true)) and unzip to the `{RESOURCE_PATH}`. Then edit the meta [path](examples/ctsd_35_6views_video_generation_with_layout.json#L162) as `{RESOURCE_PATH}/data.json` in the JSON config.
-3. Run this command to generate the video.
-
-```bash
-PYTHONPATH=src python src/dwm/preview.py -c examples/ctsd_35_6views_video_generation_with_layout.json -o output/ctsd_35_6views_video_generation_with_layout
-```
-
-### Layout conditioned LiDAR generation with MaskGIT pipeline
-
-1. Download LiDAR VQVAE and LiDAR MaskGIT generation model checkpoint.
-2. Prepare the dataset ( [nuscenes_scene-0627_lidar_package.zip](https://huggingface.co/datasets/wzhgba/opendwm-data/resolve/main/nuscenes_scene-0627_lidar_package.zip?download=true) ).
-3. Modify the values of `json_file`, `vq_point_cloud_ckpt_path`, `vq_blank_code_path` and `model_ckpt_path` to the paths of your dataset and checkpoints in the json file `examples/lidar_maskgit_preview.json` or `examples/lidar_maskgit_temporal_preview.json` .
-4. For single-frame lidar generation, run the following command to visualize the LiDAR of the validation set and save the generated point cloud as `.bin` file.
-
-```bash
-PYTHONPATH=src python src/dwm/preview.py -c examples/lidar_maskgit_preview.json -o output/single_frame_maskgit
-```
-
-5. For lidar sequence generation, `enable_autoregressive_inference` flag is enabled in the config file to support autoregressive generation. If you would like to use ground truth data as reference frames, set `use_ground_truth_as_reference` as `true`. Alternatively, you can set it as `false` for generation from layout condition only. After setting up the config file, run the following command
-
-```bash
-PYTHONPATH=src python3 -m torch.distributed.run --nnodes 1 --nproc-per-node 2 --node-rank 0 --master-addr 127.0.0.1 --master-port 29000 src/dwm/preview.py -c examples/lidar_maskgit_temporal_preview.json -o output/temporal_maskgit
-```
-
-### Layout conditioned LiDAR generation with Diffusion pipeline
-
-1. Download LiDAR VAE and LiDAR Diffusion generation model checkpoint.
-2. Prepare the dataset ( [nuscenes_scene-0627_lidar_package.zip](https://huggingface.co/datasets/wzhgba/opendwm-data/resolve/main/nuscenes_scene-0627_lidar_package.zip?download=true) ).
-3. Modify the values of `json_file`, `autoencoder_ckpt_path`, and `diffusion_model_ckpt_path` to the paths of your dataset and checkpoints in the json file `examples/lidar_diffusion_temporal_preview.json`.
-4. Run the following command to generate LiDAR data according to the reference frame autoregressively.
-
-```bash
-PYTHONPATH=src python3 -m torch.distributed.run --nnodes 1 --nproc-per-node 2 --node-rank 0 --master-addr 127.0.0.1 --master-port 29000 src/dwm/preview.py -c examples/lidar_diffusion_temporal_preview.json -o output/temporal_diffusion
-```
-
-## Train
-
-Preparation:
-
-1. Download the base models.
-2. Download and process [datasets](docs/Datasets.md).
-3. Edit the configuration file (mainly the path of the model and dataset under the user environment).
-
-Once the config file is updated with the correct model and data information, launch training by:
-
-```
-PYTHONPATH=src:externals/waymo-open-dataset/src:externals/TATS/tats/fvd python src/dwm/train.py -c {YOUR_CONFIG} -o output/{YOUR_WORKSPACE}
-```
-
-Or distributed training by:
-
-```
-OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONPATH=src:externals/waymo-open-dataset/src:externals/TATS/tats/fvd python -m torch.distributed.run --nnodes $WORLD_SIZE --nproc-per-node 8 --node-rank $RANK --master-addr $MASTER_ADDR --master-port $MASTER_PORT src/dwm/train.py -c {YOUR_CONFIG} -o output/{YOUR_WORKSPACE}
-```
-
-Then you can check the preview under `output/{YOUR_WORKSPACE}/preview`, and get the checkpoint files from `output/{YOUR_WORKSPACE}/checkpoints`.
-
-Some training tasks require multi stages (for the configurations with names of `train_warmup.json` and `train.json`), you should fill the path of the saved checkpoint from the previous stage into the following stage (for [example](configs/ctsd/single_dataset/ctsd_21_tirda_bm_nusc_a.json#L200)), then launch the training of this following stage.
-
-## Evaluation
-
-We have integrated the functions of FID and FVD metric evaluation in the pipeline, which involves filling in the [validation set](configs/ctsd/single_dataset/ctsd_21_crossview_tirda_bm_nusc_a.json#L394) ([source](configs/ctsd/single_dataset/ctsd_21_crossview_tirda_bm_nusc_a.json#L398), [sampling interval](configs/ctsd/single_dataset/ctsd_21_crossview_tirda_bm_nusc_a.json#L408)) and [evaluation parameters](configs/ctsd/single_dataset/ctsd_21_crossview_tirda_bm_nusc_a.json#L192) (for example, the [number of frames](configs/ctsd/single_dataset/ctsd_21_tirda_bm_nusc_a.json#L212) of each video segment to be measured in FVD) in the configuration file.
-
-The specific call method is as follows.
-
-```
-PYTHONPATH=src:externals/waymo-open-dataset/src:externals/TATS/tats/fvd python src/dwm/evaluate.py -c {YOUR_CONFIG} -o output/{YOUR_WORKSPACE}
-```
-
-Or distributed evaluation by `torch.distributed.run`, similar to the distributed training.
-
-## Development
-
-### Folder structure
-
-* `configs` The config files for data and pipeline with different arguments.
-* `examples` The inference code and configurations.
-* `externals` The dependency projects.
-* `src/dwm` The shared components of this project.
-  * `datasets` implements `torch.utils.data.Dataset` for our training pipeline by reading multi-view, LiDAR and temporal data, with optional text, 3D box, HD map, pose, camera parameters as conditions.
-  * `fs` provides flexible access methods following `fsspec` to the data stored in ZIP blobs, or in the S3 compatible storage services.
-  * `metrics` implements `torchmetrics` compatible classes for quantitative evaluation.
-  * `models` implements generation models and their building blocks.
-  * `pipelines` implements the training logic for different models.
-  * `tools` provides dataset and file processing scripts for faster initialization and reading.
-
-Introduction about the [file system](src/dwm/fs/README.md), and [dataset](src/dwm/datasets/README.md).
+---
 
 ## Citation
-If you find our OpenDWM useful in your research or refer to the provided baseline results, please star :star: this repository and consider citing our repo or papers :pencil::
-```
-@misc{opendwm,
-  Year = {2025},
-  Note = {https://github.com/SenseTime-FVG/OpenDWM},
-  Title = {OpenDWM: Open Driving World Models}
-}
 
-@article{chen2024unimlvg,
-  title={UniMLVG: Unified Framework for Multi-view Long Video Generation with Comprehensive Control Capabilities for Autonomous Driving},
-  author={Chen, Rui and Wu, Zehuan and Liu, Yichen and Guo, Yuxin and Ni, Jingcheng and Xia, Haifeng and Xia, Siyu},
-  journal={arXiv preprint arXiv:2412.04842},
-  year={2024}
-}
-
-@article{ni2025maskgwm,
-  title={MaskGWM: A Generalizable Driving World Model with Video Mask Reconstruction},
-  author={Ni, Jingcheng and Guo, Yuxin and Liu, Yichen and Chen, Rui and Lu, Lewei and Wu, Zehuan},
-  journal={arXiv preprint arXiv:2502.11663},
-  year={2025}
-}
 ```
+TODO
+```
+
+---
+
+## 🏃 Introduction
+
+![image](./assets/teaser.png)
+
+Driving world models typically represent the surround scene as six pinhole-camera videos, whose separate optical centres force the model to learn cross-view consistency. PanDWM instead generates a single 360° panoramic band, split into two overlapping halves so that every camera boundary lies inside one image, and conditions it on 3D boxes and HD maps stitched into the band.
+
+![image](./assets/architecture.png)
+
+The framework has two parts:
+
+- **Panoramic video generation:** the band is generated causally, one window at a time. Each window has 3 history frames and 16 target frames. A four-step student is distilled from a block-causal video diffusion model (the 50-step causal teacher) and trained on its own generated history.
+- **Gaussian lifting:** a feed-forward decoder lifts each frame into 3D Gaussians along the calibrated camera rays. 4D Gaussians add static Gaussians from neighbouring frames to fill unseen regions. A render refiner can denoise rendered views at lateral shifts.
+
+On the nuScenes validation set, the student matches the FID of its 50-step causal teacher (10.1 vs. 9.93) and lowers FVD-1 from 47.7 to 37.4, at 1.96 s instead of 33.7 s per frame.
+
+## 📁 Repository Layout
+
+This release is the code that produced the paper results, as it ran on our SLURM clusters. Cluster paths were replaced by placeholders (see [Paths](#paths)); nothing else was changed. Each folder under `pandwm_code/` is one code tree that the job scripts put on `PYTHONPATH`.
+
+| Folder | Contents |
+|---|---|
+| `pandwm_code/PanDWM_long_horizon_20260928` | Model (`dwm_pano/models/crossview_temporal_dit_pano.py`), base pipelines, OpenDWM `dwm` package, data loading, teacher rollouts |
+| `pandwm_code/PanDWM-cfdmd-A-20261008` | Student distillation (`src/dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), training configs, job scripts for training and generation |
+| `pandwm_code/PanDWM_eval149_20261011` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
+| `pandwm_code/PanDWM-gs-aa-ft` | 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`) and its early training stages |
+| `pandwm_code/PanDWM-gs4d-20261002` | 4D Gaussian decoder training (`dwm_pano_4d`) and its configs |
+| `pandwm_code/PanDWM-ft3-20261030` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation |
+| `pandwm_code/PanDWM-cov3-20261101` | Reconstruction evaluation: scene builder (`gs_scene_v3.py`), targets, masks, renderer and scorer (`dwm_pano/recon/`) |
+| `pandwm_code/PanDWM_d2_refiner_20261021` | Render refiner (model, data, training, `d2_refine.py`) |
+| `pandwm_code/PanDWM-fuse-20261031` | Multi-view consistency check (`consistency_eval.py` only) |
+| `scripts/gaussian/` | Job scripts for the reconstruction table, the generated-scene table and the refiner |
+| `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
+
+Many other scripts in these trees are development diagnostics; the entry points for every result are listed in [docs/reproduce.md](docs/reproduce.md).
+
+## 📦 Data Preparation
+
+PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes, validation 150 scenes). Panoramas, condition images and 12 Hz index files are prepared as follows; details and checksums are in [docs/data.md](docs/data.md).
+
+1. **Panoramas and conditions.** The panoramic bands (`rgb/`) and the stitched 3D-box and HD-map conditions (`bbox/`, `hdmap/`) come from the preprocessed releases [`zeyuren2002/nuscene-360_train`](https://huggingface.co/datasets/zeyuren2002/nuscene-360_train) (revision `72a55450`) and [`zeyuren2002/nuscene_360_val`](https://huggingface.co/datasets/zeyuren2002/nuscene_360_val).
+2. **12 Hz index files.** Training uses `nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl` from [`Arlolo0/OmniNWM`](https://huggingface.co/Arlolo0/OmniNWM) (revision `223f11f1`). Evaluation uses our copy of `nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl` (SHA-256 `66aa82b0…`), which differs from the public file of the same name. TODO: release location.
+3. **Evaluation clips.** The clip lists are in `pandwm_code/PanDWM_eval149_20261011/`:
+
+| Set | Clips | Manifest |
+|---|---|---|
+| Val-150 | First 3.5 s of the 150 validation scenes | `dev149_manifest_20261018.json` + `scene0018_manifest_20261019.json` |
+| Dev-78 | First 3.5 s of 78 validation scenes | `dev78_manifest_20261018.json` |
+| Test-S | 249 clips (83 scenes, 5 / 10 / 15 s) | `tests249_manifest_20261024.json` |
+| Test-L | 83 scenes, 3 + 12 × 16 frames | `testl83_long12_20261024.json` |
+
+## ⚙️ Environment Setup
+
+The paper results were produced with Python 3.12, PyTorch 2.7.1 (CUDA 12.8), torchvision 0.22.1, diffusers 0.31.0, transformers 4.57.1, accelerate 1.4.0, torchmetrics 1.6.0, timm 1.0.15, einops 0.8.2, av 14.2.0 and numpy 2.1.2. The Gaussian jobs additionally use [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3 and the [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3) source tree. `pandwm_code/PanDWM-gs-aa-ft/requirements.txt` lists the remaining OpenDWM dependencies.
+
+Student training runs on one node with 8 GPUs; generation and Gaussian evaluation run on one GPU per array task.
+
+### Paths
+
+All scripts and configs use two placeholders. Replace them before running:
+
+| Placeholder | Meaning |
+|---|---|
+| `/path/to/pandwm_root` | Root holding `pandwm_code/` (this repository's `pandwm_code/` folder, plus `TATS_fvd/` and `third_party/depth_anything_3/`), `pandwm_data/` (weights, panoramas, conditions, index files) and `pandwm_runs/` (outputs) |
+| `/path/to/home` | Home directory used by a few local helper scripts |
+
+```bash
+grep -rl /path/to/pandwm_root . | xargs sed -i 's#/path/to/pandwm_root#/your/root#g'
+```
+
+SLURM headers keep `<account>`, `<partition>` and `<qos>` placeholders; set them for your cluster.
+
+### Pretrained Checkpoints
+
+| Checkpoint | Use | Place at |
+|---|---|---|
+| [`video/pandwm_video_v84i4250_ema.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Four-step video student (paper model) | `CKPT=` of the generation scripts |
+| [`gaussian/pandwm_gs_decoder_G3b_2000.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Gaussian decoder for both Gaussian tables | `--checkpoint` / `CKPT=` of the Gaussian scripts |
+| [`refiner/pandwm_render_refiner_v1_4000.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Render refiner | `CK=` of `d2v2_refine.sbatch` |
+| [Stable Diffusion 3.5 Medium](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium) | VAE and text encoders | `pandwm_data/stable-diffusion-3.5-medium` |
+| [DA3-LARGE-1.1](https://huggingface.co/depth-anything/DA3-LARGE-1.1), [DA3METRIC-LARGE](https://huggingface.co/depth-anything/DA3METRIC-LARGE) | Range relabelling | `pandwm_code/third_party/depth_anything_3/weights/` |
+| I3D `i3d_pretrained_400.pt` and the `tats/fvd` code of [TATS](https://github.com/songweige/TATS) | FVD | `pandwm_code/TATS_fvd/` (`fvd.py`, `pytorch_i3d.py`, `i3d_pretrained_400.pt`) |
+
+The Gaussian decoder config sets `initial_decoder_checkpoint_path` to an earlier decoder. For inference it is overwritten by the G3b weights (loaded with `strict=True`); set it to `null` if you do not have that file.
+
+## 🚀 Training
+
+Training proceeds in the stages described in the paper and its supplementary material. Job scripts are in `pandwm_code/PanDWM-cfdmd-A-20261008/scripts/`.
+
+### Stage 1: Causal Teacher and Consistency Distillation
+
+The 50-step block-causal teacher is initialized from UniMLVG and trained with the OpenDWM trainer; the four-step student starts from consistency distillation of that teacher (`dwm_pano/pipelines/ctsd_pano_consistency_distillation.py`). The OpenDWM-style configs for these stages are in `pandwm_code/PanDWM-gs-aa-ft/configs/ctsd/pandwm/` (`ctsd_unimlvg_stage3_tirda_causal_nwa*.json`, `..._consistency_distillation*.json`); the exact run configurations of the two checkpoints used here are not part of this snapshot, and the checkpoints are not released.
+
+### Stage 2: Distribution Matching on Self-Generated History
+
+The student is trained for 4250 iterations in four stages, each resuming from the previous one:
+
+| Iterations | Pipeline | Config | Job script |
+|---|---|---|---|
+| 0–1150 | `pipeline_v7.py` (DMD, spatial heads) | `configs/cfdmd_D_gan_v7_hpc3_8gpu.json` | `scripts/train_v7.sbatch` |
+| 1150–1600 | `pipeline_v8_1.py` (temporal heads) | `configs/cfdmd_F_gan_v8_1_hpc3_8gpu.json` | `scripts/train_v8_1.sbatch` |
+| 1600–4000 | `pipeline_v8_3.py` (motion term) | `configs/cfdmd_H_gan_v8_3_hpc3_8gpu.json`, then `cfdmd_Hx_…` and `cfdmd_Hx2_…` (extensions to 3000 and 4000) | `scripts/train_v8_3.sbatch`, `train_ext.sbatch`, `train_ext2.sbatch` |
+| 4000–4250 | `pipeline_v8_4.py` (sharpness term, 179-frame clips, 2–10 self-generated windows) | `configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json` | `scripts/train_v8_4.sbatch` |
+
+The training entry is `scripts/train_resumable_v7.py` (8 GPUs, `torch.distributed.run`). The released weights are the EMA weights at iteration 4250.
+
+### Stage 3: Gaussian Decoder
+
+The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2000 steps) is `pandwm_code/PanDWM-ft3-20261030/configs/gs4dd_hpc2_ft3_G3b.json` with `scripts/train_ft3_hpc2.sbatch` (`ARM=G3b`). Its 4D pipelines inherit `pipeline.py` → `pipeline_depth.py` → `pipeline_da3.py` → `pipeline_relabel.py` in `gs4d_src/dwm_pano_4d/`.
+
+### Stage 4: Render Refiner
+
+`scripts/gaussian/render_refiner/train_d2.sbatch` with `pandwm_code/PanDWM_d2_refiner_20261021/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
+
+## 🤖 Inference
+
+Generate Test-S clips with the released student (stochastic four-step sampler, steps `[1000, 750, 500, 250]`, blend width 128, seed 42):
+
+```bash
+cd pandwm_code/PanDWM-cfdmd-A-20261008
+TAG=v84i4250 CKPT=/path/to/pandwm_video_v84i4250_ema.pth SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch
+```
+
+Long videos on Test-L (3 recorded frames + 12 windows):
+
+```bash
+TAG=v84i4250 CKPT=/path/to/pandwm_video_v84i4250_ema.pth SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch
+```
+
+Outputs are `clipNNN/{latents.pt, gt_vs_generated.mp4, summary.json}`; the Gaussian scripts read `latents.pt`.
+
+## 📊 Evaluation
+
+[docs/reproduce.md](docs/reproduce.md) gives the command for every table:
+
+- video quality on Val-150, Test-S and Test-L (FID, FVD-1/2, flicker, controllability, per-window long-video metrics);
+- Gaussian reconstruction on the 249 Test-S clips (PSNR, SSIM, LPIPS, AbsRel, δ1 at three resolutions);
+- Gaussians on generated scenes with lateral shifts of 0, ±1, ±2 and ±4 m, with and without the render refiner.
+
+This code was run as-is for the paper; after replacing cluster paths it has not been re-run end to end.
+
+## 📄 License
+
+The code builds on [OpenDWM](https://github.com/SenseTime-FVG/OpenDWM) (MIT, see `LICENSE`). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The released weights follow the [Stability AI Community License](https://stability.ai/community-license-agreement) (see the [model card](https://huggingface.co/AIGeeksGroup/PanDWM)).
+
+## 😘 Acknowledgement
+
+We thank the authors of [OpenDWM / UniMLVG](https://github.com/SenseTime-FVG/OpenDWM), [Stable Diffusion 3.5](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium), [Self Forcing](https://github.com/guandeh17/Self-Forcing), [Causal Forcing](https://github.com/thu-ml/Causal-Forcing), [DMD2](https://github.com/tianweiy/DMD2), [WorldSplat](https://arxiv.org/abs/2509.23402), [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3), [gsplat](https://github.com/nerfstudio-project/gsplat), [TATS](https://github.com/songweige/TATS) and [nuScenes](https://www.nuscenes.org/) for their research and open-source releases.

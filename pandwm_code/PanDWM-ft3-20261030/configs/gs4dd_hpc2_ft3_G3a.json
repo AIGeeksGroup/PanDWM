@@ -1,0 +1,280 @@
+{
+  "device": "cuda",
+  "ddp_backend": "nccl",
+  "train_epochs": 1000,
+  "generator_seed": 0,
+  "data_shuffle": true,
+  "fix_training_data_order": true,
+  "optimizer": {
+    "_class_name": "torch.optim.AdamW",
+    "lr": 2e-05,
+    "weight_decay": 0.01
+  },
+  "pipeline": {
+    "_class_name": "dwm_pano_4d.pipeline_relabel.PanoGaussianDecoder4DRelabelPipeline",
+    "training_config": {
+      "supervision_geometry": "nuscenes6_onebev_stitch",
+      "half_height": 256,
+      "half_width": 2304,
+      "frames_per_step": 3,
+      "frame_sampling": "random",
+      "range_dir": "/path/to/pandwm_root/pandwm_data/train/depth",
+      "range_is_source_camera_z": true,
+      "range_hole_fill_m": 100.0,
+      "range_min_valid_fraction": 0.5,
+      "camera_origin_warmup_steps": 0,
+      "source_camera_render_height": 360,
+      "source_camera_render_width": 640,
+      "stitch_projection_model": "onebev_legacy",
+      "stitch_seam_erosion_px": 0,
+      "max_calibration_cache_entries": 8,
+      "segment_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+      "dynamic_class_ids": [
+        3,
+        4,
+        5
+      ],
+      "target_yaws_deg": [
+        0.0,
+        60.0,
+        120.0,
+        180.0,
+        240.0,
+        300.0
+      ],
+      "target_fov_deg": 60.0,
+      "target_height": 300,
+      "target_width": 800,
+      "canvas_pad_columns": 800,
+      "preview_frame_count": 8,
+      "preview_use_temporal_context": false,
+      "evaluation_use_temporal_context": false,
+      "demo_use_temporal_context": false,
+      "weight_rgb_l1": 1.0,
+      "weight_perceptual": 0.5,
+      "perceptual_resolution": [
+        160,
+        2571
+      ],
+      "weight_render_depth": 0.002,
+      "weight_range_l1": 0.002,
+      "weight_seg": 0.0,
+      "weight_cross_rgb_l1": 0.0,
+      "weight_cross_alpha_coverage": 0.0,
+      "cross_ssim_weight": 0.0,
+      "rasterize_mode": "antialiased",
+      "aa_eps2d_start": 0.1,
+      "aa_eps2d_end": 0.1,
+      "aa_eps2d_ramp_steps": 0,
+      "aa_experiment_note": "Semantic masks are unavailable in the isolated HPC mirror; segmentation supervision is explicitly disabled. All RGB, LPIPS, rendered-depth and range losses remain active.",
+      "max_norm_for_grad_clip": 1.0,
+      "near_plane": 0.1,
+      "far_plane": 400.0
+    },
+    "pretrained_model_name_or_path": "/path/to/pandwm_root/pandwm_data/stable-diffusion-3.5-medium",
+    "decoder": {
+      "_class_name": "dwm_pano.models.gs_decoder_pano.PanoGaussianDecoder",
+      "latent_channels": 16,
+      "use_range_prior": false,
+      "near": 0.5,
+      "far": 400.0,
+      "scale_base": 0.01,
+      "scale_max": 5.0,
+      "temporal_delta_enabled": true,
+      "temporal_delta_hidden_channels": 32,
+      "use_camera_origins": true,
+      "ray_embedding_mode": "plucker"
+    },
+    "initial_decoder_checkpoint_path": "/path/to/pandwm_root/pandwm_runs/gs_ft2_20261024/R1_from_hpc3/checkpoints/2000.pth",
+    "latent_domain_adaptation": {
+      "enabled": false,
+      "cache_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/stage2_train_g2_seed0_offset2500_500",
+      "generator_seed": 140,
+      "probability": 0.75,
+      "strict": true,
+      "supervise_geometry": false,
+      "vae_decode_batch": 2
+    },
+    "gs4d": {
+      "frame_stride": [
+        2,
+        3,
+        4
+      ],
+      "composite_targets": 2,
+      "weight_own": 1.0,
+      "weight_composite": 1.0,
+      "weight_composite_perceptual": 0.5,
+      "weight_loo": 0.5,
+      "weight_motion": 0.0,
+      "box_margin_m": 0.3,
+      "loo_min_alpha": 0.5,
+      "dynamic_pixel_alpha": 0.3,
+      "checkpoint_decoder": true,
+      "random_background": false,
+      "random_background_prob": 1.0,
+      "weight_coverage": 0.1
+    },
+    "gs4d_depth": {
+      "weight_log_range": 0.1,
+      "weight_log_render": 0.1,
+      "far_cut_m": 99.0,
+      "depth_optional": false
+    },
+    "gs4d_da3": {
+      "repo_src": "/path/to/pandwm_root/pandwm_code/third_party/depth_anything_3/repo/src",
+      "anyview_dir": "/path/to/pandwm_root/pandwm_code/third_party/depth_anything_3/weights/DA3-LARGE-1.1",
+      "metric_dir": "/path/to/pandwm_root/pandwm_code/third_party/depth_anything_3/weights/DA3METRIC-LARGE",
+      "scale": "ground",
+      "sky_threshold": 0.3,
+      "min_range_m": 0.5,
+      "far_cut_m": 99.0,
+      "sky_fill_m": 100.0,
+      "crop_hw": [
+        392,
+        784
+      ]
+    },
+    "gs4d_relabel": {
+      "bound": 0.0,
+      "loo_perceptual": 0.5
+    }
+  },
+  "training_dataset": {
+    "_class_name": "dwm.datasets.common.DatasetAdapter",
+    "base_dataset": {
+      "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+      "pkl_path": "/path/to/pandwm_root/pandwm_runs/gs4d_20261002/data/nuscenes_interp_12Hz_infos_train_minus_holdout5.pkl",
+      "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700_20260929/rgb",
+      "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+      "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+      "split": "train",
+      "sequence_length": 19,
+      "fps_stride_tuples": [
+        [
+          10,
+          0.1
+        ]
+      ],
+      "half_size": [
+        2304,
+        256
+      ],
+      "enable_3dbox": false,
+      "enable_hdmap": false,
+      "enable_camera_transforms": true,
+      "enable_ego_transforms": true,
+      "enable_description": false,
+      "bad_timestamps_us": [
+        1531884295049111
+      ],
+      "max_boxes": 128,
+      "pose_source": "camera_time",
+      "box_reading": "mmdet3d_v0x"
+    },
+    "transform_list": [
+      {
+        "old_key": "images",
+        "new_key": "vae_images",
+        "transform": {
+          "_class_name": "torchvision.transforms.Compose",
+          "transforms": [
+            {
+              "_class_name": "torchvision.transforms.Resize",
+              "size": [
+                256,
+                2304
+              ]
+            },
+            {
+              "_class_name": "torchvision.transforms.ToTensor"
+            }
+          ]
+        }
+      }
+    ],
+    "pop_list": [
+      "images",
+      "lidar_points",
+      "image_description"
+    ]
+  },
+  "validation_dataset": {
+    "_class_name": "dwm.datasets.common.DatasetAdapter",
+    "base_dataset": {
+      "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+      "pkl_path": "/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+      "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
+      "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+      "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+      "split": "val",
+      "sequence_length": 19,
+      "fps_stride_tuples": [
+        [
+          10,
+          20
+        ]
+      ],
+      "half_size": [
+        2304,
+        256
+      ],
+      "enable_3dbox": false,
+      "enable_hdmap": false,
+      "enable_camera_transforms": true,
+      "enable_ego_transforms": true,
+      "enable_description": false,
+      "bad_timestamps_us": [],
+      "max_boxes": 128
+    },
+    "transform_list": [
+      {
+        "old_key": "images",
+        "new_key": "vae_images",
+        "transform": {
+          "_class_name": "torchvision.transforms.Compose",
+          "transforms": [
+            {
+              "_class_name": "torchvision.transforms.Resize",
+              "size": [
+                256,
+                2304
+              ]
+            },
+            {
+              "_class_name": "torchvision.transforms.ToTensor"
+            }
+          ]
+        }
+      }
+    ],
+    "pop_list": [
+      "images",
+      "lidar_points",
+      "image_description"
+    ]
+  },
+  "training_dataloader": {
+    "batch_size": 1,
+    "num_workers": 4,
+    "prefetch_factor": 4,
+    "persistent_workers": true
+  },
+  "validation_dataloader": {
+    "batch_size": 1,
+    "num_workers": 1,
+    "prefetch_factor": 2,
+    "persistent_workers": true
+  },
+  "preview_dataloader": {
+    "batch_size": 1,
+    "num_workers": 1,
+    "prefetch_factor": 1,
+    "shuffle": true,
+    "drop_last": true,
+    "persistent_workers": true
+  },
+  "informations": {
+    "note": "round-3 G3a: G0 (free offsets) + LPIPS 0.5 on own / composite / LOO"
+  }
+}

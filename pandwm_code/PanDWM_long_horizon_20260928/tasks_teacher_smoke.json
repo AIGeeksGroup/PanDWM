@@ -1,0 +1,15 @@
+{
+  "kind": "teacher_smoke",
+  "tasks": [
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "arm": "teacher_cfg3",
+      "seed": 42,
+      "windows": 1,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    }
+  ]
+}

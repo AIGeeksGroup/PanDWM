@@ -1,0 +1,257 @@
+{
+    "_comment": "Phase 1.6 A4 (100-clip × ~1000-step generalization). 100 train clips spanning 4 nuScenes scenes; 4 train_seen + 4 held_out_scene preview. Per §13.3 A4 + §13.10. Same FSDP bf16 stack as A2 v2 (now with optimizer-save fix in dwm_pano/distributed.py).",
+    "_data": "100 train clips [0..99] (covers 4 nuScenes scenes per scripts/phase16_a4_scene_check.py). Held-out preview indices [106,142,174,206] each from a DIFFERENT scene, none overlapping train scenes (verified). PIN srun --nodelist=n3001-002 (only node with /local/data/val/rgb).",
+    "_dtype_strategy": "fp32 base / bf16 FSDP compute / fp32 reduce / no grad_scaler. WHY: ctsd.py:866-868 does `model.to(dtype=self.model_dtype)` BEFORE FSDP wrap, so writing model_dtype=fp16 means FSDP's 'sharded params kept in full precision outside fwd/bwd' would actually be fp16 — not real fp32 master. Omit model_dtype → defaults to fp32 → FSDP master is real fp32. Then mixed_precision.param_dtype=bf16 (compute), reduce_dtype=fp32 (gradient allreduce precision), buffer_dtype=fp32. autocast also bf16 (default cuda autocast = fp16 — must match FSDP compute dtype). enable_grad_scaler=false (bf16 doesn't need it). Matches PyTorch FSDP2 tutorial canonical pattern.",
+    "_preview_indices_note": "validation/preview pool [0,1,2,3, 106,142,174,206]: 4 train_seen + 4 held_out_scene, total 8 = WORLD_SIZE × batch_size to avoid DDP truncation (train.py:124-131). cycle: step100→clip0, 200→1, 300→2, 400→3, 500→106, 600→142, 700→174, 800→206, 900→0 (cycle restart), 1000→1. Each preview's clip + scene_token logged to preview/preview_debug.csv.",
+    "_mesh_note": "mesh_shape=[4] (1D, single node × 4 GPUs). PyTorch FSDP1 docs: 'FULL_SHARD = 1D mesh; HYBRID_SHARD = 2D mesh'. Earlier [1,4] caused FSDP to take the OUTER dim (size 1) → world_size=1 → silent fallback to NO_SHARD → fp16 model + grad_scaler → NaN. Confirmed via PyTorch FSDP API doc (https://docs.pytorch.org/docs/stable/fsdp.html).",
+    "device": "cuda",
+    "ddp_backend": "nccl",
+    "_train_epochs_note": "100 clips / 4 ranks ≈ 25 batches/rank/epoch. train_epochs=40 → ~1000 batches/rank (effective batch=4 → 4000 sample-views). Init from df16 NOT from A2 v2's 750.pth (would carry 10-clip memorization bias).",
+    "train_epochs": 40,
+    "generator_seed": 0,
+    "data_shuffle": true,
+    "fix_training_data_order": true,
+    "global_state": {
+        "device_mesh": {
+            "_class_name": "torch.distributed.device_mesh.init_device_mesh",
+            "device_type": "cuda",
+            "mesh_shape": [4]
+        }
+    },
+    "optimizer": {
+        "_class_name": "torch.optim.AdamW",
+        "lr": 6e-5,
+        "foreach": false
+    },
+    "pipeline": {
+        "_class_name": "dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD",
+        "common_config": {
+            "frame_prediction_style": "diffusion_forcing",
+            "cat_condition": true,
+            "cond_with_action": false,
+            "condition_on_all_frames": true,
+            "uncondition_image_color": 0.1255,
+            "added_time_ids": "fps_camera_transforms_action",
+            "camera_intrinsic_embedding_indices": [0, 4, 2, 5],
+            "camera_intrinsic_denom_embedding_indices": [1, 1, 0, 1],
+            "camera_transform_embedding_indices": [2, 6, 10, 3, 7, 11],
+            "camera_ego_sensor_indices": [0, 0],
+            "distribution_framework": "fsdp",
+            "ddp_wrapper_settings": {
+                "sharding_strategy": {
+                    "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+                    "value": 1
+                },
+                "device_mesh": {
+                    "_class_name": "dwm.common.get_state",
+                    "key": "device_mesh"
+                },
+                "auto_wrap_policy": {
+                    "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+                    "module_classes": [
+                        {"_class_name": "get_class", "class_name": "diffusers.models.attention.JointTransformerBlock"},
+                        {"_class_name": "get_class", "class_name": "dwm.models.crossview_temporal.VTSelfAttentionBlock"}
+                    ]
+                },
+                "mixed_precision": {
+                    "_class_name": "torch.distributed.fsdp.MixedPrecision",
+                    "param_dtype": {"_class_name": "get_class", "class_name": "torch.bfloat16"},
+                    "reduce_dtype": {"_class_name": "get_class", "class_name": "torch.float32"},
+                    "buffer_dtype": {"_class_name": "get_class", "class_name": "torch.float32"}
+                }
+            },
+            "t5_fsdp_wrapper_settings": {
+                "sharding_strategy": {
+                    "_class_name": "torch.distributed.fsdp.ShardingStrategy",
+                    "value": 1
+                },
+                "device_mesh": {
+                    "_class_name": "dwm.common.get_state",
+                    "key": "device_mesh"
+                },
+                "auto_wrap_policy": {
+                    "_class_name": "torch.distributed.fsdp.wrap.ModuleWrapPolicy",
+                    "module_classes": [
+                        {"_class_name": "get_class", "class_name": "transformers.models.t5.modeling_t5.T5Block"}
+                    ]
+                }
+            },
+            "autocast": {
+                "device_type": "cuda",
+                "dtype": {"_class_name": "get_class", "class_name": "torch.bfloat16"}
+            },
+            "text_encoder_load_args": {
+                "variant": "fp16",
+                "torch_dtype": {"_class_name": "get_class", "class_name": "torch.float16"}
+            },
+            "memory_efficient_batch": 4
+        },
+        "training_config": {
+            "text_prompt_condition_ratio": 1.0,
+            "3dbox_condition_ratio": 1.0,
+            "hdmap_condition_ratio": 1.0,
+            "action_condition_mask": 1.0,
+            "image_generation_ratio": 0.0,
+            "reference_frame_scale_std": 0.01,
+            "reference_frame_offset_std": 0.01,
+            "enable_grad_scaler": false
+        },
+        "inference_config": {
+            "scheduler": "dwm.schedulers.temporal_independent.FlowMatchEulerDiscreteScheduler",
+            "guidance_scale": 2,
+            "inference_steps": 25,
+            "preview_image_size": [448, 256],
+            "sequence_length_per_iteration": 5,
+            "autoregression_data_exception_for_take_sequence": ["crossview_mask", "dataset_index", "anchor_timestamp_us", "scene_token"],
+            "autoregression_condition_exception_for_take_sequence": [
+                "disable_crossview",
+                "disable_temporal",
+                "crossview_attention_mask",
+                "camera_intrinsics_norm",
+                "camera2referego"
+            ],
+            "temporal_attention_mask": null
+        },
+        "model": {
+            "_class_name": "dwm_pano.models.crossview_temporal_dit_pano.DiTCrossviewTemporalConditionModel",
+            "dual_attention_layers": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            "attention_head_dim": 64,
+            "caption_projection_dim": 1536,
+            "in_channels": 16,
+            "joint_attention_dim": 4096,
+            "num_attention_heads": 24,
+            "num_layers": 24,
+            "out_channels": 16,
+            "patch_size": 2,
+            "pooled_projection_dim": 2048,
+            "pos_embed_max_size": 384,
+            "qk_norm": "rms_norm",
+            "qk_norm_on_additional_modules": "rms_norm",
+            "sample_size": 128,
+            "perspective_modeling_type": "implicit",
+            "projection_class_embeddings_input_dim": 3328,
+            "enable_crossview": true,
+            "crossview_attention_type": "rowwise",
+            "crossview_block_layers": [1, 5, 9, 13, 17, 21],
+            "crossview_gradient_checkpointing": true,
+            "enable_temporal": true,
+            "temporal_attention_type": "pointwise",
+            "temporal_block_layers": [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23],
+            "temporal_gradient_checkpointing": true,
+            "mixer_type": "AlphaBlender",
+            "merge_factor": 2,
+            "condition_image_adapter_config": {
+                "in_channels": 6,
+                "channels": [1536, 1536, 1536, 1536, 1536, 1536],
+                "is_downblocks": [true, false, false, false, false, false],
+                "num_res_blocks": 2,
+                "downscale_factor": 8,
+                "use_zero_convs": true
+            }
+        },
+        "pretrained_model_name_or_path": "/path/to/pandwm_root/OpenDWM/ckpts/stable-diffusion-3.5-medium",
+        "model_checkpoint_path": "/path/to/pandwm_root/OpenDWM/ckpts/ctsd_35_df16_tirda_bm_nwao_40k.pth",
+        "model_load_state_args": {"strict": false}
+    },
+    "training_dataset": {
+        "_class_name": "torch.utils.data.Subset",
+        "dataset": {
+            "_class_name": "dwm.datasets.common.DatasetAdapter",
+            "base_dataset": {
+                "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+                "pkl_path": "/path/to/pandwm_root/PanDWM/pretrained/pickle/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+                "rgb_dir": "/local/data/val/rgb",
+                "bbox_dir": "/path/to/pandwm_root/nuscenes-360/bbox",
+                "hdmap_dir": "/path/to/pandwm_root/nuscenes-360/hdmap",
+                "nuscenes_meta_dir": "/path/to/pandwm_root/nuscenes/v1.0-trainval",
+                "split": "val",
+                "sequence_length": 16,
+                "fps_stride_tuples": [[12.0, 0.42]],
+                "half_size": [448, 256],
+                "enable_3dbox": true,
+                "enable_hdmap": true,
+                "enable_camera_transforms": true,
+                "enable_ego_transforms": true,
+                "enable_description": true,
+                "stub_key_data_dict": {
+                    "crossview_mask": [
+                        "content",
+                        {
+                            "_class_name": "torch.tensor",
+                            "data": {"_class_name": "json.loads", "s": "[[1,1],[1,1]]"},
+                            "dtype": {"_class_name": "get_class", "class_name": "torch.bool"}
+                        }
+                    ]
+                }
+            },
+            "transform_list": [
+                {"old_key": "images", "new_key": "vae_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "3dbox_images", "new_key": "3dbox_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "hdmap_images", "new_key": "hdmap_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "image_description", "new_key": "clip_text", "transform": {"_class_name": "dwm.datasets.common.Copy"}, "stack": false}
+            ],
+            "pop_list": ["images", "image_description"]
+        },
+        "indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
+    },
+    "validation_dataset": {
+        "_class_name": "torch.utils.data.Subset",
+        "dataset": {
+            "_class_name": "dwm.datasets.common.DatasetAdapter",
+            "base_dataset": {
+                "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+                "pkl_path": "/path/to/pandwm_root/PanDWM/pretrained/pickle/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+                "rgb_dir": "/local/data/val/rgb",
+                "bbox_dir": "/path/to/pandwm_root/nuscenes-360/bbox",
+                "hdmap_dir": "/path/to/pandwm_root/nuscenes-360/hdmap",
+                "nuscenes_meta_dir": "/path/to/pandwm_root/nuscenes/v1.0-trainval",
+                "split": "val",
+                "sequence_length": 16,
+                "fps_stride_tuples": [[12.0, 0.42]],
+                "half_size": [448, 256],
+                "enable_3dbox": true,
+                "enable_hdmap": true,
+                "enable_camera_transforms": true,
+                "enable_ego_transforms": true,
+                "enable_description": true,
+                "stub_key_data_dict": {
+                    "crossview_mask": [
+                        "content",
+                        {
+                            "_class_name": "torch.tensor",
+                            "data": {"_class_name": "json.loads", "s": "[[1,1],[1,1]]"},
+                            "dtype": {"_class_name": "get_class", "class_name": "torch.bool"}
+                        }
+                    ]
+                }
+            },
+            "transform_list": [
+                {"old_key": "images", "new_key": "vae_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "3dbox_images", "new_key": "3dbox_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "hdmap_images", "new_key": "hdmap_images", "transform": {"_class_name": "torchvision.transforms.Compose", "transforms": [{"_class_name": "torchvision.transforms.Resize", "size": [256, 448]}, {"_class_name": "torchvision.transforms.ToTensor"}]}},
+                {"old_key": "image_description", "new_key": "clip_text", "transform": {"_class_name": "dwm.datasets.common.Copy"}, "stack": false}
+            ],
+            "pop_list": ["images", "image_description"]
+        },
+        "indices": [0, 1, 2, 3, 106, 142, 174, 206]
+    },
+    "training_dataloader": {
+        "batch_size": 1,
+        "num_workers": 1,
+        "prefetch_factor": 2,
+        "collate_fn": {"_class_name": "dwm.datasets.common.CollateFnIgnoring", "keys": ["clip_text"]},
+        "persistent_workers": true
+    },
+    "validation_dataloader": {
+        "batch_size": 1,
+        "num_workers": 1,
+        "collate_fn": {"_class_name": "dwm.datasets.common.CollateFnIgnoring", "keys": ["clip_text"]}
+    },
+    "preview_dataloader": {
+        "batch_size": 1,
+        "num_workers": 1,
+        "shuffle": false,
+        "drop_last": true,
+        "collate_fn": {"_class_name": "dwm.datasets.common.CollateFnIgnoring", "keys": ["clip_text"]}
+    }
+}

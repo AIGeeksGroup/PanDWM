@@ -1,0 +1,291 @@
+{
+ "note": "2026-10-16 review149 long videos (user request, v84i4250 EMA temporarily locked); dev76_index = Dev-149 clip index; the 71 Test-S/Test-L scenes, 12 windows (195 frames) from the scene start",
+ "windows": 12,
+ "count": 71,
+ "scenes": [
+  {
+   "dev76_index": 41,
+   "scene_token": "91f797db8fb34ae5b32ba85eecae47c9"
+  },
+  {
+   "dev76_index": 49,
+   "scene_token": "b07358651c604e2d83da7c4d4755de73"
+  },
+  {
+   "dev76_index": 50,
+   "scene_token": "26a6b03c8e2f4e6692f174a7074e54ff"
+  },
+  {
+   "dev76_index": 51,
+   "scene_token": "4962cb207a824e57bd10a2af49354b16"
+  },
+  {
+   "dev76_index": 53,
+   "scene_token": "d7bacba9119840f78f3c804134ceece0"
+  },
+  {
+   "dev76_index": 54,
+   "scene_token": "6a24a80e2ea3493c81f5fdb9fe78c28a"
+  },
+  {
+   "dev76_index": 55,
+   "scene_token": "16e50a63b809463099cb4c378fe0641e"
+  },
+  {
+   "dev76_index": 56,
+   "scene_token": "6f83169d067343658251f72e1dd17dbc"
+  },
+  {
+   "dev76_index": 57,
+   "scene_token": "f2541977a00a448db9b46a32187d9059"
+  },
+  {
+   "dev76_index": 60,
+   "scene_token": "3f90afe9f7dc49399347ae1626502aed"
+  },
+  {
+   "dev76_index": 61,
+   "scene_token": "952cb0bcd89b4ca4b904cdcbbf595523"
+  },
+  {
+   "dev76_index": 62,
+   "scene_token": "0e7ede02718341558414865d5c604745"
+  },
+  {
+   "dev76_index": 65,
+   "scene_token": "30a1a4ccd60047b4a22ee3bf0645f3ad"
+  },
+  {
+   "dev76_index": 66,
+   "scene_token": "8e3364691ee94c698458e0913a29af78"
+  },
+  {
+   "dev76_index": 69,
+   "scene_token": "0ac05652a4c44374998be876ba5cd6fd"
+  },
+  {
+   "dev76_index": 70,
+   "scene_token": "3ada261efee347cba2e7557794f1aec8"
+  },
+  {
+   "dev76_index": 71,
+   "scene_token": "5301151d8b6a42b0b252e95634bd3995"
+  },
+  {
+   "dev76_index": 72,
+   "scene_token": "991d65cab952449a821deb32e971ff19"
+  },
+  {
+   "dev76_index": 74,
+   "scene_token": "b789de07180846cc972118ee6d1fb027"
+  },
+  {
+   "dev76_index": 75,
+   "scene_token": "9088db17416043e5880a53178bfa461c"
+  },
+  {
+   "dev76_index": 76,
+   "scene_token": "7210f928860043b5a7e0d3dd4b3e80ff"
+  },
+  {
+   "dev76_index": 77,
+   "scene_token": "7bd098ac88cb4221addd19202a7ea5de"
+  },
+  {
+   "dev76_index": 78,
+   "scene_token": "19d97841d6f64eba9f6eb9b6e8c257dc"
+  },
+  {
+   "dev76_index": 80,
+   "scene_token": "f5b29a1e09d04355adcd60ab72de006b"
+  },
+  {
+   "dev76_index": 81,
+   "scene_token": "aedcd3cf7c4a49d7a4a43ab7443a9eb1"
+  },
+  {
+   "dev76_index": 82,
+   "scene_token": "21a7ba093614493b83838b9656b3558d"
+  },
+  {
+   "dev76_index": 83,
+   "scene_token": "96e5f1f0944946f391b4ef33ad623008"
+  },
+  {
+   "dev76_index": 86,
+   "scene_token": "656bb27689dc4e9b8e4559e3f6a7e534"
+  },
+  {
+   "dev76_index": 87,
+   "scene_token": "57dc3221a3d845b5ab17ff0f98ce336f"
+  },
+  {
+   "dev76_index": 88,
+   "scene_token": "7061c08f7eec4495979a0cf68ab6bb79"
+  },
+  {
+   "dev76_index": 89,
+   "scene_token": "40209c4e465d4b4e8341ebd52be0d842"
+  },
+  {
+   "dev76_index": 90,
+   "scene_token": "50ff554b3ecb4d208849d042b7643715"
+  },
+  {
+   "dev76_index": 92,
+   "scene_token": "36f27b26ef4c423c9b79ac984dc33bae"
+  },
+  {
+   "dev76_index": 93,
+   "scene_token": "c5224b9b454b4ded9b5d2d2634bbda8a"
+  },
+  {
+   "dev76_index": 94,
+   "scene_token": "f24b4682fbb9482aba149534deed1cc9"
+  },
+  {
+   "dev76_index": 96,
+   "scene_token": "ec7b7459461e4da1a236ba23e22377c9"
+  },
+  {
+   "dev76_index": 97,
+   "scene_token": "07aed9dae37340a997535ad99138e243"
+  },
+  {
+   "dev76_index": 98,
+   "scene_token": "6741d407b1b44511853e5ec7aaee2992"
+  },
+  {
+   "dev76_index": 99,
+   "scene_token": "c164a8e8e8b8489f964f711f472789be"
+  },
+  {
+   "dev76_index": 101,
+   "scene_token": "dce6f3f2bf6b4859abcf3268581969d3"
+  },
+  {
+   "dev76_index": 103,
+   "scene_token": "d01e7279da2649ef896dc42f6b9ee7ab"
+  },
+  {
+   "dev76_index": 104,
+   "scene_token": "7e8ff24069ff4023ac699669b2c920de"
+  },
+  {
+   "dev76_index": 107,
+   "scene_token": "197a7e4d3de84e57af17b3d65fcb3893"
+  },
+  {
+   "dev76_index": 109,
+   "scene_token": "a2b005c4dd654af48194ada18662c8ca"
+  },
+  {
+   "dev76_index": 111,
+   "scene_token": "325cef682f064c55a255f2625c533b75"
+  },
+  {
+   "dev76_index": 112,
+   "scene_token": "223096a415cc45bf8ecd4c3a42251fd7"
+  },
+  {
+   "dev76_index": 113,
+   "scene_token": "76ceedbcc6a54b158eba9945a160a7bc"
+  },
+  {
+   "dev76_index": 114,
+   "scene_token": "955ff42a1990442d868cdfc0c01583d4"
+  },
+  {
+   "dev76_index": 115,
+   "scene_token": "112ca771e318478a88cfa692f61ffcac"
+  },
+  {
+   "dev76_index": 116,
+   "scene_token": "04219bfdc9004ba2af16d3079ecc4353"
+  },
+  {
+   "dev76_index": 118,
+   "scene_token": "32185f91e68f4069ab3cdd2f4f1a4ff1"
+  },
+  {
+   "dev76_index": 119,
+   "scene_token": "696a45dbd11346b794fdce43fa0a1770"
+  },
+  {
+   "dev76_index": 120,
+   "scene_token": "c4df079d260241ff8015218e29b42ea7"
+  },
+  {
+   "dev76_index": 124,
+   "scene_token": "a04daf2d0f194b2ab2ff2a47dfebc1d7"
+  },
+  {
+   "dev76_index": 125,
+   "scene_token": "e60ef590e3614187b7800db3e5284e1a"
+  },
+  {
+   "dev76_index": 126,
+   "scene_token": "2086743226764f268fe8d4b0b7c19590"
+  },
+  {
+   "dev76_index": 128,
+   "scene_token": "c92fdd793fbb4401b12782a9b8d4a499"
+  },
+  {
+   "dev76_index": 129,
+   "scene_token": "6776b91389394ff18e57b269863b4dbf"
+  },
+  {
+   "dev76_index": 130,
+   "scene_token": "931c5c57011944459bba3825ab8777a9"
+  },
+  {
+   "dev76_index": 131,
+   "scene_token": "aacd6706a091407fb1b0e5343d27da7e"
+  },
+  {
+   "dev76_index": 133,
+   "scene_token": "e005041f659c47e194cd5b18ea6fc346"
+  },
+  {
+   "dev76_index": 134,
+   "scene_token": "034dee1695304630b0692da8c1f153fc"
+  },
+  {
+   "dev76_index": 136,
+   "scene_token": "e8099a6136804f3bb9b38ff94d98eb64"
+  },
+  {
+   "dev76_index": 137,
+   "scene_token": "e6f1a7e6218a4737bfedc6af90926b3e"
+  },
+  {
+   "dev76_index": 138,
+   "scene_token": "6af9b75e439e4811ad3b04dc2220657a"
+  },
+  {
+   "dev76_index": 139,
+   "scene_token": "f97bf749746c4c3a8ad9f1c11eab6444"
+  },
+  {
+   "dev76_index": 141,
+   "scene_token": "afbc2583cc324938b2e8931d42c83e6b"
+  },
+  {
+   "dev76_index": 142,
+   "scene_token": "16be583c31a2403caa6c158bb55ae616"
+  },
+  {
+   "dev76_index": 143,
+   "scene_token": "e8834785d9ff4783a5950281a4579943"
+  },
+  {
+   "dev76_index": 144,
+   "scene_token": "d29527ec841045d18d04a933e7a0afd2"
+  },
+  {
+   "dev76_index": 145,
+   "scene_token": "85889db3628342a482c5c0255e5347e9"
+  }
+ ]
+}

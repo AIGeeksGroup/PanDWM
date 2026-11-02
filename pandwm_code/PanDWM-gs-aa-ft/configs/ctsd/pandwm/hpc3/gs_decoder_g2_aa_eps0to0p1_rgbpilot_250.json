@@ -1,0 +1,236 @@
+{
+    "device": "cuda",
+    "ddp_backend": "nccl",
+    "train_epochs": 6,
+    "generator_seed": 0,
+    "data_shuffle": true,
+    "fix_training_data_order": true,
+    "optimizer": {
+        "_class_name": "torch.optim.AdamW",
+        "lr": 2e-05,
+        "weight_decay": 0.01
+    },
+    "pipeline": {
+        "_class_name": "dwm_pano.pipelines.ctsd_pano_gs_decoder.PanoGaussianDecoderPipeline",
+        "training_config": {
+            "supervision_geometry": "nuscenes6_onebev_stitch",
+            "half_height": 256,
+            "half_width": 2304,
+            "frames_per_step": 4,
+            "frame_sampling": "random",
+            "range_dir": "/path/to/pandwm_root/pandwm_data/train/depth",
+            "range_is_source_camera_z": true,
+            "range_hole_fill_m": 100.0,
+            "range_min_valid_fraction": 0.5,
+            "camera_origin_warmup_steps": 0,
+            "source_camera_render_height": 360,
+            "source_camera_render_width": 640,
+            "stitch_projection_model": "onebev_legacy",
+            "stitch_seam_erosion_px": 0,
+            "max_calibration_cache_entries": 8,
+            "segment_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+            "dynamic_class_ids": [
+                3,
+                4,
+                5
+            ],
+            "target_yaws_deg": [
+                0.0,
+                60.0,
+                120.0,
+                180.0,
+                240.0,
+                300.0
+            ],
+            "target_fov_deg": 60.0,
+            "target_height": 300,
+            "target_width": 800,
+            "canvas_pad_columns": 800,
+            "preview_frame_count": 8,
+            "preview_use_temporal_context": false,
+            "evaluation_use_temporal_context": false,
+            "demo_use_temporal_context": false,
+            "weight_rgb_l1": 1.0,
+            "weight_perceptual": 0.1,
+            "perceptual_resolution": [
+                160,
+                2571
+            ],
+            "weight_render_depth": 0.0,
+            "weight_range_l1": 0.0,
+            "weight_seg": 0.0,
+            "weight_cross_rgb_l1": 0.0,
+            "weight_cross_alpha_coverage": 0.0,
+            "cross_ssim_weight": 0.0,
+            "rasterize_mode": "antialiased",
+            "aa_eps2d_start": 0.0,
+            "aa_eps2d_end": 0.1,
+            "aa_eps2d_ramp_steps": 200,
+            "aa_experiment_note": "Development-only RGB/LPIPS AA adaptation on frozen generated Stage-2 latents. Depth, range and semantic-mask supervision are explicitly disabled because the isolated HPC mirror does not yet contain these assets. This pilot must not replace the full mixed-loss AA experiment.",
+            "max_norm_for_grad_clip": 1.0,
+            "near_plane": 0.1,
+            "far_plane": 400.0
+        },
+        "pretrained_model_name_or_path": "/path/to/pandwm_root/pandwm_data/stable-diffusion-3.5-medium",
+        "decoder": {
+            "_class_name": "dwm_pano.models.gs_decoder_pano.PanoGaussianDecoder",
+            "latent_channels": 16,
+            "use_range_prior": false,
+            "near": 0.5,
+            "far": 400.0,
+            "scale_base": 0.01,
+            "scale_max": 5.0,
+            "temporal_delta_enabled": true,
+            "temporal_delta_hidden_channels": 32,
+            "use_camera_origins": true,
+            "ray_embedding_mode": "plucker"
+        },
+        "initial_decoder_checkpoint_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/g2_mix75_250.pth",
+        "latent_domain_adaptation": {
+            "enabled": true,
+            "cache_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/stage2_train_g2_seed0_offset2500_500",
+            "generator_seed": 140,
+            "probability": 1.0,
+            "strict": true,
+            "supervise_geometry": false,
+            "vae_decode_batch": 2
+        }
+    },
+    "training_dataset": {
+        "_class_name": "dwm.datasets.common.DatasetAdapter",
+        "base_dataset": {
+            "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+            "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl",
+            "rgb_dir": "/path/to/pandwm_root/pandwm_data/train/rgb",
+            "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+            "split": "train",
+            "sequence_length": 19,
+            "fps_stride_tuples": [
+                [
+                    10,
+                    0.1
+                ]
+            ],
+            "half_size": [
+                2304,
+                256
+            ],
+            "enable_3dbox": false,
+            "enable_hdmap": false,
+            "enable_camera_transforms": true,
+            "enable_ego_transforms": true,
+            "enable_description": false,
+            "bad_timestamps_us": [
+                1531884295049111
+            ]
+        },
+        "transform_list": [
+            {
+                "old_key": "images",
+                "new_key": "vae_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            }
+        ],
+        "pop_list": [
+            "images",
+            "lidar_points",
+            "image_description"
+        ]
+    },
+    "validation_dataset": {
+        "_class_name": "dwm.datasets.common.DatasetAdapter",
+        "base_dataset": {
+            "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
+            "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/data_splits/val_dev_noncommon_scene7.pkl",
+            "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
+            "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
+            "split": "val",
+            "sequence_length": 19,
+            "fps_stride_tuples": [
+                [
+                    10,
+                    20
+                ]
+            ],
+            "half_size": [
+                2304,
+                256
+            ],
+            "enable_3dbox": false,
+            "enable_hdmap": false,
+            "enable_camera_transforms": true,
+            "enable_ego_transforms": true,
+            "enable_description": false,
+            "bad_timestamps_us": []
+        },
+        "transform_list": [
+            {
+                "old_key": "images",
+                "new_key": "vae_images",
+                "transform": {
+                    "_class_name": "torchvision.transforms.Compose",
+                    "transforms": [
+                        {
+                            "_class_name": "torchvision.transforms.Resize",
+                            "size": [
+                                256,
+                                2304
+                            ]
+                        },
+                        {
+                            "_class_name": "torchvision.transforms.ToTensor"
+                        }
+                    ]
+                }
+            }
+        ],
+        "pop_list": [
+            "images",
+            "lidar_points",
+            "image_description"
+        ]
+    },
+    "training_dataloader": {
+        "batch_size": 1,
+        "num_workers": 12,
+        "prefetch_factor": 4,
+        "persistent_workers": true
+    },
+    "validation_dataloader": {
+        "batch_size": 1,
+        "num_workers": 1,
+        "prefetch_factor": 2,
+        "persistent_workers": true
+    },
+    "preview_dataloader": {
+        "batch_size": 1,
+        "num_workers": 1,
+        "prefetch_factor": 1,
+        "shuffle": true,
+        "drop_last": true,
+        "persistent_workers": true
+    },
+    "informations": {
+        "stage": "gs_decoder_g2_aa_eps0to0p1_rgbpilot_250",
+        "parent_checkpoint": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/g2_mix75_250.pth",
+        "ablation_budget_steps": 250,
+        "initial_data_offset": 2500,
+        "notes": "Development-only isolated antialiased-rasterizer RGB pilot. Start from the completed mix75 G2-250 checkpoint; freeze Stage-2 and VAE; train only the GS head for 250 steps. Use 100% frozen generated Stage-2 latents and eps2d 0.0 to 0.1 over steps 0..200. RGB L1 and LPIPS remain active. Depth/range/segmentation losses are intentionally zero pending full data staging; this checkpoint is never a substitute for the full mixed-loss AA experiment."
+    }
+}

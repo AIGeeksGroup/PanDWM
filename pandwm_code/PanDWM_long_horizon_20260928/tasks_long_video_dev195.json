@@ -1,0 +1,77 @@
+{
+  "kind": "long_video_dev195",
+  "tasks": [
+    {
+      "arm": "v2b_recovery",
+      "scene_index": 14,
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "seed": 42
+    },
+    {
+      "arm": "v2b_control",
+      "scene_index": 14,
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "seed": 42
+    },
+    {
+      "arm": "teacher_init",
+      "scene_index": 14,
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "seed": 42
+    },
+    {
+      "arm": "b0_student",
+      "scene_index": 14,
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "seed": 42
+    },
+    {
+      "arm": "v2b_recovery",
+      "scene_index": 0,
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "seed": 42
+    },
+    {
+      "arm": "v2b_control",
+      "scene_index": 0,
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "seed": 42
+    },
+    {
+      "arm": "teacher_init",
+      "scene_index": 0,
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "seed": 42
+    },
+    {
+      "arm": "b0_student",
+      "scene_index": 0,
+      "scene_token": "2f56eb47c64f43df8902d9f88aa8a019",
+      "seed": 42
+    },
+    {
+      "arm": "v2b_recovery",
+      "scene_index": 49,
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "seed": 42
+    },
+    {
+      "arm": "v2b_control",
+      "scene_index": 49,
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "seed": 42
+    },
+    {
+      "arm": "teacher_init",
+      "scene_index": 49,
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "seed": 42
+    },
+    {
+      "arm": "b0_student",
+      "scene_index": 49,
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "seed": 42
+    }
+  ]
+}

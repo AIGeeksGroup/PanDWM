@@ -1,0 +1,65 @@
+{
+  "kind": "teacher_student_diagnostic",
+  "tasks": [
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "arm": "teacher_cfg3",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    },
+    {
+      "scene_token": "ed242d80ccb34b139aaf9ab89859332e",
+      "scene_index": 14,
+      "arm": "teacher_nocfg",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "arm": "teacher_cfg3",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    },
+    {
+      "scene_token": "ca6e45c25d954dc4af6e12dd7b23454d",
+      "scene_index": 32,
+      "arm": "teacher_nocfg",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "arm": "teacher_cfg3",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    },
+    {
+      "scene_token": "85651af9c04945c3a394cf845cb480a6",
+      "scene_index": 49,
+      "arm": "teacher_nocfg",
+      "seed": 42,
+      "windows": 12,
+      "history_mode": "clean",
+      "noise_sigma": 0.0,
+      "align_alpha": 0.5
+    }
+  ]
+}
