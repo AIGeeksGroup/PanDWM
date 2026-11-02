@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="PanDWM predicts about 20 seconds of panoramic driving video from three observed frames and decodes the prediction into renderable 3D and 4D Gaussian scenes.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:title" content="PanDWM: Panoramic 4D Driving World Models">
+  <meta property="og:description" content="PanDWM predicts about 20 seconds of panoramic driving video from three observed frames and decodes the prediction into renderable 3D and 4D Gaussian scenes.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://pandwm-paper-project.xuyihao345.chatgpt.site/static/images/pandwm_teaser.png">
+  <title>PanDWM: Panoramic 4D Driving World Models</title>
+  <link rel="icon" href="static/images/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="static/css/nerfies-base.css">
+  <link rel="stylesheet" href="static/css/project.css?v=2f06d3c2">
+  <script src="static/js/scenes.js?v=f0bb215d" defer></script>
+  <script src="static/js/project.js?v=74c6e21b" defer></script>
+  <script src="static/js/video-magnifier.js?v=23be4725" defer></script>
+</head>
+<body>
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <symbol id="icon-paper" viewBox="0 0 16 16"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5zM9 1.5V5h3.5M6.2 8.5h4.3M6.2 11h4.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-archive" viewBox="0 0 16 16"><path d="M2 3.5h12v3H2zM3 6.5v7h10v-7M6.5 9.5h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-code" viewBox="0 0 16 16"><path d="M5.5 4 1.5 8l4 4M10.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="icon-model" viewBox="0 0 16 16"><path d="M8 1.5 14 5v6L8 14.5 2 11V5zM2 5l6 3.5L14 5M8 8.5v6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <header class="hero">
+    <div class="container">
+      <h1 class="publication-title">PanDWM: <span class="publication-title-description">Panoramic 4D Driving World Models</span></h1>
+      <!-- <p class="publication-venue">CVPR 2027</p> -->
+      <div class="publication-authors">
+        <span class="author-block"><a href="https://scholar.google.com/citations?user=oAWskzAAAAAJ&amp;hl=en" target="_blank" rel="noopener noreferrer">Jiajun Sun</a><sup>1*</sup></span>
+        <span class="author-block"><a href="https://steve-zeyu-zhang.github.io/" target="_blank" rel="noopener noreferrer">Zeyu Zhang</a><sup>2*†</sup></span>
+        <span class="author-block"><a href="https://github.com/Zephyr0609" target="_blank" rel="noopener noreferrer">Zeyu Ren</a><sup>3</sup></span>
+        <span class="author-block"><a href="https://scholar.google.com/citations?user=-ocVCHgAAAAJ" target="_blank" rel="noopener noreferrer">Guangfeng Jiang</a><sup>2</sup></span>
+        <span class="author-block"><a href="https://yangyangkiki.github.io/" target="_blank" rel="noopener noreferrer">Yang Zhao</a><sup>4</sup></span>
+        <span class="author-block"><a href="https://ha0tang.github.io/" target="_blank" rel="noopener noreferrer">Hao Tang</a><sup>2‡</sup></span>
+      </div>
+      <div class="publication-authors publication-affiliations">
+        <span class="author-block"><sup>1</sup>Shenzhen University</span>
+        <span class="author-block"><sup>2</sup>Peking University</span>
+        <span class="author-block"><sup>3</sup>The University of Melbourne</span>
+        <span class="author-block"><sup>4</sup>La Trobe University</span>
+      </div>
+      <p class="publication-contributions">
+        <span><sup>*</sup>Equal contribution.</span>
+        <span><sup>†</sup>Project lead.</span>
+        <span><sup>‡</sup>Corresponding author.</span>
+      </p>
+      <nav class="publication-links" aria-label="Paper resources">
+        <a class="button is-light" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-paper"/></svg>Paper</a>
+        <a class="button" href="https://github.com/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg>Code</a>
+        <a class="button is-light" href="https://huggingface.co/datasets/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-archive"/></svg>Data</a>
+        <a class="button" href="https://huggingface.co/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-model"/></svg>Model</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="teaser" aria-label="Teaser">
+      <div class="container">
+        <img id="teaser-image" src="static/images/pandwm_teaser.png" width="5004" height="1729" alt="PanDWM: Panoramic 4D Driving World Models" fetchpriority="high">
+        <h2 class="subtitle">PanDWM predicts about 20 seconds of panoramic driving video from three observed frames, and decodes the prediction into renderable 3D and 4D Gaussian scenes.</h2>
+        <p class="teaser-note">Panoramic video generation and novel-view rendering with PanDWM.
+          Given panoramic history, 3D scene layouts and text, PanDWM predicts future video in a unified panoramic representation and uses a feed-forward Gaussian decoder to obtain a scene representation for novel-view rendering.
+          The ring visualizes a generated panorama, and the bottom row shows its forward-facing region over time; the right column renders the Gaussian scene of the same time step from the reference viewpoint, 5&thinsp;m forward and turned 30&deg; left.
+          The panorama spans 360&deg; horizontally and approximately 33&deg; vertically.</p>
+      </div>
+    </section>
+
+    <section class="section" id="abstract">
+      <div class="container is-narrow">
+        <h2 class="title">Abstract</h2>
+        <div class="content">
+          <p>Generative driving world models typically represent the surround scene as six pinhole-camera videos, whose different optical centres and small overlaps force the model to learn cross-view consistency.
+            PanDWM instead generates a single 360&deg; panoramic band, split into two overlapping halves so that every camera boundary lies inside one image, and conditions it on 3D boxes and HD maps stitched into the band in the same way.
+            The band is generated causally, one window at a time, by a four-step student distilled from a block-causal video diffusion model and trained on its own generated history.
+            A feed-forward decoder lifts each generated frame into 3D Gaussians placed along the calibrated camera rays of its pixels; 4D Gaussians add static Gaussians from neighbouring frames, aligned by ego pose, to fill regions unseen in the current frame.
+            On the nuScenes validation set, the student matches the FID of its 50-step causal teacher (10.1 vs. 9.93) and lowers FVD-1 from 47.7 to 37.4, at 1.96&thinsp;s instead of 33.7&thinsp;s per frame.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section is-light" id="results">
+      <div class="container">
+        <h2 class="title">Long-Horizon Panoramic Rollout</h2>
+        <p class="section-spec">Each scene shows 19.2 s of generated future (frames 3&ndash;194 at 10 fps) after three recorded frames, with seed 42.</p>
+        <div id="scene-picker" class="scene-picker" role="group" aria-label="Select a driving scene"></div>
+        <div class="scene-header">
+          <div>
+            <h3 class="scene-title" id="scene-title"></h3>
+            <p class="scene-setting" id="scene-setting"></p>
+          </div>
+          <div class="scene-arrows">
+            <button type="button" class="button is-small is-outlined" id="previous-scene">Previous</button>
+            <button type="button" class="button is-small is-outlined" id="next-scene">Next</button>
+          </div>
+        </div>
+        <p class="scene-caption" id="scene-caption"></p>
+        <div id="comparison-shell" class="comparison-stack">
+          <figure class="comparison-view">
+            <figcaption>Recorded Ground Truth (GT)</figcaption>
+            <video data-kind="gt" muted playsinline preload="none" width="4114" height="256" aria-label="Recorded ground truth"></video>
+          </figure>
+          <figure class="comparison-view">
+            <figcaption>Causal Teacher (50 Steps)</figcaption>
+            <video data-kind="teacher" muted playsinline preload="none" width="4114" height="256" aria-label="50-step causal teacher"></video>
+          </figure>
+          <figure class="comparison-view">
+            <figcaption>Causal Student (4 Steps)</figcaption>
+            <video data-kind="student" muted playsinline preload="none" width="4114" height="256" aria-label="Causal student, 4 steps"></video>
+          </figure>
+          <figure class="comparison-view">
+            <figcaption>3D Gaussian Rendering (3DGS)</figcaption>
+            <video data-kind="3dgs" muted playsinline preload="none" width="4114" height="256" aria-label="3D Gaussian rendering from the student rollout"></video>
+          </figure>
+          <figure class="comparison-view">
+            <figcaption>4D Gaussian Rendering (4DGS)</figcaption>
+            <video data-kind="4dgs" muted playsinline preload="none" width="4114" height="256" aria-label="4D Gaussian rendering from the student rollout"></video>
+          </figure>
+        </div>
+        <p id="comparison-status" class="video-status" aria-live="polite" hidden></p>
+        <div class="comparison-controls" role="group" aria-label="Synchronized video controls">
+          <button type="button" class="button is-small" id="play-comparison" disabled>Play all</button>
+          <button type="button" class="button is-small is-outlined" id="restart-comparison" disabled>Restart</button>
+          <input id="comparison-progress" type="range" min="0" max="19.2" step="0.1" value="0" aria-label="Seek all five videos" disabled>
+          <output id="comparison-time" for="comparison-progress">0.0 / 19.2 s</output>
+        </div>
+        <div class="comparison-caption">
+          <p id="comparison-description">Rows from top: recorded ground truth, the 50-step teacher, our 4-step student, and 3D and 4D Gaussian renderings decoded from the student rollout, seen from 1.5 m behind and 0.3 m above the recording rig. All rows show the same scene time.</p>
+        </div>
+        <p class="selection-note" id="selection-note">3 selected scenes (3 held-out scenes). All 3 have the full five-video comparison.</p>
+      </div>
+    </section>
+
+    <section class="section" id="method">
+      <div class="container">
+        <h2 class="title">Method Overview</h2>
+        <figure class="method-figure">
+          <img src="static/images/pandwm_architecture.png" width="4325" height="1950" alt="PanDWM architecture: panoramic video generation and feed-forward Gaussian lifting" loading="lazy">
+          <figcaption><strong>PanDWM overview.</strong>
+            (a) Panoramic history is split into overlapping halves and encoded by a VAE. Conditioned on layouts, text and ray maps, a causal diffusion transformer predicts 16 frames from 3 history frames in four steps; its final 3 frames seed the next window.
+            (b) A feed-forward decoder lifts frame latents into pixel-aligned Gaussians using calibrated source-camera rays. Static geometry from neighbouring frames supports 4D completion.
+            Panoramas are displayed as cylindrical bands. All image inserts come from one development scene; latent cards, attention masks, cameras, rays and enlarged ellipsoids are schematic.</figcaption>
+        </figure>
+        <figure class="geometry-figure">
+          <img src="static/images/pandwm_geometry.png" width="2650" height="3850" alt="Gaussian geometry: calibrated camera-ray origins, Gaussian placement and static completion across time" loading="lazy">
+          <figcaption>
+            <h3>Gaussian geometry and completion.</h3>
+            <p>(a) Panoramic pixels retain their calibrated source-camera origins.</p>
+            <p>(b) Range and offset locate Gaussians relative to these rays (<span class="geometry-equation">μ = o<sub>c</sub> + d · r + Δ</span>); both halves' predictions are retained in the overlap.</p>
+            <p>(c) Ego-motion-aligned neighbouring static Gaussians fill uncovered pixels, while dynamic content comes from the current frame.</p>
+            <p>Scene elements are schematic.</p>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="performance">
+      <div class="container">
+        <h2 class="title">Performance and Efficiency</h2>
+        <div class="performance-grid">
+          <figure class="performance-figure">
+            <img src="static/images/long_per_window.png" width="1967" height="862" alt="Per-window FID and FVD comparing the four-step PanDWM student with the 50-step teacher" loading="lazy">
+            <figcaption>Per-window FID and FVD on Test-L (83 scenes, seed 42), each computed on the 83 windows of one position.</figcaption>
+          </figure>
+          <figure class="performance-figure">
+            <img src="static/images/pandwm_quality_speed.png" width="975" height="443" alt="Band FVD-1 versus seconds per frame, comparing PanDWM with the causal teacher and other driving world models" loading="lazy">
+            <figcaption>Band FVD-1 against time per frame on Val-150; lower left is better.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!--
+      BibTeX. Uncomment and replace once the paper is public.
+      <section class="section" id="bibtex">
+        <div class="container is-narrow">
+          <h2 class="title">BibTeX</h2>
+          <pre class="bibtex"><code>@article{pandwm2026,
+  title   = {PanDWM: Panoramic 4D Driving World Models},
+  author  = {Author, First and Author, Second},
+  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  year    = {2026}
+}</code></pre>
+        </div>
+      </section>
+    -->
+  </main>
+
+  <footer class="footer">
+    <div class="container is-narrow">
+      <p>PanDWM: Panoramic 4D Driving World Models</p>
+    </div>
+  </footer>
+</body>
+</html>
