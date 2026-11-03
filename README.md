@@ -4,16 +4,24 @@ Code implementation for the paper:
 
 > **PanDWM: Panoramic 4D Driving World Models**
 >
-> TODO: authors
+> Jiajun Sun<sup>1</sup>\*, [Zeyu Zhang](https://steve-zeyu-zhang.github.io/)<sup>2</sup>\*†, Zeyu Ren<sup>3</sup>, Guangfeng Jiang<sup>2</sup>, Yang Zhao<sup>4</sup>, and [Hao Tang](https://ha0tang.github.io/)<sup>2</sup>‡
 >
-> ### [Paper](TODO) | [Website](TODO) | [Model](https://huggingface.co/AIGeeksGroup/PanDWM)
+> <sup>1</sup>Shenzhen University, <sup>2</sup>Peking University, <sup>3</sup>The University of Melbourne, <sup>4</sup>La Trobe University
+>
+> \*Equal contribution. †Project lead. ‡Corresponding author.
+>
+> ### Paper (coming soon) | Website (coming soon) | [Model](https://huggingface.co/AIGeeksGroup/PanDWM)
 
 ---
 
 ## Citation
 
 ```
-TODO
+@article{sun2026pandwm,
+  title={PanDWM: Panoramic 4D Driving World Models},
+  author={Sun, Jiajun and Zhang, Zeyu and Ren, Zeyu and Jiang, Guangfeng and Zhao, Yang and Tang, Hao},
+  year={2026}
+}
 ```
 
 ---
