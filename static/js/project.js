@@ -194,6 +194,7 @@
     $('scene-title').textContent = scene.title;
     $('scene-setting').textContent = `Scene ${scene.scene}. Student setting: autoregressive history.`;
     $('scene-caption').textContent = scene.caption;
+    document.dispatchEvent(new CustomEvent('pandwm:scene', { detail: scene }));
     videos.forEach(video => {
       video.poster = `${scene.posterPrefix}_${video.dataset.kind}.jpg`;
     });

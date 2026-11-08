@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gaussian scene viewer</title>
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body class="embed">
+  <div class="stage" id="stage">
+    <div class="status" id="status">Loading ...</div>
+    <div class="hand" id="hand" aria-hidden="true">&#9757;&#65039;</div>
+    <button class="fs" id="fs" type="button" title="Full screen" aria-label="Full screen">&#x26F6;</button>
+  </div>
+  <noscript>This viewer needs JavaScript and WebGL 2.</noscript>
+  <script src="lib/three.min.js"></script>
+  <script src="lib/OrbitControls.js"></script>
+  <script src="lib/splat.js"></script>
+  <script src="scenes/index.js"></script>
+  <script src="embed.js"></script>
+</body>
+</html>

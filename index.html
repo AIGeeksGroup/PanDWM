@@ -16,6 +16,7 @@
   <script src="static/js/scenes.js?v=f0bb215d" defer></script>
   <script src="static/js/project.js?v=74c6e21b" defer></script>
   <script src="static/js/video-magnifier.js?v=23be4725" defer></script>
+  <script src="static/js/gs-viewer.js" defer></script>
 </head>
 <body>
   <svg class="icon-sprite" aria-hidden="true" focusable="false">
@@ -131,6 +132,13 @@
           <p id="comparison-description">Rows from top: recorded ground truth, the 50-step teacher, our 4-step student, and 3D and 4D Gaussian renderings decoded from the student rollout, seen from 1.5 m behind and 0.3 m above the recording rig. All rows show the same scene time.</p>
         </div>
         <p class="selection-note" id="selection-note">3 selected scenes (3 held-out scenes). All 3 have the full five-video comparison.</p>
+        <figure class="comparison-view gs-view">
+          <figcaption>Interactive 3D Gaussian Scene <span class="gs-view-hint">(student rollout decoded at t = 10 s; drag to orbit, right-drag to pan, scroll to zoom)</span></figcaption>
+          <div class="gs-frame" id="gs-frame">
+            <img class="gs-preview" id="gs-preview" alt="" loading="lazy">
+            <p class="gs-loading" id="gs-loading">Loading 3D scene ...</p>
+          </div>
+        </figure>
       </div>
     </section>
 
