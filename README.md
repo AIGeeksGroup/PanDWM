@@ -10,7 +10,7 @@ Code implementation for the paper:
 >
 > \*Equal contribution. †Project lead. ‡Corresponding author.
 >
-> ### Paper (coming soon) | Website (coming soon) | [Model](https://huggingface.co/AIGeeksGroup/PanDWM)
+> ### [Paper]() | [Website]() | [Model](https://huggingface.co/AIGeeksGroup/PanDWM)
 
 ---
 
