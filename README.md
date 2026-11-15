@@ -4,7 +4,7 @@ Code implementation for the paper:
 
 > **PanDWM: Panoramic 4D Driving World Models**
 >
-> Jiajun Sun<sup>1</sup>\*, [Zeyu Zhang](https://steve-zeyu-zhang.github.io/)<sup>2</sup>\*†, Zeyu Ren<sup>3</sup>, Guangfeng Jiang<sup>2</sup>, Yang Zhao<sup>4</sup>, and [Hao Tang](https://ha0tang.github.io/)<sup>2</sup>‡
+> [Jiajun Sun](https://scholar.google.com/citations?user=oAWskzAAAAAJ&hl=en)<sup>1</sup>\*, [Zeyu Zhang](https://steve-zeyu-zhang.github.io/)<sup>2</sup>\*†, [Zeyu Ren](https://github.com/Zephyr0609)<sup>3</sup>, [Guangfeng Jiang](https://scholar.google.com/citations?user=-ocVCHgAAAAJ)<sup>2</sup>, [Yang Zhao](https://yangyangkiki.github.io/)<sup>4</sup>, and [Hao Tang](https://ha0tang.github.io/)<sup>2</sup>‡
 >
 > <sup>1</sup>Shenzhen University, <sup>2</sup>Peking University, <sup>3</sup>The University of Melbourne, <sup>4</sup>La Trobe University
 >
