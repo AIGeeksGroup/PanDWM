@@ -11,7 +11,7 @@ set -euo pipefail
 
 SOURCE_JOB=${SOURCE_JOB:-608501}
 SPLIT_REPEATS=${SPLIT_REPEATS:-20}
-SPLIT_SEED=${SPLIT_SEED:}
+SPLIT_SEED=${SPLIT_SEED:-20260909}
 H=/path/to/pandwm_root
 P=$H/pandwm_code/PanDWM
 REAL=$H/horizondrive_runs/common/job_${SOURCE_JOB}/lossless/real
