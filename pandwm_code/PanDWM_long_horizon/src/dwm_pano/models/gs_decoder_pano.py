@@ -7,8 +7,7 @@ along pano unit rays with a range residual on top of a metric range prior:
     range = clamp(prior_range + disparity, min=near)
     means = ray_origin + unit_direction * range + xyz_offset
 The returned gaussians tensor [B, N, 14] = [means(3), rgb(3), opacity(1),
-rotation(4), scale(3)] matches the gsplat.rasterization layout used by
-debug_pano_gs_geometry.py.
+rotation(4), scale(3)] matches the gsplat.rasterization layout.
 """
 from typing import Optional
 

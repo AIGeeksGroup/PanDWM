@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Test-L analysis (PAPER_COMPARISON_PLAN.md section 3.8; report section 39): long_feats.py
+# Test-L analysis: long_feats.py
 # features of every listed arm (71 test scenes, windows 1-12 from the scene start), then long_analyze2.py with the
 # Test-L buckets (windows 1-2 are the Dev-149 clip and are reported for reference only) and the split-half reference.
 #   ARMS="v84i4250" SEEDS="42" OUTNAME=testl_v84_s42 sbatch scripts/testl_analyze.sbatch
@@ -14,7 +14,6 @@
 #SBATCH --mem=160G
 #SBATCH --time=05:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

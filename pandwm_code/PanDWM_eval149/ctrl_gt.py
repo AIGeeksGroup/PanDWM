@@ -1,4 +1,4 @@
-"""Controllability ground truth per Val-150 clip (protocol CONTROLLABILITY_PLAN.md, frozen).
+"""Controllability ground truth per Val-150 clip.
 
 For every clip, clip frame 3..34 and camera (cam_band_feats.CAM_ORDER), and for each timing source
   band     the 12 Hz info of the clip frame (LIDAR_TOP-synced): our band, recband, MagicDrive-V2
@@ -354,7 +354,7 @@ def main():
                 b_occ=f32(cols[12]), b_hfull=f32(cols[13]), b_allfront=np.asarray(cols[14], np.int8),
                 b_npts=np.asarray(cols[15], np.int32), b_name=np.asarray(cols[16], dtype="U40"),
                 b_inst=np.asarray(cols[17], dtype="U40"),
-                protocol=json.dumps({"timing": timing, "plan": "CONTROLLABILITY_PLAN.md (frozen )",
+                protocol=json.dumps({"timing": timing, "plan": " (frozen)",
                                      "mask": "onebev_inverse_own & ~top52", "near_plane_m": cc.NEAR}))
             os.replace(tmp, out / timing / f"clip{pos:03d}.npz")
             nreq = sum(1 for x in recs if x[3] == cc.REQ)

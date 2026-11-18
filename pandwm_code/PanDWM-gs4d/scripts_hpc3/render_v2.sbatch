@@ -9,8 +9,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 34): GS renders v2 of the review clips with export_gs_v2_clips.py.
+#: GS renders v2 of the review clips with export_gs_v2_clips.py.
 #   TAG=<out dir name> [CKPT=<decoder>] [START=0 END=149] [MAX_FRAMES=n] [EXTRA="--edge-rel-h 0.1 ..."]
 # Clip latents default to the locked model's Dev-149 outputs (v84i4250).
 set -uo pipefail

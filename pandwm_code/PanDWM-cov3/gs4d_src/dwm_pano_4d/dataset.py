@@ -12,11 +12,10 @@ Gaussians the 4D decoder treats as dynamic.  Boxes come from the same pkl
 (``gt_boxes`` in LiDAR coordinates, mmdet3d origin (0.5, 0.5, 0.5), and
 ``lidar2ego``) used for the rendered box conditions.
 
-(round-2 fine-tune, PanDWM-gs-ft2/GS_FT2_PLAN.md), both off by default:
+, both off by default:
   pose_source "camera_time"   ego_transforms = the mean ego pose of the six cameras at their exposure times
                               (recon.targets.camera_time_pose) instead of the pkl's frame-level pose, which for the
-                              12 Hz interpolated frames is the pose of a LiDAR sweep up to 250 ms before the cameras
-                              (report section 44); the boxes follow through the adjusted lidar2ego of
+                              12 Hz interpolated frames is the pose of a LiDAR sweep up to 250 ms before the cameras; the boxes follow through the adjusted lidar2ego of
                               recon.targets.camera_time_infos, so their global placement is unchanged;
   box_reading "mmdet3d_v0x"   gt_boxes read as the pkl stores them, (x, y, z, w, l, h, -yaw - pi/2): length along the
                               heading.  "legacy" reads (x, y, z, dx, dy, dz, yaw), which mirrors diagonal boxes.

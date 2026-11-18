@@ -1,4 +1,4 @@
-"""GS render conditions for the D2 refiner (PanDWM-d2-refiner/D2_PLAN.md Task 5).
+"""GS render conditions for the D2 refiner.
 
 Frame t of a gs_scene_v3 scene (current frame's Gaussians over the static Gaussians of nearby frames) is rendered at
 the six nuScenes cameras and stitched with the pipeline's hard seam into the (3, 256, 4114) canvas, as in

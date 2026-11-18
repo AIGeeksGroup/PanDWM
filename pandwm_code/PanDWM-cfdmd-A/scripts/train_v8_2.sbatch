@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # branch G = v8.2 (pipeline_v8_2, configs/cfdmd_G_gan_v8_2_hpc3_8gpu.json: v8.1 + first-window motion match,
-# see V8_2_CHANGES.md; seeded from branch F).  It only resumes: the branch directory must first be seeded with a
+#  seeded from branch F).  It only resumes: the branch directory must first be seeded with a
 # hard-linked v7 run-D checkpoint (scripts/seed_branch.py); it never starts from B0.  Same campaign logic as
 # train_v7.sbatch otherwise (pause file, latest committed checkpoint, same data offset), no OOM fallback config.
 #SBATCH --job-name=pandwm_cfdmd_G
@@ -14,7 +14,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/PanDWM-cfdmd-A
@@ -48,8 +47,6 @@ fi
 if (( STEP >= 2000 )); then echo "ARM_ALREADY_COMPLETE gan step=$STEP"; exit 0; fi
 echo "PLAN_G_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

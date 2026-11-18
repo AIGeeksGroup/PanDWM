@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=240G
 #SBATCH --time=12:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail
 ARM=${ARM:?set ARM=control or recovery}
@@ -21,7 +20,7 @@ RUN=$RUN_ROOT/$RUN_TAG/$ARM
 CONFIG=${CONFIG_OVERRIDE:-$RUN_ROOT/srr_config/$ARM.json}
 test ! -e "$RUN" || { echo "refusing to overwrite $RUN" >&2; exit 2; }
 mkdir -p "$RUN/log" "$RUN/torchinductor_cache"
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True

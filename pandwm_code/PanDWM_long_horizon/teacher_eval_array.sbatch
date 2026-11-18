@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=240G
 #SBATCH --time=04:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail
 
@@ -15,7 +14,7 @@ CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_long_horizon
 TASKS=${TASKS:?set teacher task JSON filename}
 RUN_TAG=${RUN_TAG:?set unique run tag}
 TASK_INDEX=${SLURM_ARRAY_TASK_ID:-0}
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1
@@ -35,7 +34,7 @@ task = json.loads(Path(tasks_file).read_text())["tasks"][index]
 assert task["arm"] in ("teacher_cfg3", "teacher_nocfg")
 data = Path("/path/to/pandwm_root")
 checkpoint = data / "pandwm_data/stage1_causal_20000.pth"
-base = data / "pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json"
+base = data / "pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json"
 output = data / "pandwm_runs/long_horizon" / tag / task_directory_name(task)
 for path in (checkpoint, base):
     if not path.is_file():

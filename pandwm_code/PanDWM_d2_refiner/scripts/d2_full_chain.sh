@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# D2 continuation chain (report section 43.3), HPC3 login node.
+# D2 continuation chain, HPC3 login node.
 #   cd $R && setsid nohup bash $D2/scripts/d2_full_chain.sh > $R/logs/chain_full.log 2>&1 < /dev/null &
 # The pilot run (runs/pilot, step 1000) is resumed in place with configs/d2_full_hpc3_8gpu.json (render-init
 # samples), 1000 steps per segment.  After each segment (2000, 3000, 4000): refine S27 at +/-2 m with B (pure noise,
@@ -8,7 +8,7 @@
 # with abl_A).  At the end the (checkpoint, arm) with coarse_psnr >= best - 1 dB and the lowest FID + FVD / 10 over
 # all evaluated ones (incl. the pilot's step 1000) is refined on G69 at +/-2 and +/-1 m and evaluated.
 # Markers in $M make every stage idempotent; the chain can be restarted.
-# (user: "挂上去吧，等他们跑完就自动跑"): before any new GPU job the chain waits until no
+# Before any new GPU job the chain waits until no
 # pandwm_abl* job is left on HPC3 (jobs pending with DependencyNeverSatisfied do not count); a segment whose job
 # was submitted and held earlier ($M/held_job_<step>) is released instead of being submitted again.
 set -uo pipefail

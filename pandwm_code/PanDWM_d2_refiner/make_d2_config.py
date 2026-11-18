@@ -1,4 +1,4 @@
-"""Configs for the D2 refiner (D2_PLAN.md Task 4).
+"""Configs for the D2 refiner.
 
 Base: the HPC3 teacher v3 control config (PanDWM-teacher-v3/configs/teacher_v3_control.json: Stage-1
 causal teacher stage1_causal_20000.pth, 8-GPU FSDP, full fine-tuning, lr 1e-5, the 700-scene train set).
@@ -9,7 +9,6 @@ Changes:
   model      dwm_pano_d2.model.D2RenderDiT, 17 render channels, scale 10
   data       D2RenderDataset over the train set in 35-frame clips, one start every 2 s ([[10, 2.0]])
     python3 make_d2_config.py --out configs/d2_pilot_hpc3_8gpu.json
-    python3 make_d2_config.py --out configs/d2_smoke_hpc3_2gpu.json --gpus 2
     python3 make_d2_config.py --out configs/d2_full_hpc3_8gpu.json --min-items 300 --render-init-prob 0.5
 """
 
@@ -57,7 +56,7 @@ def build(base, gpus, render_root, lr, seed, min_items, render_init_prob=0.0, re
     c["training_dataset"] = {"_class_name": "dwm_pano_d2.data.D2RenderDataset", "base": td,
                              "render_root": render_root, "min_items": int(min_items)}
     c["informations"] = {
-        "experiment": "D2 refiner (PanDWM-d2-refiner/D2_PLAN.md)",
+        "experiment": "D2 refiner",
         "init": TEACHER, "lr": float(lr), "gpus": int(gpus),
         "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, "
                      "conditioned on the clip's degraded C2b GS render (16 latent ch + coverage)",

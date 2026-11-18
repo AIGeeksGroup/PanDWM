@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
 #SBATCH --time=02:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --array=0-2
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail

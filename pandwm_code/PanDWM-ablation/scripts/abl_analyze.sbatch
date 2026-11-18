@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ablation: final analysis on Dev-78 (pre-registered in ABLATION.md section 3).
+# ablation: final analysis on Dev-78.
 #   FID / FVD-1 / FVD-2: tests_analyze.py (PanDWM_eval149, unchanged) on the clip_feats.py features of every
 #   arm x seed {42, 1000}, pairs CONTROL:arm (control minus arm), delete-one-scene jackknife, 1000 scene bootstraps for
 #   the sign probability; flicker: flicker_stats.py (flicker, unchanged) on every gt_vs_generated.mp4, then
@@ -17,7 +17,6 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

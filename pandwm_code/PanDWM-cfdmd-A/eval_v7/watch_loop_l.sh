@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HPC3 login-node loop for the branch-L (v8.6) step-4500 evaluation (report section 30, "下一步建议" A),
+# HPC3 login-node loop for the branch-L (v8.6) step-4500 evaluation,
 # so it advances while the laptop session is idle (session crons are unreliable).
 #   cd $E; setsid nohup bash watch_loop_l.sh > /dev/null 2>&1 < /dev/null &
 # Every 10 min calls watch_v86.sh (BR=L, previous tag v84k4500 = the owner of the shared Dev-149 metrics files) until it

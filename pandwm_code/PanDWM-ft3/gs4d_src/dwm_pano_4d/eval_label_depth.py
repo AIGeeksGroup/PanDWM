@@ -1,4 +1,4 @@
-"""Can better depth fix the off-rig GS renders?  (report section 36; the user chose option A.)
+"""Can better depth fix the off-rig GS renders?
 
 Feasibility test on labelled TRAINING frames (the G2 depth subset p2).  The same decoded Gaussians are placed either
 at the decoder's own predicted range ("pred") or at the DAC depth label ("label": means moved along each pixel's ray
@@ -15,12 +15,12 @@ chase | sweep (1280 x 640 each); *_raw = no fixes (holes black), *_v2 = edge fil
 The labels come with the pano data (HF dataset zeyuren2002/nuscene-360_train, source-camera z); the decoder trained
 on these scenes, so "pred" is if anything better here than on generated frames.
 
-v2 (report section 37): with --dac-weights, adds "dac" / "dac_edge": the range estimated by DAC
+v2: with --dac-weights, adds "dac" / "dac_edge": the range estimated by DAC
 (dac_depth.py) on the VAE round trip of the frame (encode + decode, what a generated frame looks like to DAC), used
 as the range along the exact rays; DAC on the original 600 x 9600 jpg is scored against the label too (geometry
 stats only).  Videos then have three rows: pred / label / dac.
 
-v3 (report section 40): with --da3-anyview, adds "da3" / "da3_edge": Depth Anything 3 (da3_depth.py)
+v3: with --da3-anyview, adds "da3" / "da3_edge": Depth Anything 3 (da3_depth.py)
 on the VAE round trip, the six cameras of frames (0, gap, 2 gap) reconstructed together with their known
 intrinsics, rig extrinsics and ego poses; the ground-plane scale is the primary range (section 40.1; the pose and
 metric-model scales and DA3 on the original, not round-tripped, frame are scored against the label too).  Pixels DA3 calls sky keep the decoder

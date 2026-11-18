@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD of the D2 refiner outputs (PanDWM-d2-refiner/D2_PLAN.md).
+"""Lateral-shift FID / FVD of the D2 refiner outputs.
 
 The eval_gs_shift.py protocol (FreeVS / WorldSplat / DiST-4D novel trajectory, unpaired against the real frames of
 the original trajectory; FID-torchmetrics-stitched-pano over the 32 generated frames, FVD-I3D-sector-6-16 over

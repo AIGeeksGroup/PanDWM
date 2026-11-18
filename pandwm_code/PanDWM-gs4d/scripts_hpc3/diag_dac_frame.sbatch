@@ -9,8 +9,7 @@
 #SBATCH --mem=60G
 #SBATCH --time=00:20:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 37): DAC range vs depth label on a few real panos (diag_dac_frame.py).
+#: DAC range vs depth label on a few real panos (diag_dac_frame.py).
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh
 D=/path/to/pandwm_root

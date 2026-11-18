@@ -1,4 +1,4 @@
-"""v3 review renders of the 149 eval clips (report section 40).
+"""v3 review renders of the 149 eval clips.
 
 The four videos of export_gs_v2_clips.py with the same names, views and finishing (depth-edge filter, max-scale
 cap, nearby-frame static fill, --bg-fill sky / ground colours, push-pull hole fill), but the scene comes from
@@ -247,7 +247,7 @@ def main():
             dst.mkdir(parents=True, exist_ok=True)
             frames, stats = render_clip(pipe, batch, base.clips[ds_index], latents, args, opts, device, dst, da3)
             (dst / "clean4d_metadata.json").write_text(json.dumps({
-                "purpose": "v3 review renders (report section 40): v2 scene + v3 switches",
+                "purpose": "v3 review renders: v2 scene + v3 switches",
                 "clip_index": index, "scene_token": summary["scene_token"],
                 "anchor_timestamp_us": summary["anchor_timestamp_us"], "latents": str(src / "latents.pt"),
                 "frames": frames, "checkpoint": str(args.checkpoint),

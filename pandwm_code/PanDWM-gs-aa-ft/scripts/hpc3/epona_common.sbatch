@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=160G
 #SBATCH --time=08:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%A_%a.log
 set -euo pipefail
 
@@ -33,7 +32,7 @@ P=$H/pandwm_code/PanDWM
 E=$H/external_baselines/Epona
 M=$H/external_models/epona
 OUT=$H/external_runs/epona/$RUN_NAME/seed_${SEED}/lossless
-REAL=$H/horizondrive_runs/common/job_608501/lossless/real
+REAL=$H/horizondrive_runs/common/job/lossless/real
 COMMIT=69b24c55f5ab8b3ffde8fa55e9f833bfe64d2c68
 
 for path in \
@@ -56,7 +55,7 @@ VAE_SHA=$(awk '$2 == "dcae_td_20000.pkl" {print $1}' "$M/SHA256SUMS")
 test "${#CKPT_SHA}" -eq 64
 test "${#VAE_SHA}" -eq 64
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$E:$P/src
 export PYTHONUNBUFFERED=1 TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}

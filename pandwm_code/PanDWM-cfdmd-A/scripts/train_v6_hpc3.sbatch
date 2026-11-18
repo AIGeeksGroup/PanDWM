@@ -10,7 +10,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/PanDWM-cfdmd-A
@@ -31,8 +30,6 @@ if [[ -e "$PAUSE_FILE" ]]; then
 fi
 echo "PLAN_C_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 for ARM in gan; do
     OUT=$CAMPAIGN_DIR/$ARM
     mkdir -p "$OUT/checkpoints" "$OUT/training_state" "$OUT/log"

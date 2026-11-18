@@ -6,7 +6,7 @@
 #SBATCH --mem=200G
 #SBATCH --time=12:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_ft3/logs/%x_%j.log
-# round-3 fine-tune (GS_FT3_PLAN.md): ARM=G0|G1|G2 STEPS (default 2000) steps from R1 step 2000
+# round-3 fine-tune: ARM=G0|G1|G2 STEPS (default 2000) steps from R1 step 2000
 # into gs_ft3/<TAG or ARM>, checkpoints every 500 (all kept).  Code: the isolated PanDWM-ft3 copy
 # first on PYTHONPATH (pipeline_relabel.py and the pipeline_depth hook live only there).
 # Smoke: ARM=G1 STEPS=20 CKPT_STEPS=20 LOG_STEPS=1 TAG=smoke_G1 sbatch --time=01:00:00 train_ft3_hpc2.sbatch

@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
@@ -22,7 +21,7 @@ test -d "$REAL"
 test -f "$I3D"
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 
 "$H/pandwm_venv/bin/python" \
   "$P/scripts/horizondrive/evaluate_real_vs_real.py" \

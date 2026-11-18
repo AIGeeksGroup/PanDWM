@@ -7,7 +7,6 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --time=00:10:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
 set -euo pipefail
 

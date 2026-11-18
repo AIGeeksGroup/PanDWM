@@ -1,5 +1,5 @@
 """Frame-to-frame change of the generated vs the recorded frames inside window 1 and window 7 (diagnostic
-for the side finding in report section 30: from the same drifted history the teacher's window 7 beats the student's).
+for the side finding in : from the same drifted history the teacher's window 7 beats the student's).
 For each 16-frame window video (recorded half on top, generated half below): mean |frame_t - frame_t-1| of the
 generated half / the same for the recorded half, at full resolution and low-pass (8x area downsample), for the
 student's own Dev-76-L windows and the teacher evaluations (E2 = window 1 from GT, E1 = window 7 from the student's

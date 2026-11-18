@@ -5,7 +5,7 @@
 # array %4, fin1 after it, flicker_diag on the login node), plus
 #   - Dev-78 metrics (scripts/eval149_hpc3_dev78.sbatch, LABEL i<step>) after the generation array;
 #   - 24 long videos (12 non-test scenes x seeds 42 / 43; scripts/long_video_hpc3_v2.sbatch, 6 one-GPU jobs);
-#   - once everything is in: the pre-registered gate of V82_EVAL_HPC3.md section 25 (long4_arms.py vs
+#   - once everything is in: the pre-registered gate  (long4_arms.py vs
 #     v83h2000 for L1-L3, Dev-78 FVD sum vs v83h2000 for S1) and the training-monitor summary; then DONE.
 # Markers in EVAL_OUT: .submitted_<tag> "<gen> <fin1> <dev78>", .lv_<tag> (long-video job ids), .flicker_<tag>,
 # .gate_<tag> (long4 launched).  No generation array is submitted while one of ours (pandwm_e149g) is queued.

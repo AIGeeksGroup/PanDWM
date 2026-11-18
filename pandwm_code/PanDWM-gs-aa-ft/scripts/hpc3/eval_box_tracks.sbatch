@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=08:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 #
 # Intended as an afterok dependency of train_box_tracks.sbatch:
@@ -22,7 +21,7 @@ P=$H/pandwm_code/PanDWM
 TRAIN_RUN=$H/pandwm_runs/boxtrack_${ARM}_s${TRAIN_STEPS}_seed${SEED}
 CHECKPOINT=$TRAIN_RUN/checkpoints/${TRAIN_STEPS}_ema.pth
 RUN=$H/pandwm_runs/boxtrack_eval_${ARM}_s${TRAIN_STEPS}_seed${SEED}
-CFG_SRC=$P/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+CFG_SRC=$P/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 I3D=$H/pandwm_code/TATS_fvd/i3d_pretrained_400.pt
 PKL=$H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
 
@@ -35,7 +34,7 @@ mkdir -p "$RUN/checkpoints" "$RUN/eval_configs"
 ln -s "$CHECKPOINT" "$RUN/checkpoints/10000_ema.pth"
 CFG=$RUN/eval_configs/cfg.json
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export PANDWM_4STEP_SAMPLER=stochastic
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1

@@ -7,7 +7,7 @@
 # corr_noise_launch.py for the temporally correlated sampler noise test; its PANDWM_RENOISE_CORR / PANDWM_INIT_CORR come
 # through --export=ALL).  Everything else unchanged.  Original header:
 # the generation phase of scripts/eval149_hpc3.sbatch split into 1-GPU array tasks.  The 8-GPU job
-# (709178) found no node with 8 free GPUs (cluster full); single-GPU tasks start wherever a GPU
+# found no node with 8 free GPUs (cluster full); single-GPU tasks start wherever a GPU
 # frees up.  Task i renders arm ARMS[i / 8], clip range i % 8 (the same 8 ranges as the 8-GPU job), so the most
 # important arms come first: v8.2 step 2000 and its starting point v8.1 step 1600.  Same code, config, seed and
 # settings as eval149_hpc3.sbatch; finished clips are skipped, so a rerun resumes.
@@ -22,7 +22,6 @@
 #SBATCH --mem=110G
 #SBATCH --time=01:30:00
 #SBATCH --output=logs_eval149/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

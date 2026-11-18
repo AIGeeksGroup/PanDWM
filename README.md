@@ -59,6 +59,8 @@ This release is the code that produced the paper results, as it ran on our SLURM
 | `scripts/gaussian/` | Job scripts for the reconstruction table, the generated-scene table and the refiner |
 | `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
 
+Each folder under `pandwm_code/` is the code snapshot that produced the corresponding results, so shared packages such as `dwm` and `dwm_pano` appear in several folders and may differ slightly between them. Run every script with the copy inside its own folder, as the job scripts do.
+
 Many other scripts in these trees are development diagnostics; the entry points for every result are listed in [docs/reproduce.md](docs/reproduce.md).
 
 ## 📦 Data Preparation

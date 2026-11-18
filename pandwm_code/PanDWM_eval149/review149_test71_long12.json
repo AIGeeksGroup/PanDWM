@@ -1,5 +1,5 @@
 {
- "note": "review149 long videos (user request, v84i4250 EMA temporarily locked); dev76_index = Dev-149 clip index; the 71 Test-S/Test-L scenes, 12 windows (195 frames) from the scene start",
+ "note": "review149 long videos (v84i4250 EMA); dev76_index = Dev-149 clip index; the 71 Test-S/Test-L scenes, 12 windows (195 frames) from the scene start",
  "windows": 12,
  "count": 71,
  "scenes": [

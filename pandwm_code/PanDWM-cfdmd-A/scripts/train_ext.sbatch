@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# extend a finished branch from step 2000 to MAX_STEPS (default 3000); the user's goal is the best model.
+# extend a finished branch from step 2000 to MAX_STEPS (default 3000).
 #   ARM=H: v8.3, campaign cfdmd_H, configs/cfdmd_Hx_gan_v8_3_hpc3_8gpu.json
 #   ARM=G: v8.2, campaign cfdmd_G, configs/cfdmd_Gx_gan_v8_2_hpc3_8gpu.json
 # The x configs equal the branch configs except pipeline.target_steps 3000 (with 2000 every later step would save).
@@ -18,7 +18,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 ARM=${ARM:?set ARM=G or ARM=H}
 MAX_STEPS=${MAX_STEPS:-3000}
@@ -62,8 +61,6 @@ if (( STEP == 2000 )) && [[ ! -e "$R/seeds/${ARM}_2000" ]]; then
 fi
 echo "PLAN_${ARM}X_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

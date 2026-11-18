@@ -9,8 +9,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=00:40:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 36): decoder-vs-label depth error under two clip samplings (diag_depth_metric.py),
+#: decoder-vs-label depth error under two clip samplings (diag_depth_metric.py),
 # for the cov 3000 decoder and the depth-pilot D1 step 1000.
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh

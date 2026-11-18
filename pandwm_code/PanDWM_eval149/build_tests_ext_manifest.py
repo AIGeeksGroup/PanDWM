@@ -1,4 +1,4 @@
-"""Extend Test-S / Test-L from 71 to 83 scenes (user decision).
+"""Extend Test-S / Test-L from 71 to 83 scenes.
 
 The 12 added scenes are the validation scenes outside the 71 test scenes that also have a valid 195-frame (12-window)
 sequence: the 8 long-video development scenes and the 4 project-page scenes (long_video_hpc3_v2.sbatch, TOK array).

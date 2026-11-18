@@ -23,7 +23,7 @@ G2_CFG=$P/configs/ctsd/pandwm/hpc3/gs_decoder_g2_aa_eps0to0p1_rgbpilot_250.json
 DEV_PKL=$S/data_splits/val_dev_noncommon_scene7.pkl
 RUN=$S/eval_dev_aa_rgbpilot_${SLURM_JOB_ID}
 STAGE2_RUN=$RUN/stage2_run
-STAGE2_SOURCE_CFG=$H/pandwm_gs_holdout5_aa/code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_h20.json
+STAGE2_SOURCE_CFG=$H/pandwm_gs_holdout5_aa/code/PanDWM/configs/ctsd/pandwm/local/cd_eval_local.json
 
 for file in \
   "$G2_RUN/checkpoints/250.pth" \
@@ -42,7 +42,7 @@ test ! -e "$RUN" || { echo "refusing to overwrite run: $RUN" >&2; exit 2; }
 mkdir -p "$RUN/configs" "$RUN/torch_extensions" "$STAGE2_RUN/checkpoints"
 ln -s "$H/pandwm_data/cd_10000_ema.pth" "$STAGE2_RUN/checkpoints/10000_ema.pth"
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 module load gcc/12.5
 export CC="$(command -v gcc)" CXX="$(command -v g++)"
 export PYTHONPATH="$VENDOR:$P/src:$H/pandwm_code/TATS_fvd"

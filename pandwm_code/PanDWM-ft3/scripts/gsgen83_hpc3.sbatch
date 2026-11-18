@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# tab:gs_gen on its 83 Test-S clips (PanDWM-ext83/gs_gen/NOTES.md: the 71 + the 12 clips 214..247).
+# tab:gs_gen on its 83 Test-S clips.
 #   MODE=g3b   G3b only-Gaussians row with depth: eval_gs_shift (the tab5_ft3_hpc3.sbatch FT3_G3b command line) on the 12
 #              new clips, then merges of the 6 old FT3_G3b states (repro71 check) and of old + new (ext83)
 #   MODE=merge TAG=<refiner tag>   d2v2_eval merge of eval_test/<TAG> (71) + eval_testext/<TAG> (12) -> eval_test83/<TAG>

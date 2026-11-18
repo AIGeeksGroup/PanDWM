@@ -1,4 +1,4 @@
-"""D2 v2 refiner inputs for generated clips (PanDWM-d2-refiner/D2V2_PLAN.md).
+"""D2 v2 refiner inputs for generated clips.
 
 As d2_export_shift.py, but with the scene the round-trip pairs and the GS-Dev G3b numbers use (d2v2_make_pairs:
 G3b decoder, V2 clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes) and, besides the refiner's render

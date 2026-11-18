@@ -4,7 +4,7 @@ The pano is resampled once to square-angular pixels at the DAC canonical ERP
 density, split into overlapping longitude tiles, run through the DAC model,
 blended with Hann windows, and upsampled back to the native pano grid. The
 output npz key "range_m" holds Euclidean meters along each unit pano ray
-(600x9600), matching --depth-npz of debug_pano_gs_geometry.py.
+(600x9600).
 
 One-time setup:
     HF_HUB_DISABLE_XET=1 hf download yuliangguo/depth-any-camera \

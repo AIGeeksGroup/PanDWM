@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# teacher fine-tune v3 evaluation on Dev-76-L scenes (eval_v7/run_long_rollout_v3.py; report section 30).
+# teacher fine-tune v3 evaluation on Dev-76-L scenes.
 #   TAG=tr_gt2 CKPT=<teacher ckpt> WINDOWS=2 TW=scene_description sbatch --array=0-3 scripts/teacher_eval_v3.sbatch
 #   TAG=tr_d7 CKPT=... START=7 WINDOWS=7 HFROM=<root>/v84i4250 TW=... CHUNK=38 sbatch --array=0-1 ...
 # 50-step teacher, CFG 3, seed 42; array task i runs dev76 indices [i*CHUNK, (i+1)*CHUNK).  Output
@@ -15,7 +15,6 @@
 #SBATCH --mem=200G
 #SBATCH --time=04:00:00
 #SBATCH --output=logs_eval149/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

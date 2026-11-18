@@ -1,9 +1,9 @@
-"""Training pairs for the D2 v2 refiner (PanDWM-d2-refiner/D2V2_PLAN.md).
+"""Training pairs for the D2 v2 refiner.
 
 D2 v1 (d2_make_train.py) trained on renders at the ORIGINAL pose with Gaussians culled / taken from neighbours; at test
-time the refiner sees renders at a SHIFTED pose, so train and test inputs differed (report section 43; the 10-25
+time the refiner sees renders at a SHIFTED pose, so train and test inputs differed ( the 10-25
 survey, cause 1).  Here the degradation is the round trip of DiST-4D's cycle consistency / Difix3D's cycle
-reconstruction, made with the decoder and scene settings the refiner is evaluated with (G3b, GS_FT3_PLAN.md:
+reconstruction, made with the decoder and scene settings the refiner is evaluated with (G3b,
 V2 clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes):
 
   1. the real clip's 35 frames -> G3b scene A (the ground-truth halves are its canvases);
@@ -106,7 +106,7 @@ def d2v2_shift_infos(infos, dy):
 
 
 def scene_options():
-    """G3b's evaluation scene (GS_FT3_PLAN.md section 6: V2 + plane_offset_px 1)."""
+    """G3b's evaluation scene."""
     return SceneOptions(da3_relabel=True, da3_mode="scale", drop_bottom_rows=2, box_reading="mmdet3d_v0x",
                         da3_window="clip", da3_fuse=True, plane_offset_px=1.0)
 

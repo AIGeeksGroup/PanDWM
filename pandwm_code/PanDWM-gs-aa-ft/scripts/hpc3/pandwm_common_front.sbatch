@@ -8,7 +8,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=120G
 #SBATCH --time=02:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 #
 # Re-score PanDWM on the exact HorizonDrive task-matched interchange:
@@ -22,7 +21,7 @@ INDICES=${INDICES:-}
 VIS_DIR=${VIS_DIR:-}
 H=/path/to/pandwm_root
 P=$H/pandwm_code/PanDWM
-CFG_SRC=$P/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+CFG_SRC=$P/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 RUN=$H/pandwm_runs/common_front_items${ITEMS}_seed${SEED}
 I3D=$H/pandwm_code/TATS_fvd/i3d_pretrained_400.pt
 
@@ -30,7 +29,7 @@ for path in "$CFG_SRC" "$I3D" "$H/pandwm_data/cd_10000_ema.pth"; do
   test -f "$path" || { echo "missing: $path" >&2; exit 2; }
 done
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export PANDWM_4STEP_SAMPLER=stochastic
 # The HorizonDrive adapter constructs this exact hard-deduplicated canvas.

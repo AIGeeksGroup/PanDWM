@@ -1,5 +1,5 @@
 """Render a manifest of 35-frame clips (3 frames of history + 2 closed-loop 16-frame windows), one model load.
-for Test-S and the setting-G check (PAPER_COMPARISON_PLAN.md sections 2.2, 4.2, 5).
+for Test-S and the setting-G check.
 
 run_eval149_videos.py generalised in four ways, everything else is the same code path:
   * clips come from a manifest (tests213_manifest.json): the frozen eval dataset with fps_stride_tuples

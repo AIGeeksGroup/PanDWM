@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=240G
 #SBATCH --time=12:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
@@ -16,7 +15,7 @@ STEPS=${STEPS:-250}
 RUN_TAG=${RUN_TAG:-noise_pilot}
 DATA_ROOT=/path/to/pandwm_root
 CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_long_horizon
-BASE=$DATA_ROOT/pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+BASE=$DATA_ROOT/pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 STUDENT=$DATA_ROOT/pandwm_data/cd_10000_ema.pth
 TEACHER=$DATA_ROOT/pandwm_data/stage1_causal_20000.pth
 RUN=$DATA_ROOT/pandwm_runs/long_horizon/$RUN_TAG/$ARM
@@ -25,7 +24,7 @@ for file in "$BASE" "$STUDENT" "$TEACHER" "$CODE_ROOT/make_noise_training_config
 done
 test ! -e "$RUN" || { echo "refusing to overwrite $RUN" >&2; exit 2; }
 mkdir -p "$RUN/log" "$RUN/torchinductor_cache"
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=8 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True

@@ -1,4 +1,4 @@
-"""Diagnostic for report section 37 : DAC range vs the depth label on one real pano.
+"""Diagnostic for  : DAC range vs the depth label on one real pano.
 
 Writes <out>/<ts>_dac_vs_label.png: rows = RGB, DAC range on the 9600 x 600 jpg, label converted to range (z / cos,
 the pipeline's full-pano approximation), log2(DAC / label) (blue = DAC nearer); and prints statistics per row band

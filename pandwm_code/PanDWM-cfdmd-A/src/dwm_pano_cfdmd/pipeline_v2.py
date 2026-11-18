@@ -1,13 +1,13 @@
 """GAN fix for Context-Forced DMD (pipeline.py is untouched).
 
-Failure (job 12922710, step 0): ValueError "expected to be in states
+Failure (a job, step 0): ValueError "expected to be in states
 [FORWARD_BACKWARD] but current state is IDLE" in FSDP's _post_backward_hook.
 Cause: _disc_logits takes an intermediate block feature of the FSDP-wrapped fake
 score through a forward hook and the generator loss never touches the module
 OUTPUT.  FSDP registers its pre-backward hook on the module output, so that hook
 never fires, the training state stays IDLE (set by post-forward) and the
 post-backward hook of the root unit's parameters asserts.
-Reproduced on a tiny FSDP model (job 12928685): fails without the output term,
+Reproduced on a tiny FSDP model (a job): fails without the output term,
 passes with it, for root-only and block-wrapped FSDP.
 
 Fix: in the GENERATOR step only, add 0 * (module output) to the discriminator

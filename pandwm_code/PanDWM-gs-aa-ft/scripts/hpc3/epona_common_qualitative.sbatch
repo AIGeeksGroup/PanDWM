@@ -8,13 +8,12 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=24G
 #SBATCH --time=00:30:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
 set -euo pipefail
 
 H=/path/to/pandwm_root
 P=$H/pandwm_code/PanDWM
-HD=$H/horizondrive_runs/common/job_608501/lossless
+HD=$H/horizondrive_runs/common/job/lossless
 PD=$H/external_runs/epona/common_target_10ctx_16pred/pandwm_seed42/lossless
 EP=$H/external_runs/epona/common_target_10ctx_16pred/seed_42/lossless
 OUT=$H/external_runs/epona/common_target_10ctx_16pred/figures
@@ -27,7 +26,7 @@ for path in "$HD/real" "$HD/fake" "$PD/real" "$PD/fake" "$EP/fake"; do
   }
 done
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 "$H/pandwm_venv/bin/python" \
   "$P/scripts/horizondrive/make_common_qualitative.py" \
   --horizon-real "$HD/real" \

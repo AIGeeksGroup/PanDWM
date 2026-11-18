@@ -1,6 +1,6 @@
 """v8.4 = v8.3 trained on deep self-rollouts .
 
-Why (eval_v7/V82_EVAL_HPC3.md sections 21-24): v8.3 step 4000 is the best short-clip model (Dev-149 FVD sum
+Why: v8.3 step 4000 is the best short-clip model (Dev-149 FVD sum
 102.0), but its 20 s videos go blurry and static after ~10 s in some scenes (8 dev scenes, windows 7-12: sharpness /
 GT 0.85, frame change / GT 0.90; step 2000: 0.99 / 1.00).  The collapse grows with training steps (onset ~2250-2500)
 while every step rolls out only `context_windows: 2` windows; inference chains 11.  anchor_sink at inference made it

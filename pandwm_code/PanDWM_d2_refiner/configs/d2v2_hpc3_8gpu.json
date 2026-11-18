@@ -487,7 +487,7 @@
     "persistent_workers": true
   },
   "informations": {
-    "experiment": "D2 v2 refiner (D2V2_PLAN.md)",
+    "experiment": "D2 v2 refiner",
     "init": "/path/to/pandwm_root/pandwm_runs/d2_refiner/runs/pilot/checkpoints/4000.pth",
     "lr": 1e-05,
     "gpus": 8,

@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=02:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (GS_GAP_ANALYSIS.md) GS-side tasks on HPC3 for the 149 review clips of v84i4250:
+# GS-side tasks on HPC3 for the 149 review clips of v84i4250:
 #   MODE=refs      dwm_pano.make_difix_refs            -> pandwm_runs/difix/refs
 #   MODE=d1render  dwm_pano.export_shift_pano_latents  -> pandwm_runs/d1_sdedit/renders
 #                  (C2 step 3000 + DA3 scale relabel + 2 bottom rows dropped, as the v4 far views)

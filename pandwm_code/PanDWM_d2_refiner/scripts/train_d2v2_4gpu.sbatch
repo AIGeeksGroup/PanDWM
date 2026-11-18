@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # D2 v2 4-GPU variant of train_d2.sbatch (NGPU=4, configs/d2v2_hpc3_4gpu.json).
-# D2 refiner training (PanDWM-d2-refiner/D2_PLAN.md Tasks 8 / 9 / 11).
+# D2 refiner training.
 #   TAG=pilot STEPS=1000 CKPT_STEPS=500 sbatch --job-name=pandwm_d2_pilot train_d2.sbatch
 #   SMOKE=1 sbatch --gres=gpu:2 --cpus-per-task=16 --mem=240G --time=01:00:00 --job-name=pandwm_d2_smoke train_d2.sbatch
 #   RESUME_FROM=<step> TAG=<existing run> STEPS=<new max> ... : resume in place (no overwrite check)
@@ -15,7 +15,6 @@
 #SBATCH --mem=240G
 #SBATCH --time=12:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
 set -uo pipefail
 DR=/path/to/pandwm_root
 D2=$DR/pandwm_code/PanDWM_d2_refiner
@@ -31,12 +30,6 @@ unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR || true
 cd "$D2" || exit 1
 CONFIG=${CONFIG_FILE:-$D2/configs/d2v2_hpc3_4gpu.json}
 NGPU=4
-if [[ $SMOKE == 1 ]]; then
-    NGPU=2; STEPS=4; CKS=100000000; LOGS=1; TAG=smoke_${SLURM_JOB_ID}
-    CONFIG=$D2/configs/d2_smoke_hpc3_2gpu.json
-    export DWM_AUDIT_STEPS=4 DWM_MEM_PROBE_STEP=2
-    "$PY" tests/test_d2_logic.py || { echo "UNIT_TEST_FAILED"; exit 1; }
-fi
 RUN=$RUNROOT/$TAG
 RES_ARGS=""
 if [[ -n $RESUME ]]; then

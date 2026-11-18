@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # copy of long_video_testl.sbatch with LIST overridable (Test-L extension to 83 scenes).
-# Test-L, the long-video test set (PAPER_COMPARISON_PLAN.md sections 2.2 and 3.8): the 71 test
+# Test-L, the long-video test set: the 71 test
 # scenes of PanDWM_eval149/review149_test71_long12.json, 3 recorded frames + 12 windows x 16 (19.5 s)
 # from the scene start; windows 1-2 are the Dev-149 clip and are not scored.  Same runner and protocol as
 # long_video_dev76.sbatch (student, clean history, stochastic 4-step sampler, blend 128), with the paper step list
-# [1000, 750, 500, 250] as the default (LOCK_PAPER.json, user decision ).
+# [1000, 750, 500, 250] as the default (LOCK_PAPER.json).
 # Array task i runs list indices [i*CHUNK, (i+1)*CHUNK) (the list's dev76_index field holds the Dev-149 clip index);
 # output <LVT>/<TAG>_scene<index>_seed<SEED>.  A time budget stops at a window boundary; resubmit to resume.
 #   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch
@@ -19,7 +19,6 @@
 #SBATCH --mem=200G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs_eval149/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

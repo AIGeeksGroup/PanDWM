@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# (report section 41): login-node watcher for the C2 run (copy of formal_eval_watch.sh, F1 -> C2).  For each of steps 1000..5000, once
+#: login-node watcher for the C2 run (copy of formal_eval_watch.sh, F1 -> C2).  For each of steps 1000..5000, once
 # $RUNS/<TAG>/checkpoints/<step>.pth exists and has not changed for 3 minutes, submit
 #   eval_depth_pilot.sbatch  (25 val clips, evaluate_4d)        -> $RUNS/eval/C2_<step>.json
 #   diag_depth_metric.sbatch (holdout5 depth error, 25 clips)   -> $RUNS/label_depth/diag_depth_metric_C2_<step>.json

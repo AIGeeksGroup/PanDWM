@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD of the GS renders of the 149 review clips (report section 40, item A).
+"""Lateral-shift FID / FVD of the GS renders of the 149 review clips.
 
 The FreeVS / WorldSplat / DiST-4D novel-trajectory protocol on our panorama: every frame's Gaussians (the v2 review
 scene, or a v3 variant of gs_scene_v3.SceneOptions) are rendered at the six real nuScenes cameras with the ego
@@ -88,7 +88,7 @@ def parse_args():
     p.add_argument("--depth-pack", type=Path, default=None)
     p.add_argument("--depth-res", default="224x400")
     p.add_argument("--da3-window", choices=["frame", "clip"], default="frame",
-                   help="clip = one DA3 pass per clip (GS_CLIPDEPTH_PLAN.md V1)")
+                   help="clip = one DA3 pass per clip")
     p.add_argument("--da3-chunk", type=int, default=0, help="clip mode: chunk length in frames, 0 = one pass")
     p.add_argument("--da3-fuse", action="store_true", help="clip mode: static depth fusion (V2)")
     return p.parse_args()

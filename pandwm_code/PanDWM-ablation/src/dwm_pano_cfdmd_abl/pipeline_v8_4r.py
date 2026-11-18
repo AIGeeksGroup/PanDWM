@@ -1,6 +1,6 @@
 """v8.4R = v8.4 + one default-off knob for the ablation "recorded instead of self-generated history" .
 
-User decision (ABLATION.md section 1.8, option (b)): with the knob on, ONLY the history of the trained
+User decision: with the knob on, ONLY the history of the trained
 window changes, from the student's own rollout to the recorded frames; window 1 is still sampled by the student from the
 recorded history, so the first-window terms (mm3 first-window motion term, first adversarial pair on the student side
 and its discriminator training) stay exactly as in the full recipe.

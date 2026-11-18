@@ -1,4 +1,4 @@
-"""4D GS decoder trained with Depth Anything 3 pseudo-depth on every batch (report section 41, C2).
+"""4D GS decoder trained with Depth Anything 3 pseudo-depth on every batch.
 
 Section 38 (F1) supervised depth only on the 80 training scenes with downloaded labels; the decoder's depth error on
 held-out scenes stalled at ~0.21.  Section 40 showed DA3 (ground scale) reaches 0.239 against those labels and, used

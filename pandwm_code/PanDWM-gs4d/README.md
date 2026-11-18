@@ -47,7 +47,6 @@ Differences from WorldSplat:
 ## Run
 
 ```bash
-sbatch scripts/smoke_hpc2.sbatch                                            # HPC2 debug
 RUN_TAG=train_v1 STEPS=15000 sbatch scripts/train_hpc2.sbatch               # HPC2 A800
 CHECKPOINT=$HOME/pandwm_runs/gs4d/train_v1/checkpoints/15000.pth NAME=v1_15000 \
   sbatch scripts/eval_hpc2.sbatch

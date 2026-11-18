@@ -37,7 +37,7 @@ test -d "$H/pandwm_data/train/rgb" || { echo "missing train RGB" >&2; exit 2; }
 echo "8d201fbd83275ddd9b3aa0d20d1b3164dadfff972c9ffea685f68934f697cf7b  $S/inputs/g2_mix75_250.pth" | sha256sum --check --strict
 echo "7ecb988e43440dbb1b1ea4914e2b388040daa5202f97317490f123828fe68678  $S/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl" | sha256sum --check --strict
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 module load gcc/12.5
 export CC="$(command -v gcc)" CXX="$(command -v g++)"
 export PYTHONPATH="$VENDOR:$P/src:$H/pandwm_code/TATS_fvd"

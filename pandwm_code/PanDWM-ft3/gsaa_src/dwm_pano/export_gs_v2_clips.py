@@ -1,4 +1,4 @@
-"""v2 of export_gs_4d_clips.py (report section 34): the same 4D renders for the 149 eval clips plus two
+"""v2 of export_gs_4d_clips.py: the same 4D renders for the 149 eval clips plus two
 render-side fixes and a 3D-only near-rig view.  With the new options off (default) the 4D videos are those of
 export_gs_4d_clips.py.
   * --edge-rel-h / --edge-rel-v > 0: drop the Gaussians of pixels at depth discontinuities of the decoder's range image
@@ -17,7 +17,7 @@ export_gs_4d_clips.py.
   * --fill-mode pushpull (v2c): with --inpaint-all, fill the holes with a multiscale average of the covered pixels
     (push-pull, bilinear between levels) instead of cv2 Telea, which drags bright lamps and lane marks into long
     streaks across large holes (night clips).
-  * --dac-weights (v3, report section 37): place every frame's Gaussians at the range DAC estimates on
+  * --dac-weights: place every frame's Gaussians at the range DAC estimates on
     the VAE-decoded frame (dwm_pano_4d/dac_depth.py; needs --dac-root / --dac-config and dwm_pano_4d on the path):
     means move along the decoder's exact rays, xyz offset dropped, scales follow the range ratio, pixels without a
     DAC range below --dac-far-cut keep the decoder geometry.  The edge filter then reads the DAC range.

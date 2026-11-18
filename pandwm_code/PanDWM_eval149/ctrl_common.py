@@ -1,6 +1,6 @@
 """Shared constants and helpers of the controllability evaluation .
 
-Protocol (frozen ): experiments/PanDWM-baselines/CONTROLLABILITY_PLAN.md.
+Protocol (frozen):
 Images: the six cameras at 256x448 (cam_band_feats grid), mask = onebev_inverse_own with native rows 0..51 removed
 (the paper's camera-space protocol, feats_val150_cam_onebev_inverse_own_top52). Camera axis = cam_band_feats.CAM_ORDER.
 Box coordinates: 256x448 edge coordinates (pixel j covers [j, j + 1)), as torchvision boxes.

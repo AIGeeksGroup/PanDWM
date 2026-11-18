@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# controllability predictions (ctrl_predict.py; protocol CONTROLLABILITY_PLAN.md, frozen).
+# controllability predictions.
 #   ARMS="rec448=views:$B/rec448_val150 recband=recband" [REFS="recband=$FV/real.npz"] [MODELS=frcnn,m2f_cs]
 #   [UNMASKED=rec448u] [GT=1: also build the GT (ctrl_gt.py, CPU) in the background] sbatch scripts/ctrl_pred.sbatch
 # Outputs: $OUT/pred/<arm>__<det>+<seg>/clipNNN.npz, $OUT/gt/<timing>/clipNNN.npz (resumable).
@@ -13,7 +13,6 @@
 #SBATCH --mem=100G
 #SBATCH --time=05:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-28,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
 set -euo pipefail
 
@@ -25,7 +24,7 @@ test "$(find "$DUMP/real" -maxdepth 1 -name '*.pt' | wc -l)" -eq 149
 test "$(find "$DUMP/fake" -maxdepth 1 -name '*.pt' | wc -l)" -eq 149
 mkdir -p "$(dirname "$OUT")"
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
 echo "method=$METHOD seed=$SEED dump=$DUMP offset=$OFFSET"

@@ -1,4 +1,4 @@
-"""Build the Test-S manifest (PAPER_COMPARISON_PLAN.md section 2.2).
+"""Build the Test-S manifest.
 
 Test-S = the 71 test scenes (review149_test71_long12.json, the same scenes as Test-L and as
 dev149_nontest_split.json "test_scene_tokens"), 3 clips per scene starting 5, 10 and 15 s after the scene

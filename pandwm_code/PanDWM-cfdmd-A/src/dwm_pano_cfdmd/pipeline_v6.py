@@ -16,7 +16,7 @@ for samples the teacher finds likely.  Two optional knobs, both OFF by default (
    (s = 3 means an effective guidance of 4).  A lower s (e.g. 1.0, effective 2) is a config change.
 
 ``gt_reg`` is reported from the critic step, which runs every iteration (the trainer averages every key over
-all logged rows; a key that only student steps return crashed job 703667).
+all logged rows; a key that only student steps return crashed a job).
 """
 import torch
 

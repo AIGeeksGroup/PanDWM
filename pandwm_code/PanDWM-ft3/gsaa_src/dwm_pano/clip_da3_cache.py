@@ -1,4 +1,4 @@
-"""Stage A of GS_ANCHOR_ZEROSHOT_PLAN.md: cache the clip-level DA3 metric crop depth of the generated Dev clips.
+"""Stage A  cache the clip-level DA3 metric crop depth of the generated Dev clips.
 
 For each clip (eval_gs_shift's layout and dataset), SceneBuilder._clip_da3_crops (one DA3 pass over all 35 decoded
 frames, GS_CLIPDEPTH_PLAN V1) times the clip's ground scale gives the metric z-depth of the six pinhole crops of every

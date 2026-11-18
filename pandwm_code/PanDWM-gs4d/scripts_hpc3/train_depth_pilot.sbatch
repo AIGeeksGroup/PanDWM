@@ -9,8 +9,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=12:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# depth pilot (report section 34): ARM=C|D1|D2 trains configs/gs4dd_hpc3_<ARM>.json from the 4D coverage
+# depth pilot: ARM=C|D1|D2 trains configs/gs4dd_hpc3_<ARM>.json from the 4D coverage
 # decoder step 3000 for STEPS (default 1000) steps into $RUNS/depth_pilot_<ARM>.
 set -uo pipefail
 ARM=${ARM:?ARM}; STEPS=${STEPS:-1000}

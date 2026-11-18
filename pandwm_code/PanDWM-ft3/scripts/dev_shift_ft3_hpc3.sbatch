@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_dev_hpc3/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# round-3 (GS_FT3_PLAN.md): dev_shift_hpc3.sbatch with the PanDWM-ft3 code copy first on
+# round-3: dev_shift_hpc3.sbatch with the PanDWM-ft3 code copy first on
 # PYTHONPATH (bounded / no-offset scene options, sharpness metric) and sample videos of 4 clips (real, 0, +2, -2, +4 m).
 # Copied from the round-2 GS-Dev generated-scene shift eval: eval_gs_shift on the Dev-78 clips of the
 # v84i4250 Dev-149 generations, fixed 4D (camera-time poses, v0x boxes), v4 settings, shifts 0/1/2/4, 4d only.

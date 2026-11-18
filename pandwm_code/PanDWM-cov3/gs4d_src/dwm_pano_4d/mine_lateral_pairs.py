@@ -1,5 +1,4 @@
-"""Mine real lateral ground truth inside the nuScenes train split (GS_IMPROVEMENT_SURVEY.md
-section 4, step 2 preparation; after Lilja et al. CVPR'24 / MTGS / EUVS).
+"""Mine real lateral ground truth inside the nuScenes train split (after Lilja et al. CVPR'24 / MTGS / EUVS).
 
 For every info of a 12 Hz train pkl (the anchor), frames of OTHER passes recorded at the same map location whose
 camera-time ego pose (recon.targets.camera_time_pose), expressed in the anchor's camera-time ego frame, lies within

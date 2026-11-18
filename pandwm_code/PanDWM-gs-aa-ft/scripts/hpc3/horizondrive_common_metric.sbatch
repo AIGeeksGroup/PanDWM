@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=00:30:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
@@ -19,7 +18,7 @@ OUT=$H/horizondrive_runs/common/job_${HORIZON_JOB}/common_front_fvd.json
 
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 
 "$H/pandwm_venv/bin/python" \
   "$P/scripts/horizondrive/evaluate_common_front.py" \

@@ -22,7 +22,7 @@ export PYTHONPATH=$H/pandwm_code/PanDWM/src:$H/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=4 PYTHONUNBUFFERED=1 TOKENIZERS_PARALLELISM=false
 cd $H/pandwm_code/PanDWM
 $H/pandwm_venv/bin/python scripts/hpc3/nuscenes6_bridge_run.py \
-  --config configs/ctsd/pandwm/h20/cd_eval_hpc3.json \
+  --config configs/ctsd/pandwm/local/cd_eval_hpc3.json \
   --mode "$MODE" --items "$ITEMS" --frames "$FRAMES" \
   --render-height "$RH" --render-width "$RW" \
   --i3d $H/pandwm_code/TATS_fvd/i3d_pretrained_400.pt \

@@ -1,5 +1,4 @@
-"""Zero-shot generative repair of shifted-view renders with NVIDIA difix_ref (GS_NEARFIX_PLAN.md
-step 2).
+"""Zero-shot generative repair of shifted-view renders with NVIDIA difix_ref.
 
 Model: huggingface.co/nvidia/difix_ref @ d4830559 (NVIDIA License, research / non-commercial use; SD-Turbo base,
 Stability AI Community License), code github.com/nv-tlabs/Difix3D @ c76edc59 (src/pipeline_difix.py), run in a separate

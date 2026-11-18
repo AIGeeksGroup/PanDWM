@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=240G
 #SBATCH --time=12:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail
 DATA_ROOT=/path/to/pandwm_root
@@ -20,7 +19,7 @@ STEPS=${STEPS:?set STEPS}
 TASKS_PER_SLOT=${TASKS_PER_SLOT:-1}
 TASK_INDEX_STRIDE=${TASK_INDEX_STRIDE:-0}
 TASK_OFFSET=${TASK_OFFSET:-0}
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/vendor:$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1

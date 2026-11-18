@@ -18,7 +18,7 @@ P=$H/pandwm_code/PanDWM-gs-aa-ft
 S=$H/pandwm_gs_aa_experiment
 VENDOR=$H/pandwm_gs_holdout5_aa/vendor
 G2_CFG=$P/configs/ctsd/pandwm/hpc3/gs_decoder_g2_aa_eps0to0p1_250.json
-STAGE2_CFG=$P/configs/ctsd/pandwm/h20/cd_eval_h20.json
+STAGE2_CFG=$P/configs/ctsd/pandwm/local/cd_eval_local.json
 COMMON_PKL=$H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
 CLASSIC=$S/inputs/g2_mix75_250.pth
 AA=$S/runs/g2_mix75_250_aa_eps0to0p1/checkpoints/250.pth
@@ -41,7 +41,7 @@ mkdir -p "$OUT/configs" "$OUT/torch_extensions" "$STAGE2_RUN/checkpoints"
 ln -s "$H/pandwm_data/cd_10000_ema.pth" \
   "$STAGE2_RUN/checkpoints/10000_ema.pth"
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 module load gcc/12.5
 export CC="$(command -v gcc)" CXX="$(command -v g++)"
 export PYTHONPATH="$VENDOR:$P/src:$H/pandwm_code/TATS_fvd"

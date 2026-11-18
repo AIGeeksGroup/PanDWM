@@ -1,6 +1,6 @@
-"""Depth Anything 3 metric range for the pano band (report section 40).
+"""Depth Anything 3 metric range for the pano band.
 
-DAC (report section 37) ran a single-image panorama model on the 33 deg band and failed (sky at 2-6 m, near road
+DAC ran a single-image panorama model on the 33 deg band and failed (sky at 2-6 m, near road
 25-30 % too close, blurry).  Here the six nuScenes cameras are cut back out of the stitched pano as pinhole crops and
 several frames are reconstructed together with their known intrinsics, rig extrinsics and ego poses.
 
@@ -268,7 +268,7 @@ class Da3Ranger:
                     "ground_over_metric": scale_ground / max(scale_metric, 1e-12), "crops": images}
         for name, scale in (("pose", scale_pose), ("metric", scale_metric), ("ground", scale_ground)):
             out_maps[f"range_{name}"] = self.to_decoder_grid(pipe, depth * scale, frame_count) * correction[None]
-        # (clip-level DA3, GS_CLIPDEPTH_PLAN.md): the crop-space maps behind the ranges above,
+        #: the crop-space maps behind the ranges above,
         # frame-major (F * 6, crop_h, crop_w); depth_crop is the unscaled any-view depth (multiply by a scale_*)
         out_maps.update(depth_crop=depth, sky_crop=sky, K_crop=intrinsics)
         return out_maps
@@ -308,7 +308,7 @@ class Da3Ranger:
 
 
 def rescale_gaussians(g, pred_range, new_range, valid, origins):
-    """C1b (report section 40.3): scale each valid pixel's Gaussian about its ray origin by s = new / pred range,
+    """C1b: scale each valid pixel's Gaussian about its ray origin by s = new / pred range,
     mean o + s (m - o) and scales * s, so its footprint seen from that camera is unchanged (the original view
     renders as before up to the compositing order) while its distance follows the new range.  g (N, 14) in
     decoder order; pred_range / new_range / valid (V, H, W); origins (N, 3).  Returns (g', range')."""

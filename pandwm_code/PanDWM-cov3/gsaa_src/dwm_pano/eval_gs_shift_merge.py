@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD of the GS renders of the 149 review clips (report section 40, item A).
+"""Lateral-shift FID / FVD of the GS renders of the 149 review clips.
 
 The FreeVS / WorldSplat / DiST-4D novel-trajectory protocol on our panorama: every frame's Gaussians (the v2 review
 scene, or a v3 variant of gs_scene_v3.SceneOptions) are rendered at the six real nuScenes cameras with the ego

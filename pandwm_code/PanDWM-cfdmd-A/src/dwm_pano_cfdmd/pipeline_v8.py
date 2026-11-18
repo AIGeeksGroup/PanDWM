@@ -1,6 +1,6 @@
 """v8 = v7 + temporal-difference discriminator heads, aimed at the flicker v7 leaves .
 
-Step-500 evaluation of v7 (eval_v7/V7_EVAL_500.md, frozen 149-clip protocol): the student's
+Step-500 evaluation of v7: the student's
 frame-to-frame change is ~20% above the real footage while B0's is ~7% above, so distillation adds flicker; the
 latent monitor motion_ratio_w1 agrees (1.1-1.2).  The v7 heads score every token of every frame on its own, so a
 token that changes too much between frames looks no different from one that does not.  v8 adds, per feature

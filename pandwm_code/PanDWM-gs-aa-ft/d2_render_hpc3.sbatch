@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2_refiner/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# D2 refiner, GS side (PanDWM-d2-refiner/D2_PLAN.md Tasks 5 / 7 / 9 / 10).
+# D2 refiner, GS side.
 #   MODE=pairs  [TASKS=14 LIMIT=0 BUDGET_S=9000 OUT=train_pairs]  sbatch --array=0-13 d2_render_hpc3.sbatch
 #   MODE=count                                                       sbatch d2_render_hpc3.sbatch
 #   MODE=export CLIPS=0:149|<list> [SHIFTS=0,1,-1,2,-2 TAG=c2b_drop2] sbatch --array=0-3 d2_render_hpc3.sbatch

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# D2 pilot evaluation chain v2 (report section 43.2), HPC3 login node; replaces d2_pilot_chain.sh after
-# its S27 stage (A / B refined, one A task lost to a CUDA error on ACD1-59 and rerun as 745495).
+# D2 pilot evaluation chain v2, HPC3 login node; replaces d2_pilot_chain.sh after
+# its S27 stage.
 #   cd $R && setsid nohup bash $D2/scripts/d2_pilot_chain_v2.sh > $R/logs/chain_pilot_1000_v2.log 2>&1 < /dev/null &
 # Stages (markers in $M, so the chain can be restarted):
 #   1. refine C (no CFG, start from the render noised to sigma 0.8), D (CFG 2 "all", sigma 0.8) and E (no CFG,

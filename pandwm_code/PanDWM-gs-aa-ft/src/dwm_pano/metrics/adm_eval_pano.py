@@ -156,7 +156,7 @@ def main():
         "--expect-samples", type=int, default=None,
         help="fail unless the manifest holds exactly this many entries "
              "(actual evaluated clips x scored frames per clip). Note that "
-             "evaluation_item_count is only an upper bound: cd_eval_h20.json "
+             "evaluation_item_count is only an upper bound: cd_eval_local.json "
              "enumerates 149 clips, hence 149 x 32 = 4768 samples. Without "
              "this guard a dump truncated by a killed eval is scored silently "
              "at a smaller N, and FID's 1/N bias then reads as a model "

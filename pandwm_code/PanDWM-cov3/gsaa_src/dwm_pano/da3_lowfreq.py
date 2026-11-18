@@ -1,4 +1,4 @@
-"""Low-frequency DA3 scale correction of the decoder range (GS_CLIPDEPTH_PLAN.md section 7).
+"""Low-frequency DA3 scale correction of the decoder range.
 
 rho = log(DA3 range / decoder range) on the trusted pixels (mask) of a (V, H, W) decoder grid is low-passed per half and
 the decoder range is multiplied by exp(rho~), so DA3 corrects slowly varying range errors while the decoder keeps its

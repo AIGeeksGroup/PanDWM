@@ -1,4 +1,4 @@
-"""tab:gs_recon rows of the FT3 G3b decoder on the 249-clip Test-S (CONSIST_PLAN.md section 5).
+"""tab:gs_recon rows of the FT3 G3b decoder on the 249-clip Test-S.
 
 The 213-clip and 36-clip per-image rows of each G3b (mode, resolution) are concatenated and aggregated with the
 verbatim copies of score.py's summarize functions in gs_recon_ext249/scripts/merge_249.py (its own verbatim

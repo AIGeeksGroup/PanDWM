@@ -1,5 +1,5 @@
 {
- "note": "review149 long videos (user request, v84i4250 EMA temporarily locked); dev76_index = Dev-149 clip index; the 2 non-test Dev-149 scenes without a valid 10-window clip, longest clip that fits",
+ "note": "review149 long videos (v84i4250 EMA); dev76_index = Dev-149 clip index; the 2 non-test Dev-149 scenes without a valid 10-window clip, longest clip that fits",
  "count": 2,
  "scenes": [
   {

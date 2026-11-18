@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# teacher fine-tune v3 evaluation analysis (report section 30): features of every listed arm
+# teacher fine-tune v3 evaluation analysis: features of every listed arm
 # (76 Dev-76-L scenes, seed 42, windows FIRST..LAST), long_analyze2.py with the split-half real reference, colour.
 #   ARMS="t0_gt2 tc_gt2 tr_gt2" FIRST=1 LAST=2 BUCKETS="w1=1-1 w2=2-2 all_w1-2=1-2" OUTNAME=tv3_e2 sbatch ...
 #   ARMS="t0_d7 tc_d7 tr_d7 tr_d7n10" FIRST=7 LAST=7 BUCKETS="w7=7-7" OUTNAME=tv3_e1 sbatch ...
@@ -13,7 +13,6 @@
 #SBATCH --mem=160G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

@@ -9,11 +9,10 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# D2 v2 (D2V2_PLAN.md section 3): d2_refine.sbatch with inputs / outputs under
+# D2 v2: d2_refine.sbatch with inputs / outputs under
 # pandwm_runs/d2v2 (SET=dev: inputs_dev, the GS-Dev 78 clips of the 149-clip protocol; SET=test with
 # MANIFEST=tests213_manifest.json FS=10,5: Test-S).  Copied from:
-# D2 refiner inference on the review clips (d2_refine.py; D2_PLAN.md Tasks 8 / 10 / 11).
+# D2 refiner inference on the review clips.
 #   CK=<run>/checkpoints/1000.pth OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=c2b_drop2]
 #   [NOSTRICT=1 VIDEO=<list>] sbatch --array=0-3 d2_refine.sbatch      (array tasks split the clip list)
 set -uo pipefail
@@ -26,7 +25,7 @@ export PYTHONPATH=$D2/src:$D2/src_base:$DR/pandwm_code/TATS_fvd
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export PANDWM_PANO_BLEND_W=128 TORCH_HOME=$DR/.cache/torch OMP_NUM_THREADS=8 TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1 LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1
-export MASTER_PORT=$(( 20000 + (${SLURM_JOB_ID} * 7 + ${SLURM_ARRAY_TASK_ID:-0} * 131 + RANDOM) % 20000 ))   # 11-01: id-based ports collided (785507)
+export MASTER_PORT=$(( 20000 + (${SLURM_JOB_ID} * 7 + ${SLURM_ARRAY_TASK_ID:-0} * 131 + RANDOM) % 20000 ))   # id-based ports collided
 export TORCHINDUCTOR_CACHE_DIR=/tmp/ti_${SLURM_JOB_ID:-x}_${SLURM_ARRAY_TASK_ID:-0} TRITON_CACHE_DIR=/tmp/tr_${SLURM_JOB_ID:-x}_${SLURM_ARRAY_TASK_ID:-0}
 unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR || true
 N=${SLURM_ARRAY_TASK_COUNT:-1}; K=${SLURM_ARRAY_TASK_ID:-0}

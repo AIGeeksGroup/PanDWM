@@ -1,8 +1,8 @@
 """Shared pano-Gaussian geometry: rays, virtual cameras, resampled targets.
 
-Functions here are the validated core of debug_pano_gs_geometry.py (Check A
-round-trip 1.8e-12 px; Check C gsplat PSNR 30-38 dB) extracted for reuse by
-the GS decoder training pipeline. All directions are unit vectors in the
+Functions here are the validated geometry core (ray round-trip error 1.8e-12 px;
+gsplat PSNR 30-38 dB on recorded panoramas) used by the GS decoder training
+pipeline. All directions are unit vectors in the
 nuScenes ego frame; ranges are Euclidean meters along those unit rays.
 """
 import numpy as np

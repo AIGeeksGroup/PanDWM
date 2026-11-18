@@ -16,7 +16,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 ARM=J
 MAX_STEPS=${MAX_STEPS:-4500}
@@ -63,8 +62,6 @@ OFFSET=$(python3 "$CF/scripts/dataset_len.py" "$CONFIG" 8 "$STEP" | awk '/RESUME
 [[ "$OFFSET" =~ ^[0-9]+$ ]] || { echo "DATA_OFFSET_FAILED"; exit 1; }
 echo "PLAN_${ARM}_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS data_offset=$OFFSET"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

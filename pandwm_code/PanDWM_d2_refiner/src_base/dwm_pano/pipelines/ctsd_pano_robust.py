@@ -1,6 +1,6 @@
 """Stage-1 teacher fine-tune v3 : recovery from the CF-DMD student's own history.
 
-Why (PanDWM-cfdmd-A/eval_v7/V82_EVAL_HPC3.md sections 27.10-27.12): the student's late-window
+Why: the student's late-window
 drift is a per-window bias that it inherits from the teacher (both drift the same way), so the DMD target itself
 has to improve.  The teacher learns to predict the REAL target window from the history the student actually
 produces (HorizonDrive's self-rollout recovery, with the student's closed loop in place of the teacher's, since the

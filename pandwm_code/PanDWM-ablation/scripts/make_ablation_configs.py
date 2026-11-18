@@ -11,7 +11,7 @@ pandwm_runs/cfdmd_I/gan/log/config_used_job_714919.json, the run that produced t
   B_noadv   A + gan_generator_weight 0, gan_discriminator_weight 0 (use_gan False: no heads, no head training, no
             adversarial term; the critic step is flow matching only, as in A).
   C_rechist A + pipeline class PanoContextForcedDMDv8_4R (src/dwm_pano_cfdmd_abl/pipeline_v8_4r.py, = v8.4 with the
-            knob off) + recorded_history true (option (b), user decision ABLATION.md section 1.8).
+            knob off) + recorded_history true.
             The earlier option (a) (context_forcing_prob 0) is not a single switch and was not used.
   D_notemp  A + disc_temporal false (spatial heads only).
 

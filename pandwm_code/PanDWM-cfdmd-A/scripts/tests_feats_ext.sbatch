@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# copy of tests_feats.sbatch with ACD1-59 excluded (Test-S over 249 clips).
+# copy of tests_feats.sbatch with one node excluded (Test-S over 249 clips).
 # clip_feats.py features of clip runs (and the recorded frames of the manifest), then optionally
 # tests_analyze.py.  Features are written once per run directory: $FD/feats_<name>.npz; existing files are kept.
 #   ROOTS="v84i4250_s42=$OUT/v84i4250_s42 ..." sbatch scripts/tests_feats.sbatch               (Test-S, + real)
@@ -15,7 +15,6 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

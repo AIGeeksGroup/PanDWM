@@ -273,7 +273,7 @@
     "informations": {
         "stage": "gs_decoder_video_v1_p2b_ablation",
         "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
-        "notes": "P2b ablation arm B (control): weight_range_l1 0->0.01 isolates direct range-head supervision; weight_render_depth unchanged at 0.01. Per docs/plans/-h20-p2b-depth-weight-ablation-plan.md. Everything else identical to gs_decoder_p2_h20.json (P2 baseline).",
-        "parent_config": "gs_decoder_p2_h20.json"
+        "notes": "P2b ablation arm B (control): weight_range_l1 0->0.01 isolates direct range-head supervision; weight_render_depth unchanged at 0.01.  Everything else identical to gs_decoder_p2_local.json (P2 baseline).",
+        "parent_config": "gs_decoder_p2_local.json"
     }
 }

@@ -1,4 +1,4 @@
-"""Formal depth-supervised 4D decoder config for HPC3 (report section 38; the user chose option A).
+"""Formal depth-supervised 4D decoder config for HPC3.
 
 Base: configs/gs4dd_hpc3_D1.json (the depth pilot arm D1: coverage recipe + metre L1 0.002 / 0.002 + log-depth L1
 0.1 / 0.1, class dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline).  Changes, nothing else:

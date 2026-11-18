@@ -7,7 +7,7 @@
 #SBATCH --time=8:00:00
 #SBATCH --output=%x_%j.log
 # Re-scores the SAME deterministic baseline generation with four instance
-# descriptors at once. The "patch" arm must reproduce job 589543 exactly
+# descriptors at once. The "patch" arm must reproduce a job exactly
 # (FID 14.596 / FVD 79.272 / iac_ratio 0.928); if it does not, the run is
 # void and nothing else on the line is readable.
 #   sbatch --export=ALL,ITEMS=149 iac2.sbatch
@@ -15,10 +15,10 @@ set -eu
 ARM=${ARM:-stochastic}; ITEMS=${ITEMS:-149}; SEED=${SEED:-0}; EQ=${EQ:-0}; PLU=${PLU:-0}
 H=/path/to/pandwm_root
 RUN=$H/pandwm_runs/iac2_eq${EQ}plu${PLU}_${ARM}_items${ITEMS}_seed${SEED}
-CFG_SRC=$H/pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+CFG_SRC=$H/pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 
 echo "=== $(hostname) ==="; nvidia-smi --query-gpu=name,memory.free --format=csv,noheader
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$H/pandwm_code/PanDWM/src:$H/pandwm_code/TATS_fvd
 export PANDWM_4STEP_SAMPLER=$ARM OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HPC3 login-node loop for the branch-M (v8.6 + rollout cap 1.0, report section 32) step-4500
+# HPC3 login-node loop for the branch-M step-4500
 # evaluation; a copy of watch_loop_l.sh for branch M, so the evaluation advances while the laptop session is idle.
 #   cd $E; MLOG=<branch-M training log> setsid nohup bash watch_loop_m.sh > /dev/null 2>&1 < /dev/null &
 # Every 10 min calls watch_v86.sh (BR=M, previous tag v84k4500 = the owner of the shared Dev-149 metrics files) until

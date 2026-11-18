@@ -1,4 +1,4 @@
-"""Diagnostic for report section 36 : why does eval_label_depth.py measure a decoder-vs-label log-range
+"""Diagnostic for  : why does eval_label_depth.py measure a decoder-vs-label log-range
 error of ~0.48 for the cov 3000 decoder when the depth pilot's training log showed ~0.19 for the same decoder?
 
 For each decoder checkpoint and two clip samplings of the p2 training scenes it decodes one frame per clip and reports

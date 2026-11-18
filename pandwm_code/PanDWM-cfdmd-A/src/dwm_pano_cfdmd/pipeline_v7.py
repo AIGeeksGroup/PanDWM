@@ -2,7 +2,7 @@
 to how the student is used.  All earlier pipeline files are untouched; v7 subclasses v5 (per-rank noise,
 milestones, EMA gate and the skip counter are kept) but owns both update steps.
 
-Review of v5 before it started (code, the run-A diagnostic, a literature survey, Codex):
+Review of v5 before it started (code, the run-A diagnostic, a literature survey):
 
 1. Teacher guidance stronger than anything the student was built for.  The DMD real score is
    x_c + s * (x_c - x_u) with s = real_guidance_scale = 3: effective guidance 1 + s = 4.  The teacher's own
@@ -39,7 +39,7 @@ Review of v5 before it started (code, the run-A diagnostic, a literature survey,
 
 Optional, off by default: `gt_regression_weight` (MSE of the student's first window to the real future).
 
-Every critic row reports the same keys (the trainer averages each key over all rows; job 703667).  Rollout
+Every critic row reports the same keys (the trainer averages each key over all rows; a job).  Rollout
 pair: disc_loss / disc_real_acc / disc_fake_acc / d_real / d_fake / d_gap_lo / d_gap_hi; first pair: disc1_*;
 student (value of the last student step): gan_dmd_ratio, gan_cap_frac, adv_first, gt_reg, gan_weight;
 monitors (real footage = 1.0): hf_ratio_w1 / hf_ratio_w2 (latent high-frequency energy of the deployed first /

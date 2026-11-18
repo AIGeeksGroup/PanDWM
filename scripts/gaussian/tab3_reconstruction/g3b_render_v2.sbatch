@@ -5,20 +5,20 @@
 #SBATCH --mem=100G
 #SBATCH --time=06:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b/logs/%x_%A_%a.log
-# tab:gs_recon with the FT3 G3b decoder (PanDWM-d2-refiner/CONSIST_PLAN.md section 5).
+# tab:gs_recon with the FT3 G3b decoder.
 # Settings of gs_recon_ext249/scripts/ext_ours_render.sbatch (config g2.json, pkl, DA3 weights, render_ours.py
 # modes 3d / 4d, the three resolutions) with the PanDWM-ft3 code and checkpoint G3b 2000 (md5 18e655d8...):
 #   3d: scene overrides {"plane_offset_px": 1.0}            (single frame, per-frame DA3 as before)
 #   4d: scene overrides {"da3_window": "clip", "da3_fuse": true, "plane_offset_px": 1.0}   (G3b's V2 scene, frames 0..20)
 # Task k of N renders positions k::N of the 213-clip targets, then of the 36-clip targets, for both modes.
-#   [TAG=g3b CODE=PanDWM-ft3 OVR3=<json> OVR4=<json>] sbatch --array=0-2 g3b_render.sbatch
-#   11-01: TAG=g3bs CODE=PanDWM-cov with seam_bridge overrides (CONSIST_PLAN.md 5.6)
+#   [TAG=g3b CODE=PanDWM-ft3 OVR3=<json> OVR4=<json>] sbatch --array=0-2 g3b_render_v2.sbatch
+#   TAG=g3bs CODE=PanDWM-cov3 with seam_bridge overrides
 set -uo pipefail
 source $HOME/pandwm_env.sh
 H=$HOME; X2=$H/pandwm_runs/gs_recon_g3b
 F=$H/pandwm_code/${CODE:-PanDWM-ft3}
 CFG=$H/pandwm_runs/long_horizon/gs_long_demo/configs/g2.json
-CK=${CKPT:-$H/pandwm_runs/gs_ft3/G3b/checkpoints/2000.pth}   # 11-01: CKPT override (FT4)
+CK=${CKPT:-$H/pandwm_runs/gs_ft3/G3b/checkpoints/2000.pth}   # CKPT override (FT4)
 PKL=$H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
 DA3H=$H/pandwm_code/third_party/depth_anything_3
 T213=$H/pandwm_runs/gs_recon/targets.json

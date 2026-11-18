@@ -1,8 +1,8 @@
-"""4D GS decoder trained on the geometry it is rendered with at test time (GS_FT3_PLAN.md).
+"""4D GS decoder trained on the geometry it is rendered with at test time.
 
 Why: at test time every frame's Gaussians are slid along their rays to DA3 ranges (gs_scene_v3 da3_mode "scale",
 da3_depth.rescale_gaussians), but C2 / R1 learned opacity, size and colour on the decoder's own ranges.  The
-three-geometry LOO diagnostic (OVERFIT_DIAG.md) showed the swap costs +7-8 % own-view error and LOO sharpness
+three-geometry LOO diagnostic showed the swap costs +7-8 % own-view error and LOO sharpness
 (0.93 -> 0.86-0.90), while the clip-consistent DA3 geometry lowers LOO error 12 % (mid range 20 %).  Here the same
 slide is applied inside training, to the DA3 ranges the parent already reconstructs jointly for the step's frames
 (pipeline_da3), so the appearance is learned for the geometry it is rendered with.  Every loss (own, composite, LOO,

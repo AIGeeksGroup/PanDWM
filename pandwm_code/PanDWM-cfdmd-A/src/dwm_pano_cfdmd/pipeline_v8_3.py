@@ -1,6 +1,6 @@
 """v8.3 = v8.2 with a reworked frame-to-frame change match .
 
-Why (v8.2 diagnosis, eval_v7/V82_EVAL_HPC3.md section 6):
+Why:
   * the remaining flicker is static-scene "boiling": in the third of clips with the least real motion the generated
     frame change is 1.75x GT (VAE round trip 1.10x); scenes with motion are at ~1.0x;
   * the step between windows (last history frame -> first generated frame) carries the same excess but v8.2's term

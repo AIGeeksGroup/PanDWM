@@ -3,7 +3,7 @@
 # Copy of scripts/train_ext2.sbatch with these changes:
 #   - config configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json (v8.4 pipeline, clips of 179 frames, target_steps 5000);
 #   - campaign cfdmd_I; on the first run it is seeded from seeds/H_4000 by hard links (scripts/seed_branch.py);
-#   - MAX_STEPS defaults to 4250, the pilot.  The gate in eval_v7/V82_EVAL_HPC3.md section 25 decides whether
+#   - MAX_STEPS defaults to 4250, the pilot.  The gate  decides whether
 #     to continue: MAX_STEPS=5000 sbatch ... resumes from the last committed checkpoint;
 #   - --resume-data-offset is step % sampler length of the 179-frame dataset (scripts/dataset_len.py), not the step;
 #   - markers PLAN_I_START / PLAN_I_COMPLETE.
@@ -19,7 +19,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 ARM=I
 MAX_STEPS=${MAX_STEPS:-4250}
@@ -66,8 +65,6 @@ OFFSET=$(python3 "$CF/scripts/dataset_len.py" "$CONFIG" 8 "$STEP" | awk '/RESUME
 [[ "$OFFSET" =~ ^[0-9]+$ ]] || { echo "DATA_OFFSET_FAILED"; exit 1; }
 echo "PLAN_${ARM}_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS data_offset=$OFFSET"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

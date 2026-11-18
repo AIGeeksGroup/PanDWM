@@ -1,6 +1,6 @@
 """Flicker of the ablation arms on Dev-78 from flicker_stats.py outputs . Pure numpy.
 
-Definitions = flicker_analyze.py (PanDWM-baselines/flicker, FLICKER.md section 0.1), applied to the
+Definitions = flicker_analyze.py, applied to the
 78 Dev-78 clips:
   c = mean absolute grey-level change over the 30 within-window steps of the 32 generated frames (stats win.full);
   ONE recorded reference for every arm: the recorded (top) half of the Dev-149 eval run of v84i4250 seed 42

@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# D1 step 2 (PanDWM-gs4d/GS_GAP_ANALYSIS.md): SDEdit of shifted GS pano renders with the
+# D1 step 2: SDEdit of shifted GS pano renders with the
 # locked v84i4250 EMA student (d1_sdedit.py), environment of verify_clips_runner.sbatch.
 #   CLIPS=2,60 SHIFTS=0,1,2 STARTS=2,3 sbatch d1_sdedit_hpc3.sbatch
 set -uo pipefail

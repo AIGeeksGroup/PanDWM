@@ -28,7 +28,7 @@ def main():
     if output.exists():
         raise FileExistsError(f"refusing to overwrite {output}")
     base = (args.data_root /
-            "pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json")
+            "pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json")
     checkpoint = args.data_root / "pandwm_data/cd_10000_ema.pth"
     for path in (base, checkpoint):
         if not path.is_file():

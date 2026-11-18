@@ -1,7 +1,7 @@
 """LiDAR index for pipeline_lidar.py (round-2 fine-tune, CPU only).
 
 For every info of a 12 Hz pkl: the LIDAR_TOP sample_data nearest in time (same log, keyframe or sweep; the pkl's own
-lidar_path can be 250 ms older than the cameras, report section 44), that sweep's own pose (ego @ calibration), the six
+lidar_path can be 250 ms older than the cameras, ), that sweep's own pose (ego @ calibration), the six
 cameras' global poses (E_cam @ S_cam, CAM_ORDER), their 1600x900 intrinsics and the camera-time ego pose
 (recon.targets.camera_time_pose).  Output npz: timestamps (N,) int64, paths (P,) str (relative to the nuScenes root),
 path_index (N,) int32, sweep_pose (N, 4, 4) f8, cam_global (N, 6, 4, 4) f8, K (N, 6, 3, 3) f4, e_ref (N, 4, 4) f8,

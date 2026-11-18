@@ -20,19 +20,8 @@
             "range_is_source_camera_z": true,
             "range_hole_fill_m": 100.0,
             "segment_dir": "/path/to/pandwm_root/data/train/seg",
-            "dynamic_class_ids": [
-                3,
-                4,
-                5
-            ],
-            "target_yaws_deg": [
-                0.0,
-                60.0,
-                120.0,
-                180.0,
-                240.0,
-                300.0
-            ],
+            "dynamic_class_ids": [3, 4, 5],
+            "target_yaws_deg": [0.0, 60.0, 120.0, 180.0, 240.0, 300.0],
             "target_fov_deg": 60.0,
             "target_height": 300,
             "target_width": 800,
@@ -40,12 +29,9 @@
             "preview_frame_count": 8,
             "weight_rgb_l1": 1.0,
             "weight_perceptual": 0.05,
-            "perceptual_resolution": [
-                224,
-                400
-            ],
-            "weight_render_depth": 0.05,
-            "weight_range_l1": 0.01,
+            "perceptual_resolution": [224, 400],
+            "weight_render_depth": 0.01,
+            "weight_range_l1": 0.0,
             "weight_seg": 0.1,
             "max_norm_for_grad_clip": 1.0,
             "near_plane": 0.1,
@@ -93,46 +79,18 @@
                 "perspective_modeling_type": "explicit",
                 "enable_crossview": true,
                 "crossview_attention_type": "rowwise",
-                "crossview_block_layers": [
-                    1,
-                    5,
-                    9,
-                    13,
-                    17,
-                    21
-                ],
+                "crossview_block_layers": [1, 5, 9, 13, 17, 21],
                 "crossview_gradient_checkpointing": false,
                 "enable_temporal": true,
                 "temporal_attention_type": "full",
-                "temporal_block_layers": [
-                    1,
-                    5,
-                    9,
-                    13,
-                    17,
-                    21
-                ],
+                "temporal_block_layers": [1, 5, 9, 13, 17, 21],
                 "temporal_gradient_checkpointing": false,
                 "mixer_type": "AlphaBlender",
                 "merge_factor": 2,
                 "condition_image_adapter_config": {
                     "in_channels": 6,
-                    "channels": [
-                        1536,
-                        1536,
-                        1536,
-                        1536,
-                        1536,
-                        1536
-                    ],
-                    "is_downblocks": [
-                        true,
-                        false,
-                        false,
-                        false,
-                        false,
-                        false
-                    ],
+                    "channels": [1536, 1536, 1536, 1536, 1536, 1536],
+                    "is_downblocks": [true, false, false, false, false, false],
                     "num_res_blocks": 2,
                     "downscale_factor": 8,
                     "use_zero_convs": true
@@ -271,9 +229,8 @@
         "persistent_workers": true
     },
     "informations": {
-        "stage": "gs_decoder_video_v1_p2b_ablation",
+        "stage": "gs_decoder_video_v1",
         "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
-        "notes": "P2b ablation arm A: weight_render_depth 0.01->0.05 plus weight_range_l1 0->0.01. Per docs/plans/-h20-p2b-depth-weight-ablation-plan.md. Everything else identical to gs_decoder_p2_h20.json (P2 baseline).",
-        "parent_config": "gs_decoder_p2_h20.json"
+        "notes": "LOCAL P2 depth-supervised run  The P1 zero-range shim is removed because real h5 range supervision is enabled. decoder.scale_max=5.0 remains enabled to bound untrained splat scales; latent refinement remains disabled."
     }
 }

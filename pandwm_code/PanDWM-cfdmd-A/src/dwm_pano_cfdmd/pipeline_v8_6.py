@@ -1,6 +1,6 @@
 """v8.6 = v8.4 with its own mm3 low-pass floor for the rollout window (prepared, not yet run).
 
-Why (eval_v7/V82_EVAL_HPC3.md section 30, appendix on window 1 / window 7 of the student and the teacher):
+Why:
   * from the same drifted history the 50-step teacher's window 7 beats the student's (FVD 176.8 vs 188.4);
   * in pixels the student's window-7 frame change is 0.92 x the recording (low-pass 0.90), the teacher's 1.00;
   * the student moves ~9% less than the teacher at window 1 as well (1.02 vs 1.10 x real: the v8.2 / v8.3
@@ -18,8 +18,8 @@ i.e. v8.4 bit for bit.  The floor is relative to each clip's own real change, so
 Note: the term's gradient at the output is capped (CapGrad, motion_match_cap x DMD) as a whole (LF + HF parts).  When
 only the low-pass floor part is active and the student is below both floors, the gradient direction does not depend on
 the floor, so a capped gradient is the same for 0.9 and 0.97; when the HF part is active too, a higher floor shifts
-the combined direction toward more low-pass motion even when capped (Codex review 3.4% different at LF
-ratio 0.64).  The new floor also acts on ratios between the two floors and on uncapped steps.  Report keys added when
+the combined direction toward more low-pass motion even when capped (3.4% different at an LF
+ratio of 0.64).  The new floor also acts on ratios between the two floors and on uncapped steps.  Report keys added when
 the knob is on (from the first row): mm3_roll_cap_frac (1 when the rollout term's gradient was capped on its last
 run), mm3_roll_dmd_ratio (its output-gradient norm BEFORE the cap / the DMD gradient norm, as mm3_dmd_ratio for the
 first window).  Both are rank-local values carried from the last run of the rollout term (not reduced over ranks), so

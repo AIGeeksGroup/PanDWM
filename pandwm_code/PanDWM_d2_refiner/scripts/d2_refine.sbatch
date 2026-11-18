@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2_refiner/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# D2 refiner inference on the review clips (d2_refine.py; D2_PLAN.md Tasks 8 / 10 / 11).
+# D2 refiner inference on the review clips.
 #   CK=<run>/checkpoints/1000.pth OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=c2b_drop2]
 #   [NOSTRICT=1 VIDEO=<list>] sbatch --array=0-3 d2_refine.sbatch      (array tasks split the clip list)
 set -uo pipefail

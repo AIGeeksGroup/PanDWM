@@ -9,7 +9,6 @@
 #SBATCH --mem=120G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 # held-out-frame eval (evaluate_4d.py, 25 val clips, gap 4) of CHECKPOINT into $RUNS/eval/<NAME>.json.
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh

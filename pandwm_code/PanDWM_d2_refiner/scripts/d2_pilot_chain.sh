@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# D2 pilot evaluation chain (D2_PLAN.md Task 10; report section 43), HPC3 login node.
+# D2 pilot evaluation chain, HPC3 login node.
 #   cd $R && setsid nohup bash $D2/scripts/d2_pilot_chain.sh > $R/logs/chain_pilot_1000.log 2>&1 < /dev/null &
 # Idempotent: every stage leaves a marker in $M and is skipped when the marker exists, so the chain can be restarted.
 #   1. wait for the training job's D2_TRAIN_END (rc=0) and $CK

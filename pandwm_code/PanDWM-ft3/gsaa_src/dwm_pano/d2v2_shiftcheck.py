@@ -1,4 +1,4 @@
-"""Does the refiner keep the lateral shift? (D2V2_PLAN.md section 6.4)
+"""Does the refiner keep the lateral shift?
 
 The shift protocol scores refined views unpaired against the recorded (0 m) frames, so a refiner that drifted back
 to the original viewpoint would score well without doing the task.  For each clip / frame / shift d this compares

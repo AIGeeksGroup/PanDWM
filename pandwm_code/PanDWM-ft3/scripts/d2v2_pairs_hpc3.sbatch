@@ -9,8 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# D2 v2 round-trip training pairs (PanDWM-d2-refiner/D2V2_PLAN.md), G3b decoder, with the
+# D2 v2 round-trip training pairs, G3b decoder, with the
 # PanDWM-ft3 code copy first on PYTHONPATH.  Task k of TASKS takes positions k, k + TASKS, ... of the hash order.
 #   [TASKS=16 LIMIT=0 BUDGET_S=10200 OUT=train_pairs] sbatch --array=0-15 d2v2_pairs_hpc3.sbatch
 #   smoke: TASKS=1 LIMIT=2 OUT=smoke_pairs PREVIEWS=2 sbatch d2v2_pairs_hpc3.sbatch

@@ -1,4 +1,4 @@
-"""Config of the D2 v2 refiner (D2V2_PLAN.md section 2).
+"""Config of the D2 v2 refiner.
 
 configs/d2_full_hpc3_8gpu.json (the section 43.3 continuation: render-init samples 0.5, render dropout 0.1, lr 1e-5,
 8-GPU FSDP) with
@@ -25,7 +25,7 @@ c["pipeline"]["model_checkpoint_path"] = INIT
 c["pipeline"]["model_load_state_args"] = {"strict": True}
 c["training_dataset"]["render_root"] = ROOT
 c["training_dataset"]["min_items"] = int(args.min_items)
-c["informations"] = dict(c.get("informations", {}), experiment="D2 v2 refiner (D2V2_PLAN.md)", init=INIT,
+c["informations"] = dict(c.get("informations", {}), experiment="D2 v2 refiner", init=INIT,
                          render_root=ROOT, objective=c["informations"]["objective"].replace(
                              "degraded C2b GS render", "round-trip G3b GS render (d2v2_make_pairs)"))
 Path(args.out).write_text(json.dumps(c, indent=2) + "\n")

@@ -1,5 +1,5 @@
 """DAC (Depth Any Camera, github yuliangguo/depth_any_camera @ 371ee299, weights dac_swinl_outdoor) metric range
-for the 360 x 33.3 deg pano band, used to place decoder Gaussians (report section 37).
+for the 360 x 33.3 deg pano band, used to place decoder Gaussians.
 
 The pano inference is dwm_pano/infer_pano_depth_dac.py's: resample to square-angular pixels near DAC's canonical
 density (about 2765 x 256), run 90-degree longitude tiles every 60 degrees, Hann-blend, resize back to 600 x 9600.

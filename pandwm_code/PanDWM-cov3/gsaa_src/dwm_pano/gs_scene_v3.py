@@ -1,4 +1,4 @@
-"""Scene construction for the v3 GS renders and the lateral-shift evaluation (report section 40).
+"""Scene construction for the v3 GS renders and the lateral-shift evaluation.
 
 The v2 review scene (export_gs_v2_clips.py: frame t's Gaussians with the depth-edge filter and the max-scale cap,
 plus the static Gaussians of nearby frames as 4D fill) with three new switches, all off by default so that the
@@ -64,7 +64,7 @@ class SceneOptions:
     drop_bottom_rows: int = 0                                           # section 41.6: C2's band-edge line
     box_reading: str = "legacy"                                         # section 44: "legacy" | "mmdet3d_v0x"
     min_opacity: float = 0.0                                            # round 2 (E): prune faint Gaussians
-    # (GS_CLIPDEPTH_PLAN.md): da3_window "clip" = one DA3 pass over all frames of the clip with
+    #: da3_window "clip" = one DA3 pass over all frames of the clip with
     # one ground scale (V1; da3_chunk N > 0 = chunks of N frames overlapping by N // 2, chained by their overlap and
     # each frame read from the chunk it is most central in); da3_fuse = static depth fusion over fuse_offsets with
     # the relative occlusion tolerance fuse_tol_rel (V2, dwm_pano/da3_fusion.py); "frame" = the windows above
@@ -73,26 +73,26 @@ class SceneOptions:
     da3_fuse: bool = False
     fuse_offsets: tuple = (-8, -6, -4, -2, 2, 4, 6, 8)
     fuse_tol_rel: float = 0.1
-    # (GS_CLIPDEPTH_PLAN.md section 7): da3_mode "lowfreq" = the decoder range times
+    #: da3_mode "lowfreq" = the decoder range times
     # exp(low-passed log(DA3 / decoder)), lf_filter "gauss" (lf_sigma_px) or "guided" (lf_radius_px, lf_eps; guide =
     # log decoder range), dwm_pano/da3_lowfreq.py; Gaussians moved like "scale"
     lf_filter: str = "gauss"
     lf_sigma_px: float = 32.0
     lf_radius_px: int = 32
     lf_eps: float = 0.01
-    # (GS_FT3_PLAN.md): da3_mode "bounded" = da3_depth.bounded_range, DA3 with the decoder's
+    #: da3_mode "bounded" = da3_depth.bounded_range, DA3 with the decoder's
     # residual bounded to a factor exp(+-bound_c) (the geometry pipeline_relabel.py trains with); moved like "scale"
     bound_c: float = 0.0
-    # (GS_FT3_PLAN.md): put every centre back on its pixel ray (origin + direction * decoder
+    #: put every centre back on its pixel ray (origin + direction * decoder
     # range) before any relabel, dropping the decoder's xyz offset (pipeline_relabel.py no_offset)
     no_offset: bool = False
     # (section 6): > 0 = keep the offset's across-ray component bounded to this many decoder pixels
     # (da3_depth.plane_offsets, pipeline_relabel.py plane_offset_px)
     plane_offset_px: float = 0.0
-    # (PanDWM-d2-refiner/FUSE_PLAN.md): colour every Gaussian with its pixel of the
+    #: colour every Gaussian with its pixel of the
     # SD3.5-VAE-decoded halves (the decoder grid is the halves' pixel grid) instead of the decoder's rgb head
     vae_colour: bool = False
-    # (PanDWM-d2-refiner/CONSIST_PLAN.md section 5.2): coverage of the sky and of far
+    #: coverage of the sky and of far
     # content.  sky_dome_m > 0: the Gaussians of the pixels DA3 calls sky (prob >= 0.3, mask dilated by sky_dome_dilate
     # px so silhouettes against the sky stay covered) become an opaque dome at that radius along their rays (EVolSplat
     # / WonderWorld style background layer; isotropic scale = radius * pixel pitch * sky_dome_scale), exempt from the
@@ -101,7 +101,7 @@ class SceneOptions:
     sky_dome_scale: float = 1.0
     sky_dome_dilate: int = 2
     far_scale_exempt_m: float = 0.0
-    # (CONSIST_PLAN.md section 5.3): seam_bridge = K > 0 fills the parallax wedge at every camera
+    #: seam_bridge = K > 0 fills the parallax wedge at every camera
     # seam of the panorama.  Pixels on the two sides of a seam are rays from DIFFERENT camera centres, so the scene
     # between the last ray of camera A and the first ray of camera B is in no pixel; seen from any other camera it
     # renders as an empty vertical stripe (the main hole source of the single-frame recon, alpha < 0.02 on 12 % of the
@@ -112,13 +112,13 @@ class SceneOptions:
     seam_bridge_scale: float = 0.8
     seam_bridge_max_rel: float = 0.5
     # the endpoints are the nearest KEPT Gaussians within seam_bridge_search columns on each side (the columns right
-    # at a seam are usually removed by the depth-edge filter, coverage_diag 787349)
+    # at a seam are usually removed by the depth-edge filter, coverage_diag)
     seam_bridge_search: int = 1
-    # "current": the bridges join frame t's Gaussians (depth-sorted with them; GS-Dev shift eval 787462: they cut in
+    # "current": the bridges join frame t's Gaussians (depth-sorted with them; GS-Dev shift eval: they cut in
     # front of visible content, 0 m FVD 101 -> 138); "under": they are kept apart (SceneBuilder.under(t)) and the
     # renderers composite them UNDER the whole frame (current over fill over under), so they only show through holes
     seam_bridge_layer: str = "current"
-    # (CONSIST_PLAN.md 5.11): edge_extend = N > 0 adds, in the under layer, the background of every
+    #: edge_extend = N > 0 adds, in the under layer, the background of every
     # horizontal depth edge (range ratio > 1 + edge_extend_tol between neighbouring columns) continued N decoder
     # pixels behind the foreground: copies of the background Gaussian on the rays of the foreground pixels, at the
     # background range (3D Photo Inpainting / WonderWorld style layered background); a copy stops where the pixel is
@@ -126,7 +126,7 @@ class SceneOptions:
     edge_extend: int = 0
     edge_extend_tol: float = 0.2
     edge_extend_search: int = 6
-    # (CONSIST_PLAN.md 5.12): sky_dome_layer "under" keeps the sky pixels' own Gaussians and puts
+    #: sky_dome_layer "under" keeps the sky pixels' own Gaussians and puts
     # the dome in the under layer (the "replace" dome moved misclassified pixels to 300 m: AbsRel 0.30 -> 0.44);
     # band_extend = N > 0 continues the top and the lowest kept rows of the band N rows beyond it, in the under layer:
     # above, a vertical surface at the source's horizontal distance; below, the ground plane when the source lies on
@@ -172,10 +172,10 @@ class SceneBuilder:
         self.grid_shape = tuple(pipe.pixel_content_ray_valid.shape)     # (2, H, W)
         self._decoded, self._static, self._canvas, self._da3 = {}, {}, {}, {}
         self.colours = {}
-        # (FUSE_PLAN.md): optional {t: (2, H, W) bool} over the decoder grid; decode(t) keeps
+        #: optional {t: (2, H, W) bool} over the decoder grid; decode(t) keeps
         # only those pixels' Gaussians (a completion scene contributes where the base scene is missing)
         self.pixel_keep = None
-        # (FUSE_PLAN.md section 5.8): optional {t: (2, H, W)} range factors applied after the
+        #: optional {t: (2, H, W)} range factors applied after the
         # relabel (rescale_gaussians about the pixel origins); _ranges[t] keeps the ranges before that factor
         self.range_scale = None
         self._ranges = {}
@@ -472,7 +472,7 @@ class SceneBuilder:
             self.stats["fill_kept_fraction"].append(sum(k.shape[0] for k in kept) / max(1, total))
             parts = kept
         to_t = torch.linalg.inv(torch.as_tensor(self.world[t], device=self.device, dtype=torch.float32))
-        # (GS_NEARFIX_PLAN.md, mag_cull.py): each fill Gaussian's source rig centre in frame t's
+        #: each fill Gaussian's source rig centre in frame t's
         # ego, row-aligned with the returned tensor (read by eval_gs_shift --mag-cull; unused otherwise)
         rig = torch.tensor([0.0, 0.0, RIG_HEIGHT_M, 1.0], device=self.device, dtype=torch.float32)
         centres = [(to_t @ torch.as_tensor(self.world[s], device=self.device, dtype=torch.float32) @ rig)[:3]

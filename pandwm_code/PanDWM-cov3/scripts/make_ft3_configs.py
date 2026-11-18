@@ -1,4 +1,4 @@
-"""Round-3 fine-tune configs (GS_FT3_PLAN.md): train on the test-time geometry.
+"""Round-3 fine-tune configs: train on the test-time geometry.
 
 All arms = the R1 config (C2 + camera-time poses + mmdet3d v0.x boxes, lr 2e-5, frame_stride [2, 3, 4], LOO 0.5)
 started from R1 step 2000, with the pipeline class switched to pipeline_relabel (every frame's Gaussians slid along

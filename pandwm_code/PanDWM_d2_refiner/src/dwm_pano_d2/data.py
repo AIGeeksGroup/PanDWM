@@ -1,4 +1,4 @@
-"""Train clips with their degraded GS render condition (D2_PLAN.md Task 3).
+"""Train clips with their degraded GS render condition.
 
 The render files come from PanDWM-gs-aa-ft dwm_pano/d2_make_train.py:
     <render_root>/clip<NNNNN>.pt    {"render": (35, 2, 16, h, w) fp16, "mask": (35, 2, h, w) uint8, "meta": {...}}

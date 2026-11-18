@@ -7,7 +7,7 @@
 #SBATCH --time=20:00:00
 #SBATCH --output=%x_%j.log
 # 50-step baseline evaluation on HPC3.
-# The instrument is aligned item by item with scripts/h20/eval_stage1_50step_h20.sh,
+# The instrument is aligned item by item with scripts/local/eval_stage1_50step_local.sh,
 # which produced the teacher numbers FID 10.235 / PanoPatch-FVD 49.045. The config
 # merge order, mesh shape, single-GPU launch and frozen protocol fields must match
 # that script or the numbers cannot be placed next to 49.045.
@@ -41,7 +41,7 @@ case "$ARM" in
     MASK=causal ; ROLE=stage1_causal_teacher_50step ;;
   *) echo "unknown ARM=$ARM"; exit 1 ;;
 esac
-HPC_CFG=$P/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+HPC_CFG=$P/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 RUN=$H/pandwm_runs/base50_${ARM}_items${ITEMS}_seed${SEED}
 
 for f in "$BASE" "$HPC_CFG" "$CKPT"; do
@@ -50,7 +50,7 @@ done
 echo "=== $(hostname) ==="; nvidia-smi --query-gpu=name,memory.free --format=csv,noheader
 ls -la "$CKPT"
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export PANDWM_PANO_BLEND_W=0
@@ -66,7 +66,7 @@ base_p, hpc_p, ckpt, out, seed, items, mask, role, metrics, run = sys.argv[1:]
 config = json.load(open(base_p, encoding="utf-8"))
 hpc = json.load(open(hpc_p, encoding="utf-8"))
 
-# merge order identical to eval_stage1_50step_h20.sh
+# merge order identical to eval_stage1_50step_local.sh
 config["generator_seed"] = int(seed)
 config["global_state"]["device_mesh"]["mesh_shape"] = [1, 1]
 for k in ("training_dataset", "validation_dataset", "training_dataloader",
@@ -117,7 +117,7 @@ for name in want:
 
 config.setdefault("informations", {}).update({
     "evaluation_role": role, "checkpoint": ckpt, "source_config": base_p,
-    "protocol": "matches scripts/h20/eval_stage1_50step_h20.sh (1 GPU, "
+    "protocol": "matches scripts/local/eval_stage1_50step_local.sh (1 GPU, "
                 "mesh [1,1], 50 steps, 3+16 window, seed 0)"})
 json.dump(config, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print("role:", role, "| mask:", mask, "| steps: 50 | items:", items,
@@ -128,7 +128,7 @@ echo "=== ARM=$ARM ROLE=$ROLE ITEMS=$ITEMS SEED=$SEED METRICS=$METRICS ==="
 cd "$P"
 $H/pandwm_venv/bin/python - "$CFG" "$RUN" <<'PY'
 import sys, types
-# Same shim as the h20 script: the online stitcher must hard-fail so a missing
+# Same shim as the local script: the online stitcher must hard-fail so a missing
 # pre-rendered bbox/HD-map panorama cannot silently change the evaluation input.
 omninwm = types.ModuleType("omninwm"); omninwm.__path__ = []
 u = types.ModuleType("omninwm.utils"); u.__path__ = []

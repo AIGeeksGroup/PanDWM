@@ -530,7 +530,7 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
         # (T_seq, T_seq) where T_seq is the post-rearrange sequence length
         # (T for "pointwise", T*W for "rowwise", T*HW for "full"). We expand
         # it to (post_batch, T_seq, T_seq) here to match diffusers' Attention
-        # processor view expectation. See §12.3 of causal_ar_pivot.md.
+        # processor view expectation. 
         temporal_hidden_states = hidden_states + sequence_emb
         if self.temporal_attention_type == "full":
             temporal_hidden_states = einops.rearrange(
@@ -621,8 +621,7 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
     ):
         """`temporal_attention_mask`: optional additive mask passed through to
         `forward_temporal_block_and_mix_result` -> `temporal_block.forward(...)`
-        -> diffusers Attention. Used for causal AR retrofit (§12.3 of
-        causal_ar_pivot.md). Shape depends on `temporal_attention_type`:
+        -> diffusers Attention. Used for causal AR retrofit. Shape depends on `temporal_attention_type`:
           - "pointwise" (default in our DFoT config): (T, T) lower-triangular
           - "rowwise": (T*W, T*W) block-causal
           - "full":    (T*HW, T*HW) block-causal

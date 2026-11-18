@@ -144,14 +144,14 @@ def main():
         "--expect-frames-per-clip", type=int, default=None,
         help="cardinality half of the reference-exclusion check: scored "
              "frames per clip = dataset sequence_length minus "
-             "reference_frame_count. For cd_eval_h20.json that is 35 - 3 = "
+             "reference_frame_count. For cd_eval_local.json that is 35 - 3 = "
              "32. NOT sequence_length_per_iteration (19), which is the "
              "autoregressive chunk size, not the clip length")
     parser.add_argument(
         "--expect-clips", type=int, default=None,
         help="fail if the dump does not hold exactly this many clips; set it "
              "to the actual validation-dataset length capped by "
-             "evaluation_item_count. cd_eval_h20.json enumerates 149 clips; "
+             "evaluation_item_count. cd_eval_local.json enumerates 149 clips; "
              "its evaluation_item_count=480 is only an upper bound. Without "
              "this guard a dump truncated by a killed eval scores silently at "
              "a smaller N, and FID's 1/N bias makes that look like a model "

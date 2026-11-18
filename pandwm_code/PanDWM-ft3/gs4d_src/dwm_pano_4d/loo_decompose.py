@@ -1,4 +1,4 @@
-"""Leave-one-out error decomposition (OVERFIT_DIAG.md follow-up).  Inference only.
+"""Leave-one-out error decomposition.  Inference only.
 
 For deterministic samples of the training dataset (clip k, frames 0 / 4 / 8 of its 19-frame window, target = frame 4),
 the leave-one-out render of pipeline.py's train_step is rebuilt exactly: static Gaussians of frames 0 and 8 moved into
@@ -11,7 +11,7 @@ Per-pixel error e = mean over RGB of |render - target|, decomposed into
                exposure differences);
   shift        affine-corrected, then the minimum over integer shifts within +-2 px (sub-few-pixel misregistration);
 and split by pixel class (on frame 4's own render depth and the target image): depth edge (relative jump > 10 % to an
-8-neighbour, dilated 2 px), non-edge near (< 10 m) / mid (10-30 m) / far (> 30 m), non-edge high texture (top 20 % of the
+8-neighbour, dilated 2 px), non-edge near (< 10 m) / mid (m) / far (> 30 m), non-edge high texture (top 20 % of the
 target gradient magnitude) / flat (bottom 50 %).  Also the gradient-energy ratio render / target (blur).
 
 per-camera variant ("camera", always computed next to the frame-level "frame" one): every source Gaussian is

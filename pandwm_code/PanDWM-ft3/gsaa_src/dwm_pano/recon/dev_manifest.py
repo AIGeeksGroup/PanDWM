@@ -1,4 +1,4 @@
-"""GS-Dev manifest (round-2 fine-tune, GS_FT2_PLAN.md section 3): the Dev-78 scenes (validation
+"""GS-Dev manifest: the Dev-78 scenes (validation
 scenes that are not test scenes, dev78_manifest.json) at the clip starting OFFSET s after the scene start,
 from the same enumeration as Test-S (val pkl, 35-frame clips, fps_stride_tuples [[10, 5.0]], offsets on the 5 s grid
 of build_tests_manifest.py).  Same row format as tests213_manifest.json, so targets.py reads it unchanged.

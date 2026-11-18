@@ -46,7 +46,7 @@ VERT_FOV_HALF_RAD = np.pi * 50.0 / 180.0 / 2.0  # 25° (pre-crop half-FOV)
 # Each cam owns [boundaries[i-1], boundaries[i]); CAM_BACK wraps around (both ends).
 VORONOI_BOUNDARIES = [1229, 2625, 4069, 5557, 7038, 8421]
 
-# Our 2-pano half slicing (from project_overview.md §2.2):
+# Our 2-pano half slicing:
 # Left half covers [0, 5376)  — starts at CAM_BACK wrap, ends mid CAM_FRONT
 # Right half covers [4224, 9600) — starts mid CAM_FRONT, ends at CAM_BACK wrap
 # Overlap [4224, 5376) is 1152 px around CAM_FRONT.

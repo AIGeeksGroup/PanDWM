@@ -14,7 +14,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=160G
 #SBATCH --time=03:00:00
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/cfdmd_A/diag_disc_1585/%x_%j.log
 set -euo pipefail
 source /path/to/pandwm_root/pandwm_venv/bin/activate

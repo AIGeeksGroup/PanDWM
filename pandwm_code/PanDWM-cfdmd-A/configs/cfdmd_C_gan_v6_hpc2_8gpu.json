@@ -240,7 +240,7 @@
     "ema_start_step": 200,
     "total_batch_size": 8,
     "log_iters": 1000,
-    "negative_prompt": "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走",
+    "negative_prompt": "",
     "dfake_gen_update_ratio": 5,
     "image_or_video_shape": [
       1,
@@ -582,10 +582,10 @@
       0.003,
       0.01
     ],
-    "dataloader_note": "job 12918668 died with ENOMEM forking dataloader workers from 45 GB ranks; preview loader removed (never used), data loaded in the main process",
-    "gan_fix_note": "pipeline_v2 adds 0*fake_score_output in the generator step (FSDP pre-backward hook fix, job 12922710 failure); bad_timestamps_us blacklists the truncated JPEG 1531884295049111.jpg (job 12918669 failure). Otherwise identical to cfdmd_v1_gan.json.",
-    "hpc3_note": "path prefix /path/to/pandwm_root -> /path/to/pandwm_root, otherwise identical to cfdmd_v1_gan_v2.json (HPC2 jobs 12928706).",
-    "v4_note": "pipeline_v4 shares one fake-score forward between the flow-matching loss and the fake discriminator logit, and back-propagates the real-window discriminator term separately (HPC3 OOM in jobs 700295 and 700296); otherwise identical to cfdmd_v1_gan_v2_hpc3.json.",
+    "dataloader_note": "a job died with ENOMEM forking dataloader workers from 45 GB ranks; preview loader removed (never used), data loaded in the main process",
+    "gan_fix_note": "pipeline_v2 adds 0*fake_score_output in the generator step (FSDP pre-backward hook fix, a job failure); bad_timestamps_us blacklists the truncated JPEG 1531884295049111.jpg (a job failure). Otherwise identical to cfdmd_v1_gan.json.",
+    "hpc3_note": "path prefix /path/to/pandwm_root -> /path/to/pandwm_root, otherwise identical to cfdmd_v1_gan_v2.json (HPC2 earlier jobs).",
+    "v4_note": "pipeline_v4 shares one fake-score forward between the flow-matching loss and the fake discriminator logit, and back-propagates the real-window discriminator term separately (HPC3 OOM in earlier jobs); otherwise identical to cfdmd_v1_gan_v2_hpc3.json.",
     "gpu8_note": "mesh_shape [1,8] for an 8-GPU memory diagnostic (global batch 8); otherwise identical to cfdmd_v1_gan_v4_hpc3.json.",
     "arm": "gan",
     "checkpoint_policy": "full state every 50 steps or 1800 seconds; first at 5; latest three committed snapshots",

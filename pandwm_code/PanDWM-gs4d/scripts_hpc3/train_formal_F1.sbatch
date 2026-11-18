@@ -9,8 +9,7 @@
 #SBATCH --mem=240G
 #SBATCH --time=10:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# formal depth-supervised 4D decoder (report section 38): configs/gs4dd_hpc3_F1.json (make_formal_config.py)
+# formal depth-supervised 4D decoder: configs/gs4dd_hpc3_F1.json (make_formal_config.py)
 # for STEPS (default 5000) steps into $RUNS/${TAG:-formal_F1}, checkpoints every 500 steps, all kept.
 set -uo pipefail
 STEPS=${STEPS:-5000}

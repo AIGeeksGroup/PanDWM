@@ -1,4 +1,4 @@
-"""C2 config for HPC3: the 4D decoder retrained with Depth Anything 3 pseudo-depth (report section 41).
+"""C2 config for HPC3: the 4D decoder retrained with Depth Anything 3 pseudo-depth.
 
 Base: configs/gs4dd_hpc3_F1.json (coverage recipe + metre L1 0.002 / 0.002 + log-depth L1 0.1 / 0.1, far cut 99 m).
 Changes, nothing else:

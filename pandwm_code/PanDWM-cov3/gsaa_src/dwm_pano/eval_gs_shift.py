@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD of the GS renders of the 149 review clips (report section 40, item A).
+"""Lateral-shift FID / FVD of the GS renders of the 149 review clips.
 
 The FreeVS / WorldSplat / DiST-4D novel-trajectory protocol on our panorama: every frame's Gaussians (the v2 review
 scene, or a v3 variant of gs_scene_v3.SceneOptions) are rendered at the six real nuScenes cameras with the ego
@@ -71,14 +71,14 @@ def parse_args():
     p.add_argument("--sky-layer", action="store_true")
     p.add_argument("--da3-mode", choices=["ray", "scale", "global", "blend", "lowfreq", "bounded"], default="ray",
                    help="scale = C1b (section 40.3); global / blend = round 2b; lowfreq = GS_CLIPDEPTH_PLAN section 7; "
-                        "bounded = GS_FT3_PLAN.md")
+                        "bounded =")
     p.add_argument("--da3-bound", type=float, default=0.0, help="da3-mode bounded: the residual bound c")
-    p.add_argument("--no-offset", action="store_true", help="drop the decoder xyz offset (GS_FT3_PLAN.md)")
+    p.add_argument("--no-offset", action="store_true", help="drop the decoder xyz offset")
     p.add_argument("--plane-offset-px", type=float, default=0.0, help="across-ray offset bound in decoder pixels")
-    # GS_NEARFIX_PLAN.md step 1 (mag_cull.py): drop Gaussians magnified > K x at the shifted view
+    # (mag_cull.py): drop Gaussians magnified > K x at the shifted view
     p.add_argument("--mag-cull", type=float, default=0.0, help="magnification threshold K, 0 = off")
     p.add_argument("--mag-min-px", type=float, default=4.0, help="only cull if larger than this many render pixels")
-    # GS_NEARFIX_PLAN.md step 2 (repair_difix.py): zero-shot difix_ref repair of the shifted
+    # (repair_difix.py): zero-shot difix_ref repair of the shifted
     # 4D renders, reported as extra arms 4dfixm_<d> (holes only, dilated + feathered) and 4dfixf_<d> (full image)
     p.add_argument("--mag-debug", default="", help="dir: per-clip magnification maps of the first frame at +4 m")
     p.add_argument("--repair", choices=["none", "difix_ref"], default="none")
@@ -93,7 +93,7 @@ def parse_args():
     p.add_argument("--lf-sigma-px", type=float, default=32.0)
     p.add_argument("--lf-radius-px", type=int, default=32)
     p.add_argument("--lf-eps", type=float, default=0.01)
-    # GS_ANCHOR_ZEROSHOT_PLAN.md: frame t's Gaussians from an external feed-forward model on the
+    # frame t's Gaussians from an external feed-forward model on the
     # decoded panorama's six pinhole crops instead of our decoder (dwm_pano/external_gs.py); 3d mode only
     p.add_argument("--external", choices=["none", "infinisplat", "da3gs"], default="none")
     p.add_argument("--ext-weights", default="")
@@ -115,7 +115,7 @@ def parse_args():
     p.add_argument("--depth-pack", type=Path, default=None)
     p.add_argument("--depth-res", default="224x400")
     p.add_argument("--da3-window", choices=["frame", "clip"], default="frame",
-                   help="clip = one DA3 pass per clip (GS_CLIPDEPTH_PLAN.md V1)")
+                   help="clip = one DA3 pass per clip")
     p.add_argument("--da3-chunk", type=int, default=0, help="clip mode: chunk length in frames, 0 = one pass")
     p.add_argument("--da3-fuse", action="store_true", help="clip mode: static depth fusion (V2)")
     return p.parse_args()
@@ -146,7 +146,7 @@ def load_into(metrics, state, device):
 
 
 def grad_energy(img, mask):
-    """(GS_FT3_PLAN.md): mean |dY/dx| + |dY/dy| of the luminance of img (3, H, W) over mask
+    """: mean |dY/dx| + |dY/dy| of the luminance of img (3, H, W) over mask
     (H, W), a blur measure; the report's "sharpness" is its ratio render / real frame, averaged over frames."""
     y = 0.299 * img[0] + 0.587 * img[1] + 0.114 * img[2]
     g = (y[:-1, 1:] - y[:-1, :-1]).abs() + (y[1:, :-1] - y[:-1, :-1]).abs()
@@ -187,7 +187,7 @@ def report(args, arms, metrics, coverage, extra, done):
 
 @torch.no_grad()
 def mag_debug(args, pipe, scene, current, fill, cam2ego, index):
-    """diagnostic (GS_NEARFIX_PLAN.md): magnification of every Gaussian at +4 m, as quantiles and
+    """diagnostic: magnification of every Gaussian at +4 m, as quantiles and
     as a render whose colour channels carry (magnification / 10, target size px / 20, source size px / 5)."""
     from pathlib import Path
     import numpy as np
@@ -290,7 +290,7 @@ def main():
     modes = [m for m in args.modes.split(",") if m]
     arms = [f"{m}_{s:g}" for m in modes for s in shifts]
     rep_shifts = [float(x) for x in args.repair_shifts.split(",") if x.strip()] if args.repair != "none" else []
-    if rep_shifts:                                       # 10-30 step 2: repaired arms after the plain ones
+    if rep_shifts:                                       # step 2: repaired arms after the plain ones
         if "4d" not in modes or any(d not in shifts or d <= 0 for d in rep_shifts):
             raise ValueError("--repair needs --modes with 4d and positive --repair-shifts among --shifts")
         arms += [f"4dfix{k}_{d:g}" for d in rep_shifts for k in ("m", "g", "f")]
@@ -455,7 +455,7 @@ def main():
                     sky_canvas = pipe._unpadded_stitch_canvas(sky[None, :, None])[0, 0]
                 row = []
                 real_energy = grad_energy(real[0, t - CONTEXT, 0], valid)
-                if args.mag_debug and t == CONTEXT:                    # 10-30 diagnostic, no effect on metrics
+                if args.mag_debug and t == CONTEXT:                    # diagnostic, no effect on metrics
                     mag_debug(args, pipe, scene, current, fill, cam2ego, index)
                 if fixer is not None:                                   # 0 m camera renders = repair references
                     from dwm_pano.repair_difix import render_cameras, repaired_panos
@@ -475,7 +475,7 @@ def main():
                         shifted = cam2ego.clone()
                         shifted[:, 1, 3] += sign * float(dist)
                         cur_r, fill_r = current, fill
-                        if args.mag_cull > 0 and float(dist) > 0:                          # 10-30 step 1
+                        if args.mag_cull > 0 and float(dist) > 0:                          # step 1
                             tgt = rig_t + rig_t.new_tensor([0.0, sign * float(dist), 0.0])
                             kc, _ = magnification_keep(current, rig_t, tgt, args.mag_cull, px_rad)
                             cur_r = current[kc]
@@ -500,11 +500,11 @@ def main():
                         out = pushpull_fill(rgb0, alpha0).clamp(0, 1)
                         fakes[arm][sign].append(out)
                         sharp[arm].append(grad_energy(out, valid) / max(real_energy, 1e-8))
-                        if index in samples and ((mode == "4d" and (float(dist) in (0.0, 2.0) or       # 10-30: +4 m
+                        if index in samples and ((mode == "4d" and (float(dist) in (0.0, 2.0) or       # +4 m
                                                                      (float(dist) == 4.0 and sign > 0))) or
                                                  (mode == "3d" and float(dist) == 2.0 and sign > 0)):
                             row.append(out)
-                        if mode == "4d" and float(dist) in rep_shifts:           # 10-30 step 2
+                        if mode == "4d" and float(dist) in rep_shifts:           # step 2
                             tgt_rig = rig_t + rig_t.new_tensor([0.0, sign * float(dist), 0.0])
                             panos, rstats = repaired_panos(
                                 pipe, fixer, cur_r, fill_r, shifted, ref_rgb, args.repair_dilate, args.repair_feather,
@@ -539,7 +539,7 @@ def main():
                                      float(batch["fps"][0]), frames)
             done.append(index)
             row_stats = scene.summary() if ext is None else {**scene.summary(), **ext.summary()}
-            for key, vals in mag_stats.items():                                  # 10-30: culled fractions
+            for key, vals in mag_stats.items():                                  # culled fractions
                 row_stats["magcull_" + key] = sum(vals) / len(vals)
             scene_stats.append(row_stats)
             if ext is not None:

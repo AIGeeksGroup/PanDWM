@@ -9,8 +9,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=01:30:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 36): label-depth feasibility test (eval_label_depth.py) on the p2 training clips.
+#: label-depth feasibility test (eval_label_depth.py) on the p2 training clips.
 #   NAME=<tag> [CHECKPOINT=$RUNS/init/gs4d_cov_3000.pth] [RESIZE=nearest|bilinear] [CLIPS=25] [VIDEO_CLIPS=3]
 #   [VIDEO_FRAMES=20] [DAC=1] [DA3=1]  ->  $RUNS/label_depth/<NAME>.json and $RUNS/label_depth/videos_<NAME>/
 set -uo pipefail

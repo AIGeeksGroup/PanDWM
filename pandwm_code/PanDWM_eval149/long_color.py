@@ -4,7 +4,7 @@ What kind of systematic drift lifts the late-window FID: brightness, contrast, c
 window of gt_vs_generated.mp4 (recorded top, generated bottom; every 2nd frame), on the stitched pano:
   luma     mean of L (CIELAB, 0-255 OpenCV scale)
   contrast std of L over the frame
-  sat      HSV saturation on lit pixels (V > 60; dark-pixel sensor noise reads as saturation, report section 6)
+  sat      HSV saturation on lit pixels
   chroma   mean sqrt(a^2 + b^2) (a, b centred at 128)
   sharp    Laplacian variance of the grey frame
 Ratios generated / recorded per video and window, then the mean over videos (log-mean for sharp).  Also the share of

@@ -1,4 +1,4 @@
-"""Multi-view consistency of the lateral-shift views, without ground truth (PanDWM-d2-refiner/CONSIST_PLAN.md).
+"""Multi-view consistency of the lateral-shift views, without ground truth.
 
 FID / FVD of the shifted views are unpaired: they reward realistic frames but would not notice two views of the same
 scene that disagree.  The G3b Gaussians give each shifted view a geometry, so the image of view s2 can be warped into
@@ -19,7 +19,7 @@ kinds differ only in their pixels:
     vid_d2m   the generated video vs the warped d2m view
     d2f_x     (with --refined2, a second refinement with another seed) the refined view at s1 vs the warped SECOND
               refinement at s2; at s1 = s2 the floor two samples of the same view reach
-(run 2 added d2m / vid_d2m / d2f_x, CONSIST_PLAN.md section 4.)
+
 
 PSNR on the masked pixels at full resolution, after 4 x 4 average pooling (less sensitive to sharpness differences:
 a sharper image pays more for the same sub-pixel misregistration; also 8 x 8), and on the near pixels (range

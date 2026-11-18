@@ -9,8 +9,7 @@
 #SBATCH --mem=60G
 #SBATCH --time=00:30:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 40): DA3 range vs depth label on one p2 clip (diag_da3_frame.py).  CLIPS=<i,j,...> TAG=<name>
+#: DA3 range vs depth label on one p2 clip (diag_da3_frame.py).  CLIPS=<i,j,...> TAG=<name>
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh
 source $GS4D/scripts_hpc3/da3_env_hpc3.sh

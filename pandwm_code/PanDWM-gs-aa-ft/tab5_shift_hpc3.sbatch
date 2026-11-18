@@ -9,7 +9,6 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
 # Table 5 (Gaussians on generated Test-S scenes), our row: dwm_pano.eval_gs_shift on the v84i4250 s42
 # Test-S generations, fixed 4D scene (section 44: camera-time poses, mmdet3d v0.x boxes) with the v4 settings
 # (C2 step 3000, DA3 scale relabel, 2 bottom rows dropped), shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m

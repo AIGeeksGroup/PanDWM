@@ -1,4 +1,4 @@
-"""Round-3 visual check (GS_FT3_PLAN.md gate 5): one frame of the GS-Dev sample videos, the same row of
+"""Round-3 visual check: one frame of the GS-Dev sample videos, the same row of
 every arm stacked under the real frame and labelled.  Light (decodes one frame per video); run on HPC3.
     python ft3_frames.py <clip 3 digits> <frame> <out prefix> <x0> <x1> <rows: real,0m,+2m,-2m,+4m> [arms...]"""
 import sys

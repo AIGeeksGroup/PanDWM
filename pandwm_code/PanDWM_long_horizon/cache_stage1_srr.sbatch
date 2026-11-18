@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=180G
 #SBATCH --time=12:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail
 DATA_ROOT=/path/to/pandwm_root
@@ -18,7 +17,7 @@ MAX_ITEMS=${MAX_ITEMS:-0}
 MAX_TARGET_WINDOW=${MAX_TARGET_WINDOW:-1}
 CACHE_TAG=${CACHE_TAG:-srr_cache_train67_v1}
 CACHE_CONFIG=${CACHE_CONFIG:-$RUN_ROOT/srr_config/recovery.json}
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1

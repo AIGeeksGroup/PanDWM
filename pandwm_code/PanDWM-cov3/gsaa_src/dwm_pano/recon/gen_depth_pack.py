@@ -1,4 +1,4 @@
-"""LiDAR depth pack for Table 5 (Gaussians on generated Test-S scenes, RECON_PLAN.md).
+"""LiDAR depth pack for Table 5.
 
 For every Test-S clip (tests213_manifest.json, the frozen eval enumeration rebuilt as in targets.py) and every
 clip frame k in --frames (default 3, 11, 19, 27 = generated frames 0, 8, 16, 24), the generated scene of frame k is

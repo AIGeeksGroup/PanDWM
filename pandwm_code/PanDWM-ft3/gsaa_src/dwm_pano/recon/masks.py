@@ -1,4 +1,4 @@
-"""Band and sky masks of the tab:gs_recon targets (PanDWM-gs-recon/RECON_PLAN.md).
+"""Band and sky masks of the tab:gs_recon targets.
 
 * band: recon/band.py (exact inverse of the OneBEV legacy warp) once per distinct rig (sensor2ego + K of the six
   cameras) and resolution -> <out>/band_<rig>_<H>x<W>.npz {"valid": (6, H, W) bool}; <out>/rigs.json maps

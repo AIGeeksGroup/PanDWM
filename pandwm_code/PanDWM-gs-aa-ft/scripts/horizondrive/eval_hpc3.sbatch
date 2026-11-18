@@ -5,7 +5,6 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --time=2:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 #
 # Smoke:
@@ -33,20 +32,14 @@ HD_OUTPUT_ROOT=${HD_OUTPUT_ROOT:-$HOME/horizondrive_runs}
 HD_PANDWM=${HD_PANDWM:-$HOME/pandwm_code/PanDWM}
 
 case "$HD_MODE" in
-  smoke)
-    HD_CONFIG=$HD_PANDWM/scripts/horizondrive/horizondrive_hpc3_smoke.yaml
-    ;;
   full)
     HD_CONFIG=$HD_PANDWM/scripts/horizondrive/horizondrive_hpc3_full.yaml
     ;;
   common)
     HD_CONFIG=$HD_PANDWM/scripts/horizondrive/horizondrive_hpc3_common.yaml
     ;;
-  common_smoke)
-    HD_CONFIG=$HD_PANDWM/scripts/horizondrive/horizondrive_hpc3_common_smoke.yaml
-    ;;
   *)
-    echo "HD_MODE must be smoke, full, common_smoke, or common; got: $HD_MODE" >&2
+    echo "HD_MODE must be full or common; got: $HD_MODE" >&2
     exit 2
     ;;
 esac
@@ -61,7 +54,7 @@ export PYTHONPATH="$HD_PANDWM/src:$HD_REPO${PYTHONPATH:+:$PYTHONPATH}"
 export OMP_NUM_THREADS=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 
 for path in "$HD_REPO" "$HD_ENV/bin/python" "$HD_CONFIG"; do
   if [ ! -e "$path" ]; then

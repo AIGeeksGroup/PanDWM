@@ -1,4 +1,4 @@
-"""D2 refiner pipeline (PanDWM-d2-refiner/D2_PLAN.md Task 2).
+"""D2 refiner pipeline.
 
 Training: every step takes ONE 19-frame window [s, s + 19) of a 35-frame train clip (s = d2_window_start(step,
 seed), 0..16, the same on every rank) together with the matching frames of the clip's degraded GS render condition
@@ -8,7 +8,7 @@ model through a stand-in for model_wrapper that adds render_condition= to the si
 train_step.  With probability render_dropout (hash of seed, step, rank) the render condition is all zeros, which
 is also the "no render" input of render guidance at inference.
 
-Render-init samples (report section 43.3, from the continuation after the pilot): with probability
+Render-init samples: with probability
 render_init_prob (hash of seed, step, rank; never on a render-dropped step) the noisy input of every non-reference
 frame whose sigma >= render_init_min_sigma is built from the RENDER instead of the ground truth,
 x = sigma * eps + (1 - sigma) * render, while the target stays the ground-truth latent.  This is the input the

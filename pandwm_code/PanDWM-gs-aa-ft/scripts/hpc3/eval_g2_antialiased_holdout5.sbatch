@@ -35,7 +35,7 @@ if [[ -e "$stage2_link" && ! -L "$stage2_link" ]]; then
 fi
 ln -sfn "$H/pandwm_data/cd_10000_ema.pth" "$stage2_link"
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 module load gcc/12.5
 export CC="$(command -v gcc)"
 export CXX="$(command -v g++)"
@@ -59,7 +59,7 @@ import sys
 from pathlib import Path
 
 stage, home, run = map(Path, sys.argv[1:])
-with (stage / 'code/PanDWM/configs/ctsd/pandwm/h20/gs_decoder_g2_ft_stage2mix75_250.json').open() as f:
+with (stage / 'code/PanDWM/configs/ctsd/pandwm/local/gs_decoder_g2_ft_stage2mix75_250.json').open() as f:
     g2 = json.load(f)
 pipe = g2['pipeline']
 pipe['pretrained_model_name_or_path'] = str(home / 'pandwm_data/stable-diffusion-3.5-medium')
@@ -73,7 +73,7 @@ base['nuscenes_meta_dir'] = str(home / 'pandwm_data/nuscenes_meta/v1.0-trainval'
 with (run / 'configs/g2.json').open('w') as f:
     json.dump(g2, f, indent=2)
 
-with (stage / 'code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_h20.json').open() as f:
+with (stage / 'code/PanDWM/configs/ctsd/pandwm/local/cd_eval_local.json').open() as f:
     stage2 = json.load(f)
 stage2['global_state']['device_mesh']['mesh_shape'] = [1, 1]
 def rewrite_paths(value):

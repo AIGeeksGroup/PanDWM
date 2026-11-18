@@ -1,4 +1,4 @@
-"""D1 of PanDWM-gs4d/GS_GAP_ANALYSIS.md: SDEdit of shifted-rig GS pano renders with the locked
+"""D1  SDEdit of shifted-rig GS pano renders with the locked
 video model (v84i4250 EMA student), step 2 of 2 (step 1 = PanDWM-gs-aa-ft export_shift_pano_latents.py on HPC2).
 
 Per clip and lateral offset dy, the GS render latents (35 frames) replace the sampler's starting noise: for start index

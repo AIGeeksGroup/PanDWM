@@ -22,7 +22,7 @@ Problems found on the run (701035, paused at step 1609):
    `GEN_STEP_SKIPPED global_step=.. total=..`, the total is written next to every committed checkpoint as
    log/v5_counters_<step>.json and restored on resume.  It is deliberately NOT a per-step loss key: the trainer
    averages every key over the logged rows, and only every 5th row is a student step (a per-step key that
-   only generator steps return crashed job 703667 with KeyError at the first log, step 10).
+   only generator steps return crashed a job with KeyError at the first log, step 10).
 
 Critic step (three backward passes, one fake-score graph alive at a time, like v4):
   backward 1: flow-matching loss on (clean student history, noised student target)

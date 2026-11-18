@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=24G
 #SBATCH --time=00:30:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
@@ -15,7 +14,7 @@ P=$H/pandwm_code/PanDWM
 ROOT=$H/gem_runs
 SUMMARY=$ROOT/common149_summary
 FIGURES=$ROOT/common149_figures
-HD=$H/horizondrive_runs/common/job_608501/lossless
+HD=$H/horizondrive_runs/common/job/lossless
 PD=$H/external_runs/epona/common_target_10ctx_16pred/pandwm_seed42/lossless
 EP=$H/external_runs/epona/common_target_10ctx_16pred/seed_42/lossless
 GEM=$ROOT/common149_dump/seed_42

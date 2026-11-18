@@ -3,7 +3,7 @@
 # real frames minus the 12 clips that show the evaluated scenes' first windows (eval-149 clips 9 58 64 73 84 85 95 106
 # 110 121 135 146; PanDWM_eval149/clip_tokens.json).  The pool numbers of report 27.3 used all 78 clips.
 #   STAGE=main      the 4 existing arms, 24 videos and day-only (scenes 72 / 82 are night)
-#   STAGE=gt7       features of the GT-restart arm + A1 (after 716693)
+#   STAGE=gt7       features of the GT-restart arm + A1
 #   STAGE=controls  features of teacher / no-CFG teacher / history noise / moment_align + A2, A3 + colour (after all)
 #SBATCH --job-name=pandwm_ldiag3
 #SBATCH --partition=<partition>
@@ -15,7 +15,6 @@
 #SBATCH --mem=120G
 #SBATCH --time=04:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

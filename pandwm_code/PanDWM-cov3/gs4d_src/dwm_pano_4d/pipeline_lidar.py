@@ -1,5 +1,4 @@
-"""4D GS decoder with a LiDAR depth term on top of the DA3 pipeline (round-2 fine-tune R3,
-PanDWM-gs-ft2/GS_FT2_PLAN.md).
+"""4D GS decoder with a LiDAR depth term on top of the DA3 pipeline (round-2 fine-tune R3).
 
 For every own frame of a step, the frame's Gaussians are rendered at the six real cameras of that frame, each at its
 own exposure pose relative to the frame's camera-time ego (c2w = inv(E_ref) @ E_cam @ S_cam; the Gaussians live in

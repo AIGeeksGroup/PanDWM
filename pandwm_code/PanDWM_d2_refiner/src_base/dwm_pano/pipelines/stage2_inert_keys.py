@@ -21,7 +21,6 @@ anywhere, including on a machine that cannot load the model stack.
 #
 # Derived by AST analysis, not by hand: a key is inert when the constructor
 # parameter has no load outside the bookkeeping dict *and* `self.<key>` is
-# never read anywhere in the module.  `tests/test_inert_config_keys.py`
 # re-derives this set and fails if it drifts, so wiring one of these up is
 # caught rather than silently contradicting this comment.
 INERT_OFFICIAL_STAGE2_KEYS = frozenset({

@@ -30,8 +30,6 @@ if [[ -e "$PAUSE_FILE" ]]; then
 fi
 echo "PLAN_A_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 for ARM in gan nogan; do
     OUT=$CAMPAIGN_DIR/$ARM
     mkdir -p "$OUT/checkpoints" "$OUT/training_state" "$OUT/log"

@@ -1,4 +1,4 @@
-"""Controllability metrics (protocol CONTROLLABILITY_PLAN.md sections 6-8, frozen).
+"""Controllability metrics.
 
 Per image (clip frame 3..34 x camera) and class (vehicle = COCO car / bus / truck, pedestrian = COCO person):
 detections -> vehicle class-agnostic NMS 0.5 -> centre inside the protocol mask -> top 100 by score; COCOeval matching
@@ -245,7 +245,7 @@ def main():
             preds[name] = load_dir(Path(a.pred_dir) / f"{name}__{a.tag}")
         return preds[name]
     out = {"tag": a.tag, "subset": a.subset or "all", "size_rule": not a.no_size_rule, "arms": {}, "pairs": {}, "floors": {},
-           "diag": {}, "protocol": "CONTROLLABILITY_PLAN.md (frozen )"}
+           "diag": {}, "protocol": " (frozen)"}
     reps = {}
     export = a.coco_export.split(":", 1) if a.coco_export else None
     specs = [(s, False) for s in a.arm] + [(s, True) for s in a.floor]

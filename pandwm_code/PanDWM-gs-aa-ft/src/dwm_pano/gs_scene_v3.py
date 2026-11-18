@@ -1,4 +1,4 @@
-"""Scene construction for the v3 GS renders and the lateral-shift evaluation (report section 40).
+"""Scene construction for the v3 GS renders and the lateral-shift evaluation.
 
 The v2 review scene (export_gs_v2_clips.py: frame t's Gaussians with the depth-edge filter and the max-scale cap,
 plus the static Gaussians of nearby frames as 4D fill) with three new switches, all off by default so that the
@@ -63,7 +63,7 @@ class SceneOptions:
     drop_bottom_rows: int = 0                                           # section 41.6: C2's band-edge line
     box_reading: str = "legacy"                                         # section 44: "legacy" | "mmdet3d_v0x"
     min_opacity: float = 0.0                                            # round 2 (E): prune faint Gaussians
-    # (GS_CLIPDEPTH_PLAN.md): da3_window "clip" = one DA3 pass over all frames of the clip with
+    #: da3_window "clip" = one DA3 pass over all frames of the clip with
     # one ground scale (V1; da3_chunk N > 0 = chunks of N frames overlapping by N // 2, chained by their overlap and
     # each frame read from the chunk it is most central in); da3_fuse = static depth fusion over fuse_offsets with
     # the relative occlusion tolerance fuse_tol_rel (V2, dwm_pano/da3_fusion.py); "frame" = the windows above
@@ -72,7 +72,7 @@ class SceneOptions:
     da3_fuse: bool = False
     fuse_offsets: tuple = (-8, -6, -4, -2, 2, 4, 6, 8)
     fuse_tol_rel: float = 0.1
-    # (GS_CLIPDEPTH_PLAN.md section 7): da3_mode "lowfreq" = the decoder range times
+    #: da3_mode "lowfreq" = the decoder range times
     # exp(low-passed log(DA3 / decoder)), lf_filter "gauss" (lf_sigma_px) or "guided" (lf_radius_px, lf_eps; guide =
     # log decoder range), dwm_pano/da3_lowfreq.py; Gaussians moved like "scale"
     lf_filter: str = "gauss"

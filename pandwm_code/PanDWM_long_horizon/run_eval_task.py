@@ -40,7 +40,7 @@ def main():
                       "checkpoints/250_ema.pth")
     else:
         raise ValueError(f"unknown arm {arm}")
-    base = h / "pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json"
+    base = h / "pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json"
     for required in (base, checkpoint):
         if not required.is_file():
             raise FileNotFoundError(required)

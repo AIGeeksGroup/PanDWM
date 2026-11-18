@@ -1,4 +1,4 @@
-"""D2 refiner on the review clips (D2_PLAN.md Tasks 8 / 10 / 11).
+"""D2 refiner on the review clips.
 
 For every review clip and signed lateral offset dy, the render condition of PanDWM-gs-aa-ft
 dwm_pano/d2_export_shift.py (<inputs>/clipNNN/render_dy<d>.pt) and the clip's own conditions from the frozen

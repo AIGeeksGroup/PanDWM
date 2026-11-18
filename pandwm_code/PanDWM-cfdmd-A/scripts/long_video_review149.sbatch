@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# long videos for the user's 149-scene review (user: "149个全做", current best v84i4250 EMA temporarily
+# long videos for the 149-scene review (current best v84i4250 EMA temporarily
 # locked).  Copy of scripts/long_video_dev76.sbatch (same protocol: student, clean history, stochastic 4-step sampler,
 # blend 128, run_long_rollout_multi.py) with three changes:
 #   - LIST is required (scenes[i] = {dev76_index: <Dev-149 clip index>, scene_token}); LV_OUT is required;
@@ -8,7 +8,7 @@
 #   - WINDOWS_TRY="9 8 7 ..." tries each window count in turn until every scene of the task has a video (scenes whose
 #     recording is too short for more windows get the longest clip that fits).
 # STEPS = student step list, default = the paper/training list [1000, 750, 500, 250]
-# (LOCK_PAPER.json, user decision ); the 10-16 review videos used the old hard-coded
+# (LOCK_PAPER.json); the earlier review videos used the old hard-coded
 # [1000, 625, 250, 42] (pass STEPS="1000 625 250 42" to reproduce them).
 #   LIST=<json> LV_OUT=<dir> TAG=v84i4250 CKPT=<..._ema.pth> WINDOWS=12 CHUNK=9 sbatch --array=0-7 scripts/long_video_review149.sbatch
 #SBATCH --job-name=pandwm_lv149
@@ -21,7 +21,6 @@
 #SBATCH --mem=200G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs_eval149/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

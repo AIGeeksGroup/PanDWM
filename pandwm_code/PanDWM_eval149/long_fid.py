@@ -1,8 +1,7 @@
 """FID of the early and late windows of the long-video dev set, per arm (a diagnostic, not a gate).
 
 The long-video gate (long4_arms.py) only compares sharpness and frame change with GT, and those ratios cannot rank
-the arms: v83h2000 is over-sharp in some scenes and v83h4000 blurry in others, and their mean |log sharp ratio| ties
-(report section 26).  This measures how real the frames look, as a distribution: torchmetrics FID (normalize=True on
+the arms: v83h2000 is over-sharp in some scenes and v83h4000 blurry in others, and their mean |log sharp ratio| ties.  This measures how real the frames look, as a distribution: torchmetrics FID (normalize=True on
 the stitched pano, the same metric as the 149-clip evaluation) between the generated half and the real half of
 gt_vs_generated.mp4.  All arms use the same real frames, from the first arm's videos, so they compare at equal n.
 Windows of the 192 generated frames: early = windows 1-6 (frames 0-95), late = windows 7-12 (frames 96-191).

@@ -601,7 +601,7 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
             np.stack(pano_camera_image_size))
         if self.enable_description:
             result["image_description"] = descriptions
-        # scalar (shape ()) per sample → DataLoader collate → (B,) per batch.
+        # scalar (shape) per sample → DataLoader collate → (B,) per batch.
         # Pipeline expects (B,)-shape: ctsd.py:329 does fps.unsqueeze(-1)×3 + repeat
         # which assumes (B,) input. Don't wrap in [list] (would give (1,) → (B,1)).
         # Per-clip fps from audit metadata (multi-fps support); falls back to

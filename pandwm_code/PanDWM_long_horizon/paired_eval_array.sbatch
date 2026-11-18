@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=240G
 #SBATCH --time=03:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%A_%a.log
 set -euo pipefail
 
@@ -15,7 +14,7 @@ CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_long_horizon
 TASKS=${TASKS:?set TASKS to frozen JSON filename}
 RUN_TAG=${RUN_TAG:?set unique RUN_TAG}
 TASK_INDEX=${SLURM_ARRAY_TASK_ID:-0}
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$CODE_ROOT/vendor:$CODE_ROOT/src:$DATA_ROOT/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1

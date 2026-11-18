@@ -1,6 +1,6 @@
-"""Magnification culling of shifted-view renders (GS_NEARFIX_PLAN.md step 1).
+"""Magnification culling of shifted-view renders.
 
-Near-object collapse at large lateral shifts (GS_IMPROVEMENT_SURVEY.md section 1): a pixel-aligned Gaussian
+Near-object collapse at large lateral shifts: a pixel-aligned Gaussian
 seen from a camera several metres away can cover many times the screen area it covered in its own source view, as a
 stretched smear (near content magnified, needles seen side-on, depth-edge curtains).  Here every Gaussian's angular
 size is measured from both viewpoints: the largest standard deviation of its covariance across the viewing ray

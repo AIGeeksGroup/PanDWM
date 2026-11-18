@@ -9,9 +9,8 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_dev_hpc3/logs/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# round-3 (GS_FT3_PLAN.md): dev_eval_hpc3.sbatch with the PanDWM-ft3 code copy first on
-# PYTHONPATH.  Copied from the round-2 GS-Dev eval (GS_FT2_PLAN.md section 3), tab:gs_recon
+# round-3: dev_eval_hpc3.sbatch with the PanDWM-ft3 code copy first on
+# PYTHONPATH.  Copied from the round-2 GS-Dev eval, tab:gs_recon
 # protocol at 224x400.
 #   ARM=<name> [CKPT=<decoder .pth>] [OVR='<SceneOptions JSON>'] MODE=render sbatch --array=0-3 dev_eval_hpc3.sbatch
 #   ARM=<name> MODE=score sbatch dev_eval_hpc3.sbatch        (scores 3d and 4d)

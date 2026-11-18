@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=160G
 #SBATCH --time=12:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 # Submit only after the official sample.py smoke passes, for example:
 #   sbatch --export=ALL,SEED=0,SHARDS=5,SHARD=0 eval_common.sbatch

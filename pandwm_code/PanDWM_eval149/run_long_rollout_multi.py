@@ -283,7 +283,7 @@ def main():
     parser.add_argument("--align-alpha", type=float, default=0.5)
     parser.add_argument("--engine", choices=("student", "teacher"), default="student")
     # the student step list was hard-coded to [1000, 625, 250, 42]; that stays the default so earlier
-    # runs reproduce. The paper uses the training list [1000, 750, 500, 250] (user decision ).
+    # runs reproduce. The paper uses the training list [1000, 750, 500, 250].
     parser.add_argument("--student-steps", type=int, nargs=4, default=[1000, 625, 250, 42])
     parser.add_argument("--teacher-guidance-scale", type=float, default=3.0)
     parser.add_argument("--time-budget-s", type=float, default=0.0)

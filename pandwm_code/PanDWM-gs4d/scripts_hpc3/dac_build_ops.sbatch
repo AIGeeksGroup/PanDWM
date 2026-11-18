@@ -9,8 +9,7 @@
 #SBATCH --mem=60G
 #SBATCH --time=00:30:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
-# (report section 37): build DAC's MultiScaleDeformableAttention op in place (needs a visible GPU:
+#: build DAC's MultiScaleDeformableAttention op in place (needs a visible GPU:
 # its setup.py refuses to build without torch.cuda.is_available()).  Same CUDA 12.8 + gcc 12.5 as gsplat.
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh

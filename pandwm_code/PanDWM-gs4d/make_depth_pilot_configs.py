@@ -1,4 +1,4 @@
-"""Depth-pilot configs for HPC3 (report section 34).
+"""Depth-pilot configs for HPC3.
 
 Base: configs/gs4d_hpc2.json, the recipe of the coverage run whose step 3000 is the decoder of the 149-scene review
 renders (black background + coverage regulariser 0.1).  Changes, nothing else:

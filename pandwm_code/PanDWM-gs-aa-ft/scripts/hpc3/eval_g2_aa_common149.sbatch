@@ -26,7 +26,7 @@ VENDOR=$H/pandwm_gs_holdout5_aa/vendor
 G2_RUN=$S/runs/g2_mix75_250_aa_eps0to0p1
 G2_CFG=$P/configs/ctsd/pandwm/hpc3/gs_decoder_g2_aa_eps0to0p1_250.json
 COMMON_PKL=$H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
-STAGE2_CFG=$P/configs/ctsd/pandwm/h20/cd_eval_h20.json
+STAGE2_CFG=$P/configs/ctsd/pandwm/local/cd_eval_local.json
 RUN=$S/eval_common149_aa_${SLURM_JOB_ID}
 STAGE2_RUN=$RUN/stage2_run
 FINAL_G2_SHA=4929f9a0f621896d6c1becf89279f8159b1b9f30bc651e80c699a048e72763d5
@@ -51,7 +51,7 @@ ln -s "$H/pandwm_data/cd_10000_ema.pth" \
 echo "$FINAL_G2_SHA  $G2_RUN/checkpoints/250.pth" | sha256sum --check --strict
 echo "$STAGE2_SHA  $H/pandwm_data/cd_10000_ema.pth" | sha256sum --check --strict
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 module load gcc/12.5
 export CC="$(command -v gcc)" CXX="$(command -v g++)"
 export PYTHONPATH="$VENDOR:$P/src:$H/pandwm_code/TATS_fvd"

@@ -1,4 +1,4 @@
-"""External feed-forward Gaussian models on our generated panoramas (GS_ANCHOR_ZEROSHOT_PLAN.md).
+"""External feed-forward Gaussian models on our generated panoramas.
 
 For frame t of a clip, the decoded panorama (SceneBuilder.canvas) is cut into the six pinhole crops of
 dwm_pano_4d.da3_depth.Da3Ranger (camera k's own optical centre and orientation), resized to long side `long_side`

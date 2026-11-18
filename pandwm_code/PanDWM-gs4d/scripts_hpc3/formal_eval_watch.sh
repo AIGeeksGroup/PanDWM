@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# (report section 38): login-node watcher for the formal F1 run.  For each of steps 1000..5000, once
+#: login-node watcher for the formal F1 run.  For each of steps 1000..5000, once
 # $RUNS/<TAG>/checkpoints/<step>.pth exists and has not changed for 3 minutes, submit
 #   eval_depth_pilot.sbatch  (25 val clips, evaluate_4d)        -> $RUNS/eval/F1_<step>.json
 #   diag_depth_metric.sbatch (holdout5 depth error, 25 clips)   -> $RUNS/label_depth/diag_depth_metric_F1_<step>.json

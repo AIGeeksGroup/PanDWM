@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Dev-76-L, the larger long-video dev set (eval_v7/V82_EVAL_HPC3.md section 27; the user agreed
-# to switch the long-video evaluation to it).  The 76 non-test nuScenes val scenes with a valid 163-frame
+# Dev-76-L, the larger long-video dev set (the long-video evaluation
+# was switched to it).  The 76 non-test nuScenes val scenes with a valid 163-frame
 # clip (3 real + 10 windows x 16 = 16.3 s), PanDWM_eval149/dev76_long10.json (dataset order; holds the
 # 12 scenes of the old 24-video set).  Same rollout protocol as long_video_hpc3_v3.sbatch (student, clean history,
 # stochastic 4-step sampler, blend 128), but one process per array task (run_long_rollout_multi.py, model loaded once;
@@ -18,7 +18,6 @@
 #SBATCH --mem=200G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs_eval149/%x_%A_%a.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

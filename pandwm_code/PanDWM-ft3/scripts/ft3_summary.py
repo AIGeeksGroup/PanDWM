@@ -1,4 +1,4 @@
-"""Round-3 summary and gates (GS_FT3_PLAN.md section 4) on HPC3: recon (scores/<arm>_4d.json) and shift
+"""Round-3 summary and gates on HPC3: recon (scores/<arm>_4d.json) and shift
 (shift/<arm>/report.json) of the GS-Dev arms, against V0 = R0 + v4 inference (E0 recon, FT3B_V0 shift rerun).
     python3 ft3_summary.py [arms...]          (default FT3B_V0 FT3B_V2 FT3_G0 FT3_G1 FT3_G2)
     python3 ft3_summary.py --test [arms...]   (Test-S 71: tab5_gen_gs_ft3/report_ours4d_<arm>.json)

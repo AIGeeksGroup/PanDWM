@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # early / late window FID of the 24-video long dev set (eval_v7/long_fid.py), one GPU.  A diagnostic for
-# report section 26, not a gate.   ARMS="v83h2000 v83h4000 v84i4250 v84i4250raw" OUTNAME=long_fid_4250 sbatch ...
+#  not a gate.   ARMS="v83h2000 v83h4000 v84i4250 v84i4250raw" OUTNAME=long_fid_4250 sbatch ...
 #SBATCH --job-name=pandwm_lfid
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>
@@ -11,7 +11,6 @@
 #SBATCH --mem=110G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149

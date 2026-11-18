@@ -1,4 +1,4 @@
-"""Controllability predictions (protocol CONTROLLABILITY_PLAN.md, frozen).
+"""Controllability predictions.
 
 Every arm becomes the uint8 [32, 6, 3, 256, 448] camera views of the camera-space protocol exactly as in
 cam_band_feats.py (latents: decode + stitch + LegacyInverseOwnGeometry resample; recband: recorded canvas resampled;
@@ -224,7 +224,7 @@ def main():
                 det_score=np.concatenate([d[1] for d in dets]).astype(np.float32),
                 det_box=np.concatenate([d[0].reshape(-1, 4) for d in dets]).astype(np.float32),
                 road=cc.pack(road), mask=cc.pack(mask), unmasked_input=name in a.unmasked,
-                protocol=json.dumps({"models": tag, "plan": "CONTROLLABILITY_PLAN.md (frozen )",
+                protocol=json.dumps({"models": tag, "plan": " (frozen)",
                                      "mask": "onebev_inverse_own & ~top52", "blend": a.blend}))
             os.replace(tmp, arm["dir"] / f"clip{pos:03d}.npz")
         if (n + 1) % 5 == 0 or n + 1 == len(rows) or n < 2:

@@ -36,7 +36,7 @@ def main():
                       "checkpoints" / f"{args.steps}.pth")
     output = run_root / args.run_tag / task_name(task)
     base = (args.data_root /
-            "pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json")
+            "pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json")
     if output.exists():
         raise FileExistsError(output)
     for path in (checkpoint, base):

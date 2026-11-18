@@ -193,8 +193,8 @@
                 "use_zero_convs": true
             }
         },
-        "pretrained_model_name_or_path": "/hpc/home/<user>/pandwm_data/stable-diffusion-3.5-medium",
-        "model_checkpoint_path": "/hpc/home/<user>/pandwm_data/cd_10000_ema.pth",
+        "pretrained_model_name_or_path": "/path/to/pandwm_root/pandwm_data/stable-diffusion-3.5-medium",
+        "model_checkpoint_path": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
         "metrics": {
             "fid": {
                 "_class_name": "torchmetrics.image.fid.FrechetInceptionDistance",
@@ -202,11 +202,11 @@
             },
             "fvd": {
                 "_class_name": "dwm_pano.metrics.fvd_pano.PanoPatchFrechetVideoDistance",
-                "inception_3d_checkpoint_path": "/hpc/home/<user>/pandwm_code/TATS_fvd/i3d_pretrained_400.pt",
+                "inception_3d_checkpoint_path": "/path/to/pandwm_root/pandwm_code/TATS_fvd/i3d_pretrained_400.pt",
                 "sequence_count": 16
             }
         },
-        "generator_ckpt": "/hpc/home/<user>/pandwm_data/cd_10000_ema.pth",
+        "generator_ckpt": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
         "generator_fsdp_wrap_strategy": "size",
         "real_score_fsdp_wrap_strategy": "size",
         "fake_score_fsdp_wrap_strategy": "size",
@@ -267,8 +267,8 @@
         "causal": true,
         "is_causal": true,
         "discrete_cd_N": 48,
-        "consistency_teacher_checkpoint_path": "/hpc/home/<user>/pandwm_data/cd_10000_ema.pth",
-        "consistency_ema_checkpoint_path": "/hpc/home/<user>/pandwm_data/cd_10000_ema.pth",
+        "consistency_teacher_checkpoint_path": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
+        "consistency_ema_checkpoint_path": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
         "consistency_discrete_steps": 48,
         "consistency_guidance_scale": 3.0,
         "consistency_ema_decay": 0.99,
@@ -278,11 +278,11 @@
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
             "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
-            "pkl_path": "/hpc/home/<user>/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
-            "rgb_dir": "/hpc/home/<user>/pandwm_data/rgb",
-            "bbox_dir": "/hpc/home/<user>/pandwm_data/bbox",
-            "hdmap_dir": "/hpc/home/<user>/pandwm_data/hdmap",
-            "nuscenes_meta_dir": "/hpc/home/<user>/pandwm_data/nuscenes_meta/v1.0-trainval",
+            "pkl_path": "/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+            "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
+            "bbox_dir": "/path/to/pandwm_root/pandwm_data/bbox",
+            "hdmap_dir": "/path/to/pandwm_root/pandwm_data/hdmap",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
             "split": "train",
             "sequence_length": 19,
             "fps_stride_tuples": [
@@ -397,11 +397,11 @@
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
             "_class_name": "dwm_pano.datasets.nuscenes_pano.PanoNuScenesDataset",
-            "pkl_path": "/hpc/home/<user>/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
-            "rgb_dir": "/hpc/home/<user>/pandwm_data/rgb",
-            "bbox_dir": "/hpc/home/<user>/pandwm_data/bbox",
-            "hdmap_dir": "/hpc/home/<user>/pandwm_data/hdmap",
-            "nuscenes_meta_dir": "/hpc/home/<user>/pandwm_data/nuscenes_meta/v1.0-trainval",
+            "pkl_path": "/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
+            "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
+            "bbox_dir": "/path/to/pandwm_root/pandwm_data/bbox",
+            "hdmap_dir": "/path/to/pandwm_root/pandwm_data/hdmap",
+            "nuscenes_meta_dir": "/path/to/pandwm_root/pandwm_data/nuscenes_meta/v1.0-trainval",
             "split": "val",
             "sequence_length": 35,
             "fps_stride_tuples": [
@@ -549,9 +549,9 @@
         "persistent_workers": true
     },
     "informations": {
-        "source_config": "/hpc/home/<user>/pandwm_code/PanDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
+        "source_config": "/path/to/pandwm_root/pandwm_code/PanDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
         "stage": "causal_forcing_plus_plus_consistency_distillation",
-        "initial_causal_checkpoint": "/hpc/home/<user>/pandwm_data/cd_10000_ema.pth",
+        "initial_causal_checkpoint": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
         "notes": "OpenDWM pano adaptation of Causal-Forcing++ consistency distillation; keeps CTSD pano conditions and causal temporal mask.",
         "official_stage2_config_source": "externals/Causal-Forcing/configs/causal_cd_framewise.yaml",
         "official_stage2_parameters_preserved": true,

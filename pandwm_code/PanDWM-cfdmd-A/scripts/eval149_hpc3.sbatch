@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# (user's choice: evaluate on HPC3 once v8.2 training ends): the frozen 149-clip evaluation of several EMA
-# checkpoints on one HPC3 node (8 H100), with the HPC1 protocol's code and config (tree built by
-# scripts/setup_eval149_hpc3.sh).  H100 numbers are compared only with each other: the anchors (v8.1 step 1600 =
+# the frozen 149-clip evaluation of several EMA
+# checkpoints on one HPC3 node (8 H100), with the HPC1 protocol's code and config.  H100 numbers are compared only with each other: the anchors (v8.1 step 1600 =
 # v8.2's starting point, v7 step 1000, B0) are rerun here next to v8.2 steps 1750 and 2000.
 #   Phase 1: GPU i renders its fixed clip range for every arm in turn (run_eval149_videos.py through lowmem_launch.py,
 #            seed 42, clean history; each clip's sampler seed depends only on (seed, clip index), so the split does not
@@ -20,7 +19,6 @@
 #SBATCH --mem=1000G
 #SBATCH --time=10:00:00
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149
@@ -35,7 +33,7 @@ export PANDWM_4STEP_SAMPLER=stochastic PANDWM_PANO_BLEND_W=128 TORCH_HOME=$DR/.c
 export OMP_NUM_THREADS=8 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1
 unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR PANDWM_HISTORY_GUIDANCE || true
-[ -f "$CFG" ] && [ -f "$C/run_eval149_videos.py" ] || { echo "EVAL_TREE_MISSING $C (run scripts/setup_eval149_hpc3.sh)"; exit 1; }
+[ -f "$CFG" ] && [ -f "$C/run_eval149_videos.py" ] || { echo "EVAL_TREE_MISSING $C"; exit 1; }
 mkdir -p "$OUT/logs" "$OUT/metrics"
 cd "$C"
 echo "EVAL149_HPC3_START $(date -Is) node=$(hostname) job=${SLURM_JOB_ID:-} out=$OUT"

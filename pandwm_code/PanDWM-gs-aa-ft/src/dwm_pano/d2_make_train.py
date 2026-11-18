@@ -1,4 +1,4 @@
-"""Training pairs for the D2 refiner (PanDWM-d2-refiner/D2_PLAN.md Tasks 5 / 7).
+"""Training pairs for the D2 refiner.
 
 Train-split clips of 35 frames at 10 fps (one clip start every --stride seconds, the clip enumeration of the
 video model's PanoNuScenesDataset on the same pkl) are visited in a fixed hash order; array task k of n takes

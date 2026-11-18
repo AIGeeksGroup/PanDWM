@@ -61,7 +61,7 @@ class Crops(torch.utils.data.Dataset):
         x = self.base[index]["vae_images"][0]
         out = []
         for v in range(x.shape[0]):
-            offset = int(torch.randint(0, (x.shape[-1] - self.crop_w) // 8 + 1, ())) * 8
+            offset = int(torch.randint(0, (x.shape[-1] - self.crop_w) // 8 + 1,)) * 8
             out.append(x[v, :, :, offset:offset + self.crop_w])
         return torch.stack(out)
 

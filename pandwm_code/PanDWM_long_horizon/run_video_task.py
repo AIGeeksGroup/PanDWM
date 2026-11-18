@@ -31,7 +31,7 @@ def main():
     task = json.loads(args.tasks.read_text())["tasks"][args.index]
     relative, engine = ARMS[task["arm"]]
     checkpoint = args.data_root / relative
-    base = args.data_root / "pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json"
+    base = args.data_root / "pandwm_code/PanDWM/configs/ctsd/pandwm/local/cd_eval_hpc3.json"
     for path in (checkpoint, base):
         if not path.is_file():
             raise FileNotFoundError(path)

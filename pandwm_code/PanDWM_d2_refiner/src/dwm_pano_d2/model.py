@@ -1,4 +1,4 @@
-"""D2 refiner DiT (PanDWM-d2-refiner/D2_PLAN.md section 1, Task 1).
+"""D2 refiner DiT.
 
 DiTCrossviewTemporalConditionModel plus one dense render condition: a (b, t, v, C, h, w) tensor with the same
 (b, t, v, h, w) as the noisy latents (C = 16 render-latent channels + 1 coverage channel) is patchified by a

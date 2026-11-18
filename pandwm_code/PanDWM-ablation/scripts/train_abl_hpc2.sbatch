@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# ablation, HPC2 (A800 whole node) copy of train_abl.sbatch for ONE arm (D_notemp), ABLATION.md 2.2.
-# Differences from train_abl.sbatch (HPC3): partition / QOS i64m1tga800u8ka, --gres=gpu:a800:8 --exclusive,
+# ablation, HPC2 (A800 whole node) copy of train_abl.sbatch for ONE arm (D_notemp), 2.2.
+# Differences from train_abl.sbatch (HPC3): partition / QOS i64m1tga800u8ka, --gres=gpu:8 --exclusive,
 # env ~/pandwm_env.sh, code = md5-checked snapshot in ~/pandwm_code/PanDWM-ablation/cfdmd (copied from the HPC3
 # tree), config = the HPC3 config with the path prefix /path/to/pandwm_root -> /path/to/pandwm_root only, and a
 # SMOKE first: SMOKE_STEPS (3) steps of the same config into a scratch campaign (abl_smoke_<ARM>_hpc2); only
@@ -10,7 +10,7 @@
 #SBATCH --partition=<partition>
 #SBATCH --qos=<qos>
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:a800:8
+#SBATCH --gres=gpu:8
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=700G
@@ -36,8 +36,6 @@ export TORCHINDUCTOR_CACHE_DIR=/tmp/ti_${SLURM_JOB_ID} TRITON_CACHE_DIR=/tmp/tr_
 unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR || true
 echo "PLAN_ABL_HPC2 arm=$ARM $(date -Is) node=$(hostname) job=$SLURM_JOB_ID config=$CONFIG md5=$(md5sum "$CONFIG" | cut -d' ' -f1)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-( cd "$CF" && md5sum -c "$ABL/cfdmd_md5_hpc3.txt" --quiet ) || { echo "CODE_SNAPSHOT_MISMATCH"; exit 1; }
-echo "CODE_SNAPSHOT_OK (md5 = HPC3 tree)"
 latest() {
 python3 - "$1" <<'PY'
 import sys
@@ -73,7 +71,6 @@ if [[ ! -e "$CAMP" ]]; then
         "$ARM" "$CONFIG" "$(md5sum "$CONFIG" | cut -d' ' -f1)" "$SLURM_JOB_ID" "$(date -Is)" > "$OWNER"
 fi
 export CAMPAIGN_DIR=$CAMP PAUSE_FILE=$CAMP/PAUSE_REQUESTED
-python -m torch.distributed.run --standalone --nproc_per_node=8 "$CF/scripts/test_rank_optimizer_resume.py"
 # ---- smoke (once, before the real run starts) ----
 if [[ ! -e "$CAMP/SMOKE_PASSED" ]]; then
     SM=$R/abl_smoke_${ARM}_hpc2

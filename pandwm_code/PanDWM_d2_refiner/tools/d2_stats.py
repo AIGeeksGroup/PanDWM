@@ -1,4 +1,4 @@
-"""Image statistics of D2 arms (report section 43.3 diagnosis).
+"""Image statistics of D2 arms.
 
 For each clip and dy, frames 3, 7, ..., 31 of: the generated video at 0 m (review clip latents.pt; the look the
 refiner should reach), the GS render input and every refined arm are VAE-decoded and stitched; per arm we report

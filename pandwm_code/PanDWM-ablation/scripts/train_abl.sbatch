@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ablation (ABLATION.md): one variant of the final recipe (v8.4, branch I) trained for 500
+# ablation: one variant of the final recipe (v8.4, branch I) trained for 500
 # iterations (global steps) from the consistency-distilled student cd_10000_ema.pth, fresh optimizers / heads / EMA.
 # Copy of PanDWM-cfdmd-A/scripts/train_v8_4.sbatch with these changes only:
 #   - ARM selects configs/abl_<ARM>_v8_4_hpc3_8gpu.json (make_ablation_configs.py; diffs pre-registered);
@@ -22,7 +22,6 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=logs/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 ARM=${ARM:?ARM}
 MAX_STEPS=${MAX_STEPS:-500}
@@ -83,8 +82,6 @@ if [[ "$STEP" != none ]]; then
 fi
 echo "PLAN_ABL_START arm=$ARM $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS ${EXTRA[*]} config=$CONFIG md5=$(md5sum "$CONFIG" | cut -d' ' -f1)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

@@ -13,7 +13,7 @@ from typing import Any
 
 try:
     import h5py
-except ModuleNotFoundError:  # Keep --help usable on the CPU-only laptop.
+except ModuleNotFoundError:  # Keep --help usable on the CPU-only machine.
     h5py = None
 
 import numpy as np
@@ -137,7 +137,7 @@ def build_g1_dataset_config(
         source, pkl_path=pkl_path, fps_stride_tuples=fps_stride_tuples)
     base_config = dataset_config["base_dataset"]
     base_config.update({
-        # Defaults preserve the original H20 evaluation protocol.  The
+        # Defaults preserve the original LOCAL evaluation protocol.  The
         # explicit overrides make a byte-identical sparse holdout replica
         # usable on another cluster without changing clip enumeration.
         "bbox_dir": os.environ.get(
@@ -503,7 +503,7 @@ def decode_latents_to_images(
         except ModuleNotFoundError:
             # The GS pipeline has no image_processor of its own.  This is the
             # same [-1, 1] -> [0, 1] operation used by VaeImageProcessor and
-            # keeps parser/unit smokes usable on the CPU-only laptop.
+            # keeps parser/unit smokes usable on the CPU-only machine.
             images = (image_tensor / 2.0 + 0.5).clamp(0.0, 1.0)
         else:
             image_processor = diffusers.image_processor.VaeImageProcessor(
@@ -610,7 +610,7 @@ def make_stage2_latent_provider(
             vae_images = batch["vae_images"].to(gs_pipeline.device)
             # The original path encoded all 19 frames (38 panorama halves)
             # in one VAE call before applying the round-trip microbatch.  On
-            # the shared H20 that left a >10 GiB activation spike outside the
+            # the shared LOCAL that left a >10 GiB activation spike outside the
             # memory guard and made this arm OOM even with
             # PANDWM_G1_ROUNDTRIP_FRAMES=1.  Apply the same fixed microbatch
             # to the initial GT encoding as to the decode/re-encode pass.

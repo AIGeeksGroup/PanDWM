@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD / sharpness of the D2 v2 refiner (PanDWM-d2-refiner/D2V2_PLAN.md).
+"""Lateral-shift FID / FVD / sharpness of the D2 v2 refiner.
 
 eval_gs_shift.py's protocol (32 generated frames 3..34; FID-torchmetrics on the stitched pano, FVD-I3D-sector-6-16
 on frames 0..15; +d and -d pooled with the real frames added once per side; sharpness = luminance gradient energy of

@@ -1,4 +1,4 @@
-"""difix_ref worker process (GS_NEARFIX_PLAN.md step 2).
+"""difix_ref worker process.
 
 Difix3D's pipeline and custom UNet / VAE need the versions its requirements.txt pins (diffusers 0.25.1,
 transformers 4.38.0, huggingface-hub 0.25.1, peft 0.9.0); the evaluation environment has diffusers 0.31 (SD3).

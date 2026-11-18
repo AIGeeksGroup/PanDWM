@@ -1,6 +1,6 @@
 """v8.5 = v8.4 with a noise-truncated, decaying CFG in the DMD real score (prepared, not yet run).
 
-Why (eval_v7/V82_EVAL_HPC3.md sections 26-27): every checkpoint loses ~27 FID points between the first and
+Why: every checkpoint loses ~27 FID points between the first and
 the second half of the 19.5 s long videos.  HorizonDrive (arXiv 2605.11596, Table 3; nuScenes ~20 s rollouts, a
 4-step DMD student, CFG scale 6) finds CFG in the DMD real score harmful for long rollouts: FID / FVD 20.84 / 184.06
 with CFG at every noise level, 14.59 / 110.81 without CFG, 13.82 / 92.99 when CFG is restricted to noise levels below a

@@ -1,4 +1,4 @@
-"""Targets of the Gaussian reconstruction table (tab:gs_recon) on Test-S (PanDWM-gs-recon/RECON_PLAN.md).
+"""Targets of the Gaussian reconstruction table (tab:gs_recon) on Test-S.
 
 For every Test-S clip (tests213_manifest.json; dataset_index into the frozen eval enumeration: val pkl,
 35 frames, fps_stride_tuples [[10, 5.0]], the dataset's bad_timestamps_us) the input frame is clip frame 20; the 4D

@@ -76,13 +76,13 @@ def summarize(root):
 
 def markdown(result):
     lines = [
-        "# Self-Forcing 风格训练配对评测",
+        "# Paired evaluation of Self-Forcing-style training",
         "",
-        "完整 common149 短期协议与 common148 长期协议分别计算；",
-        "短期 FID 为生成 32 帧、FVD 为前 16 帧，长期两者均为 64 帧。",
-        "每项为 seeds 0/42/1000 的均值 ± 样本标准差。FID/FVD 越低越好。",
+        "Computed separately on the full common149 short-horizon protocol and the common148 long-horizon protocol; ",
+        "short-horizon FID uses the 32 generated frames and FVD the first 16; long-horizon both use 64 frames.",
+        "Each entry is the mean ± sample standard deviation over seeds 0/42/1000. Lower FID/FVD is better.",
         "",
-        "| Horizon | 方法 | FID ↓ | FVD ↓ |",
+        "| Horizon | Method | FID ↓ | FVD ↓ |",
         "|---|---|---:|---:|",
     ]
     for horizon in HORIZONS:
@@ -95,10 +95,10 @@ def markdown(result):
         diff = result[horizon]["self_minus_control"]
         lines.extend([
             "",
-            f"{horizon} 配对差（Self − Control）："
-            f"FID {diff['fid']['mean_difference']:+.3f}，"
-            f"FVD {diff['fvd']['mean_difference']:+.3f}。"
-            "负值表示 Self-Forcing 风格训练改善。",
+            f"{horizon} paired difference (Self − Control): "
+            f"FID {diff['fid']['mean_difference']:+.3f}, "
+            f"FVD {diff['fvd']['mean_difference']:+.3f}. "
+            "Negative values mean that Self-Forcing-style training improves the metric.",
             "",
         ])
     return "\n".join(lines)

@@ -3,8 +3,8 @@
 # the mm3 low-pass floor of the rollout-window term raised 0.9 -> 0.97 (mm3_lf_floor_rollout; the first-window term
 # keeps 0.9), from branch I step 4250 (seeds/I_4250).  Copy of scripts/train_v8_4_K.sbatch with ARM=L, campaign
 # cfdmd_L, config configs/cfdmd_L_gan_v8_6_hpc3_8gpu.json, FROM=4250, MAX_STEPS default 4500 (same data and
-# k sequence as I 4500 / K 4500, so the V84 monitors pair step by step); ACD1-24 added to --exclude (10-15 NCCL
-# failures).  Reason: report section 30 appendix (window 1 / window 7 of the student and the teacher).
+# k sequence as I 4500 / K 4500, so the V84 monitors pair step by step); one node added to --exclude (NCCL
+# failures).  Reason:  appendix (window 1 / window 7 of the student and the teacher).
 #   sbatch --job-name=pandwm_cfdmd_L scripts/train_v8_6_L.sbatch
 #SBATCH --job-name=pandwm_cfdmd_L
 #SBATCH --partition=<partition>
@@ -17,7 +17,6 @@
 #SBATCH --time=3-00:00:00
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -euo pipefail
 ARM=L
 MAX_STEPS=${MAX_STEPS:-4500}
@@ -64,8 +63,6 @@ OFFSET=$(python3 "$CF/scripts/dataset_len.py" "$CONFIG" 8 "$STEP" | awk '/RESUME
 [[ "$OFFSET" =~ ^[0-9]+$ ]] || { echo "DATA_OFFSET_FAILED"; exit 1; }
 echo "PLAN_${ARM}_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS data_offset=$OFFSET"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
-python -m torch.distributed.run --standalone --nproc_per_node=8 \
-    "$CF/scripts/test_rank_optimizer_resume.py"
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
 set +e

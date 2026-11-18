@@ -7,27 +7,18 @@
     "fix_training_data_order": true,
     "optimizer": {
         "_class_name": "torch.optim.AdamW",
-        "lr": 2e-05,
+        "lr": 0.0001,
         "weight_decay": 0.01
     },
     "pipeline": {
         "_class_name": "dwm_pano.pipelines.ctsd_pano_gs_decoder.PanoGaussianDecoderPipeline",
         "training_config": {
-            "supervision_geometry": "nuscenes6_onebev_stitch",
             "half_height": 256,
             "half_width": 2304,
             "frames_per_step": 4,
-            "frame_sampling": "random",
             "range_dir": "/path/to/pandwm_root/data/train/depth",
             "range_is_source_camera_z": true,
             "range_hole_fill_m": 100.0,
-            "range_min_valid_fraction": 0.5,
-            "camera_origin_warmup_steps": 0,
-            "source_camera_render_height": 360,
-            "source_camera_render_width": 640,
-            "stitch_projection_model": "onebev_legacy",
-            "stitch_seam_erosion_px": 0,
-            "max_calibration_cache_entries": 8,
             "segment_dir": "/path/to/pandwm_root/data/train/seg",
             "dynamic_class_ids": [
                 3,
@@ -47,21 +38,15 @@
             "target_width": 800,
             "canvas_pad_columns": 800,
             "preview_frame_count": 8,
-            "preview_use_temporal_context": false,
-            "evaluation_use_temporal_context": false,
-            "demo_use_temporal_context": false,
             "weight_rgb_l1": 1.0,
-            "weight_perceptual": 0.1,
+            "weight_perceptual": 0.05,
             "perceptual_resolution": [
-                160,
-                2571
+                224,
+                400
             ],
-            "weight_render_depth": 0.002,
-            "weight_range_l1": 0.002,
-            "weight_seg": 0.05,
-            "weight_cross_rgb_l1": 0.0,
-            "weight_cross_alpha_coverage": 0.0,
-            "cross_ssim_weight": 0.0,
+            "weight_render_depth": 0.01,
+            "weight_range_l1": 0.01,
+            "weight_seg": 0.1,
             "max_norm_for_grad_clip": 1.0,
             "near_plane": 0.1,
             "far_plane": 400.0
@@ -74,20 +59,85 @@
             "near": 0.5,
             "far": 400.0,
             "scale_base": 0.01,
-            "scale_max": 5.0,
-            "temporal_delta_enabled": true,
-            "temporal_delta_hidden_channels": 32,
-            "use_camera_origins": true,
-            "ray_embedding_mode": "plucker"
+            "scale_max": 5.0
         },
-        "initial_decoder_checkpoint_path": "/path/to/pandwm_root/runs/gs_nuscenes6_stitch_g2/checkpoints/2500.pth",
-        "latent_domain_adaptation": {
-            "enabled": true,
-            "cache_dir": "/path/to/pandwm_root/cache/stage2_train_g2_smoke",
+        "latent_refinement": {
+            "enabled": false,
             "probability": 0.5,
-            "strict": true,
-            "supervise_geometry": false,
-            "vae_decode_batch": 2
+            "noise_timestep_min": 250,
+            "noise_timestep_max": 750,
+            "denoise_steps": 1,
+            "checkpoint_path": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+            "uncond_conditions_path": "/path/to/pandwm_root/ckpts/sd35_uncond_conditions.pt",
+            "num_train_timestep": 1000,
+            "common_config": {
+                "frame_prediction_style": "ctsd",
+                "cat_condition": true,
+                "cond_with_action": false,
+                "condition_on_all_frames": true,
+                "explicit_view_modeling": true
+            },
+            "model": {
+                "_class_name": "dwm_pano.models.crossview_temporal_dit_pano.DiTCrossviewTemporalConditionModel",
+                "attention_head_dim": 64,
+                "caption_projection_dim": 1536,
+                "in_channels": 16,
+                "joint_attention_dim": 4096,
+                "num_attention_heads": 24,
+                "num_layers": 24,
+                "out_channels": 16,
+                "patch_size": 2,
+                "pooled_projection_dim": 2048,
+                "pos_embed_max_size": 192,
+                "sample_size": 128,
+                "perspective_modeling_type": "explicit",
+                "enable_crossview": true,
+                "crossview_attention_type": "rowwise",
+                "crossview_block_layers": [
+                    1,
+                    5,
+                    9,
+                    13,
+                    17,
+                    21
+                ],
+                "crossview_gradient_checkpointing": false,
+                "enable_temporal": true,
+                "temporal_attention_type": "full",
+                "temporal_block_layers": [
+                    1,
+                    5,
+                    9,
+                    13,
+                    17,
+                    21
+                ],
+                "temporal_gradient_checkpointing": false,
+                "mixer_type": "AlphaBlender",
+                "merge_factor": 2,
+                "condition_image_adapter_config": {
+                    "in_channels": 6,
+                    "channels": [
+                        1536,
+                        1536,
+                        1536,
+                        1536,
+                        1536,
+                        1536
+                    ],
+                    "is_downblocks": [
+                        true,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false
+                    ],
+                    "num_res_blocks": 2,
+                    "downscale_factor": 8,
+                    "use_zero_convs": true
+                }
+            }
         }
     },
     "training_dataset": {
@@ -202,9 +252,9 @@
     },
     "training_dataloader": {
         "batch_size": 1,
-        "num_workers": 1,
-        "prefetch_factor": 1,
-        "persistent_workers": false
+        "num_workers": 12,
+        "prefetch_factor": 4,
+        "persistent_workers": true
     },
     "validation_dataloader": {
         "batch_size": 1,
@@ -221,8 +271,9 @@
         "persistent_workers": true
     },
     "informations": {
-        "stage": "gs_decoder_g2_ft_appearance_stage2mix_smoke1",
-        "parent_checkpoint": "/path/to/pandwm_root/runs/gs_nuscenes6_stitch_g2/checkpoints/2500.pth",
-        "notes": "One-step end-to-end cache/target/loss smoke only."
+        "stage": "gs_decoder_video_v1_production",
+        "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
+        "notes": "Production GS decoder run: P2b winner recipe (weight_render_depth=0.01 + weight_range_l1=0.01) trained fresh to 15000 steps for P2 parity. P2b arm B stopped at 7500 (ablation budget) with RGB still climbing. Resume-from-7500 was rejected: fix_training_data_order=True pins set_epoch(0) every epoch, so resuming replays samples 0..7500 of the 13846-item train set and never reaches the remaining 46%. ",
+        "parent_config": "gs_decoder_p2b_rd0p01_rl0p01.json"
     }
 }

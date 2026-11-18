@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=240G
 #SBATCH --time=06:00:00
-#SBATCH --exclude=ACD1-28
 #SBATCH --output=%x_%j.log
 #
 # Paired production run (submit both with the same settings):
@@ -26,7 +25,7 @@ MAX_TRACKS=${MAX_TRACKS:-96}
 BAD_TIMESTAMP_US=${BAD_TIMESTAMP_US:-1531884295049111}
 H=/path/to/pandwm_root
 P=$H/pandwm_code/PanDWM
-CFG_SRC=$P/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+CFG_SRC=$P/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 STUDENT=$H/pandwm_data/cd_10000_ema.pth
 TEACHER=$H/pandwm_data/stage1_causal_20000.pth
 
@@ -56,7 +55,7 @@ test ! -e "$RUN" || { echo "refusing to overwrite $RUN" >&2; exit 2; }
 mkdir -p "$RUN/log" "$RUN/torchinductor_cache"
 CFG=$RUN/log/box_track_config.json
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}

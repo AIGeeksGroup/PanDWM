@@ -5,7 +5,7 @@ sharpness of the generated half vs the GT half of gt_vs_generated.mp4, per 16-fr
 arm's videos), so 8-scene seed-42 numbers reproduce long3_drift*.json exactly.  "late" = windows 7-12.
   python3 long4_arms.py <root> <out.json> --scenes 0 14 ... --seeds 42 43 --arms A B ... [--ref v83h2000]
 Videos are read from <root>/<arm>_scene<idx>_seed<seed>.
-Gate (eval_v7/V82_EVAL_HPC3.md section 25), for every arm other than --ref:
+Gate, for every arm other than --ref:
   L1  mean late sharp/GT over all scene x seed videos >= 0.95
   L2  every scene (mean over seeds) late sharp/GT >= the reference's value for that scene - 0.15
   L3  mean late change/GT over all videos >= 0.95

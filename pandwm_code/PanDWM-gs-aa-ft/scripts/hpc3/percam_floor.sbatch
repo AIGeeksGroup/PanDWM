@@ -22,12 +22,12 @@ esac
 echo "ITEMS=$ITEMS WIDTHS=$WIDTHS"
 H=/path/to/pandwm_root
 P=$H/pandwm_code/PanDWM
-CFG=$P/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
+CFG=$P/configs/ctsd/pandwm/local/cd_eval_hpc3.json
 RUN=$H/pandwm_runs/percam_floor_items${ITEMS}
 [ -f "$CFG" ] || { echo "missing: $CFG"; exit 1; }
 echo "=== $(hostname) ==="; nvidia-smi --query-gpu=name,memory.free --format=csv,noheader
 
-source /share/anaconda3/bin/activate pytorch271
+source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$P/src:$H/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=1 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export PANDWM_PANO_BLEND_W=0

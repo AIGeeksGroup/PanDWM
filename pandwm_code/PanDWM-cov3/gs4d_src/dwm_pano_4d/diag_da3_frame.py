@@ -1,4 +1,4 @@
-"""Smoke / diagnostic for da3_depth.py (report section 40) on one labelled p2 clip.
+"""Smoke / diagnostic for da3_depth.py on one labelled p2 clip.
 
 Runs DA3 on frames (0, gap, 2 gap) of clip --clip (original frames and their VAE round trip), compares both
 scales with the depth label on the decoder grid (log error overall and per row band, sky agreement) and writes

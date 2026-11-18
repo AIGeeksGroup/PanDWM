@@ -5,7 +5,7 @@
 #   (BR=I: tag v84i<step>, Dev-78 label i<step>; BR=K: tag v84k<step>, label k<step>; default BR=J)
 #   AN_ARMS="..." overrides the Dev-76-L analysis arms (default: v84i4250 <tag> <tag>raw v83h4000; for BR=K
 #   v84i4500 v84i4500raw <tag> <tag>raw v84i4250, i.e. K is compared with I 4500, the same start and steps).
-# watch_v84.sh with the long-video part moved to Dev-76-L (the user's decision of report section 27.9):
+# watch_v84.sh with the long-video part moved to Dev-76-L:
 #   - the same 8-task generation array, fin1, Dev-78 metrics (LABEL j<step>, i<step> or k<step>) and login-node flicker_diag;
 #   - Dev-76-L rollouts of the EMA weights (tag v85j<step>) and of the raw weights (v85j<step>raw), 4 array tasks
 #     each (scripts/long_video_dev76.sbatch, CHUNK 19), then scripts/long_dev76_analyze.sbatch for

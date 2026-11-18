@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dev-76-L analysis (report section 27.9): features of every listed arm (76 scenes, seed 42, 10 windows),
+# Dev-76-L analysis: features of every listed arm (76 scenes, seed 42, 10 windows),
 # then eval_v7/long_analyze2.py with Test-L-like buckets and the split-half real reference.
 #   ARMS="v84i4250 v83h4000" OUTNAME=dev76_analyze_4250 sbatch --dependency=afterany:<rollouts> scripts/long_dev76_analyze.sbatch
 #SBATCH --job-name=pandwm_l76an
@@ -12,7 +12,6 @@
 #SBATCH --mem=160G
 #SBATCH --time=04:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
-#SBATCH --exclude=ACD1-3,ACD1-50,ACD1-54,ACD1-56,ACD1-58
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/PanDWM_eval149
