@@ -14,7 +14,7 @@ def build_config(base: dict, teacher: str, mesh_size: int, eval_items: int):
     train_base.update({
         # h20's local rgb_dir only mirrors the 85-scene smoke subset (not the
         # full 700-scene train split); train_with_bid_caption.pkl indexes all
-        # 700 and was verified (2026-08-29) to hit missing-file errors on
+        # 700 and was verified to hit missing-file errors on
         # every batch. train_smoke.pkl's 19795 timestamps are 100% present.
         "pkl_path": (
             "/path/to/pandwm_root/data/pickle/"

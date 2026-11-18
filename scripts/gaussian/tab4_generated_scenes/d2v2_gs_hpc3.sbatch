@@ -8,34 +8,34 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2_20261031/logs/%x_%A_%a.log
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
 #SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# 2026-10-31 D2 v2 GS side (PanDWM-d2-refiner-20261021/D2V2_PLAN_20261031.md section 3), PanDWM-ft3-20261030 code copy.
+# D2 v2 GS side (PanDWM-d2-refiner/D2V2_PLAN.md section 3), PanDWM-ft3 code copy.
 #   MODE=export [SET=dev] sbatch --array=0-5 d2v2_gs_hpc3.sbatch      export packs (0, +-1, +-2, +-4 m) for GS-Dev 78
 #   MODE=eval TAG=<name> [REFINED=<dir>] sbatch --array=0-5 d2v2_gs_hpc3.sbatch ; MODE=eval TAG=<name> MERGE=1 sbatch ...
-#   SET=test: Test-S 71 (clips 1, 4, ..., 211 of tests_20261018/v84i4250_s42, fps-stride 10,5)
+#   SET=test: Test-S 71 (clips 1, 4, ..., 211 of tests/v84i4250_s42, fps-stride 10,5)
 #   SET=testext: the 12 clips 214, 217, ..., 247 that extend Test-S to the 83 clips of tab:gs_gen
 set -uo pipefail
-source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d-20261002/scripts_hpc3/common_env_hpc3.sh
-source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d-20261002/scripts_hpc3/da3_env_hpc3.sh
+source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh
+source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/da3_env_hpc3.sh
 export MASTER_PORT=$(( 20000 + (${SLURM_JOB_ID} + ${SLURM_ARRAY_TASK_ID:-0}) % 20000 ))
 export PANDWM_PANO_BLEND_W=128
-OV=$DR/pandwm_code/PanDWM-ft3-20261030
+OV=$DR/pandwm_code/PanDWM-ft3
 export PYTHONPATH=$OV/gs4d_src:$OV/gsaa_src:$PYTHONPATH
-R=$DR/pandwm_runs/d2v2_20261031
+R=$DR/pandwm_runs/d2v2
 CK=${CKPT:-$RUNS/ft3/G3b/2000.pth}
 VAL_PKL=$DR/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
 I3D=$DR/pandwm_code/TATS_fvd/i3d_pretrained_400.pt
 SET=${SET:-dev}
 if [ "$SET" = dev ]; then
   LIST=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,42,43,44,45,46,47,48,52,58,59,63,64,67,68,73,79,84,85,91,95,100,102,105,106,108,110,117,121,122,123,127,132,135,140,146,147,148
-  CLIPS=$DR/pandwm_runs/eval149_hpc3_v83_20261012/v84i4250; FS=10,20
+  CLIPS=$DR/pandwm_runs/eval149_hpc3_v83/v84i4250; FS=10,20
 elif [ "$SET" = testext ]; then                   # 11-01: the 12 tab:gs_gen ext83 clips (tests_ext36, offset 10 s)
   LIST=214,217,220,223,226,229,232,235,238,241,244,247
-  CLIPS=$DR/pandwm_runs/tests_ext_20261024/v84i4250_s42; FS=10,5
+  CLIPS=$DR/pandwm_runs/tests_ext/v84i4250_s42; FS=10,5
 else
   LIST=$(python3 -c "print(','.join(map(str, range(1, 213, 3))))")
-  CLIPS=$DR/pandwm_runs/tests_20261018/v84i4250_s42; FS=10,5
+  CLIPS=$DR/pandwm_runs/tests/v84i4250_s42; FS=10,5
 fi
 [ -n "${CLIP_LIST:-}" ] && LIST=$CLIP_LIST                 # smoke: an explicit clip subset
 N=$(echo $LIST | tr ',' '\n' | grep -c .)

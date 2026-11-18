@@ -47,15 +47,15 @@ This release is the code that produced the paper results, as it ran on our SLURM
 
 | Folder | Contents |
 |---|---|
-| `pandwm_code/PanDWM_long_horizon_20260928` | Model (`dwm_pano/models/crossview_temporal_dit_pano.py`), base pipelines, OpenDWM `dwm` package, data loading, teacher rollouts |
-| `pandwm_code/PanDWM-cfdmd-A-20261008` | Student distillation (`src/dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), training configs, job scripts for training and generation |
-| `pandwm_code/PanDWM_eval149_20261011` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
+| `pandwm_code/PanDWM_long_horizon` | Model (`dwm_pano/models/crossview_temporal_dit_pano.py`), base pipelines, OpenDWM `dwm` package, data loading, teacher rollouts |
+| `pandwm_code/PanDWM-cfdmd-A` | Student distillation (`src/dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), training configs, job scripts for training and generation |
+| `pandwm_code/PanDWM_eval149` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
 | `pandwm_code/PanDWM-gs-aa-ft` | 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`) and its early training stages |
-| `pandwm_code/PanDWM-gs4d-20261002` | 4D Gaussian decoder training (`dwm_pano_4d`) and its configs |
-| `pandwm_code/PanDWM-ft3-20261030` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation |
-| `pandwm_code/PanDWM-cov3-20261101` | Reconstruction evaluation: scene builder (`gs_scene_v3.py`), targets, masks, renderer and scorer (`dwm_pano/recon/`) |
-| `pandwm_code/PanDWM_d2_refiner_20261021` | Render refiner (model, data, training, `d2_refine.py`) |
-| `pandwm_code/PanDWM-fuse-20261031` | Multi-view consistency check (`consistency_eval.py` only) |
+| `pandwm_code/PanDWM-gs4d` | 4D Gaussian decoder training (`dwm_pano_4d`) and its configs |
+| `pandwm_code/PanDWM-ft3` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation |
+| `pandwm_code/PanDWM-cov3` | Reconstruction evaluation: scene builder (`gs_scene_v3.py`), targets, masks, renderer and scorer (`dwm_pano/recon/`) |
+| `pandwm_code/PanDWM_d2_refiner` | Render refiner (model, data, training, `d2_refine.py`) |
+| `pandwm_code/PanDWM-fuse` | Multi-view consistency check (`consistency_eval.py` only) |
 | `scripts/gaussian/` | Job scripts for the reconstruction table, the generated-scene table and the refiner |
 | `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
 
@@ -67,14 +67,14 @@ PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes,
 
 1. **Panoramas and conditions.** The panoramic bands (`rgb/`) and the stitched 3D-box and HD-map conditions (`bbox/`, `hdmap/`) come from the preprocessed releases [`zeyuren2002/nuscene-360_train`](https://huggingface.co/datasets/zeyuren2002/nuscene-360_train) (revision `72a55450`) and [`zeyuren2002/nuscene_360_val`](https://huggingface.co/datasets/zeyuren2002/nuscene_360_val).
 2. **12 Hz index files.** Training uses `nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl` from [`Arlolo0/OmniNWM`](https://huggingface.co/Arlolo0/OmniNWM) (revision `223f11f1`). Evaluation uses our copy of `nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl` (SHA-256 `66aa82b0…`), which differs from the public file of the same name. TODO: release location.
-3. **Evaluation clips.** The clip lists are in `pandwm_code/PanDWM_eval149_20261011/`:
+3. **Evaluation clips.** The clip lists are in `pandwm_code/PanDWM_eval149/`:
 
 | Set | Clips | Manifest |
 |---|---|---|
-| Val-150 | First 3.5 s of the 150 validation scenes | `dev149_manifest_20261018.json` + `scene0018_manifest_20261019.json` |
-| Dev-78 | First 3.5 s of 78 validation scenes | `dev78_manifest_20261018.json` |
-| Test-S | 249 clips (83 scenes, 5 / 10 / 15 s) | `tests249_manifest_20261024.json` |
-| Test-L | 83 scenes, 3 + 12 × 16 frames | `testl83_long12_20261024.json` |
+| Val-150 | First 3.5 s of the 150 validation scenes | `dev149_manifest.json` + `scene0018_manifest.json` |
+| Dev-78 | First 3.5 s of 78 validation scenes | `dev78_manifest.json` |
+| Test-S | 249 clips (83 scenes, 5 / 10 / 15 s) | `tests249_manifest.json` |
+| Test-L | 83 scenes, 3 + 12 × 16 frames | `testl83_long12.json` |
 
 ## ⚙️ Environment Setup
 
@@ -112,7 +112,7 @@ The Gaussian decoder config sets `initial_decoder_checkpoint_path` to an earlier
 
 ## 🚀 Training
 
-Training proceeds in the stages described in the paper and its supplementary material. Job scripts are in `pandwm_code/PanDWM-cfdmd-A-20261008/scripts/`.
+Training proceeds in the stages described in the paper and its supplementary material. Job scripts are in `pandwm_code/PanDWM-cfdmd-A/scripts/`.
 
 ### Stage 1: Causal Teacher and Consistency Distillation
 
@@ -133,18 +133,18 @@ The training entry is `scripts/train_resumable_v7.py` (8 GPUs, `torch.distribute
 
 ### Stage 3: Gaussian Decoder
 
-The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2000 steps) is `pandwm_code/PanDWM-ft3-20261030/configs/gs4dd_hpc2_ft3_G3b.json` with `scripts/train_ft3_hpc2.sbatch` (`ARM=G3b`). Its 4D pipelines inherit `pipeline.py` → `pipeline_depth.py` → `pipeline_da3.py` → `pipeline_relabel.py` in `gs4d_src/dwm_pano_4d/`.
+The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2000 steps) is `pandwm_code/PanDWM-ft3/configs/gs4dd_hpc2_ft3_G3b.json` with `scripts/train_ft3_hpc2.sbatch` (`ARM=G3b`). Its 4D pipelines inherit `pipeline.py` → `pipeline_depth.py` → `pipeline_da3.py` → `pipeline_relabel.py` in `gs4d_src/dwm_pano_4d/`.
 
 ### Stage 4: Render Refiner
 
-`scripts/gaussian/render_refiner/train_d2.sbatch` with `pandwm_code/PanDWM_d2_refiner_20261021/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
+`scripts/gaussian/render_refiner/train_d2.sbatch` with `pandwm_code/PanDWM_d2_refiner/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
 
 ## 🤖 Inference
 
 Generate Test-S clips with the released student (stochastic four-step sampler, steps `[1000, 750, 500, 250]`, blend width 128, seed 42):
 
 ```bash
-cd pandwm_code/PanDWM-cfdmd-A-20261008
+cd pandwm_code/PanDWM-cfdmd-A
 TAG=v84i4250 CKPT=/path/to/pandwm_video_v84i4250_ema.pth SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch
 ```
 

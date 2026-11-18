@@ -15,7 +15,7 @@ PANDWM=/path/to/pandwm_root/workspace/PanDWM
 ONEBEV_STITCH=/path/to/pandwm_root/workspace/OneBEV/tools/stitch
 
 CFG=$OPENDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_eval16gpu.json
-OUT=${OUT:-/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010}
+OUT=${OUT:-/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa}
 STEP=${STEP:-12000}
 
 JOBID=${JOBID:-15151}

@@ -1,4 +1,4 @@
-"""Lateral-shift FID / FVD of the GS renders of the 149 review clips (2026-10-19, report section 40, item A).
+"""Lateral-shift FID / FVD of the GS renders of the 149 review clips (report section 40, item A).
 
 The FreeVS / WorldSplat / DiST-4D novel-trajectory protocol on our panorama: every frame's Gaussians (the v2 review
 scene, or a v3 variant of gs_scene_v3.SceneOptions) are rendered at the six real nuScenes cameras with the ego
@@ -12,7 +12,7 @@ Also per arm: coverage = mean fraction of stitch-valid pixels with alpha > 0.5 b
 
 Metric states are saved after every clip (--state) so a run can be split over array tasks and merged (--merge).
 
-2026-10-23 (Table 5, generated Test-S scenes): --fps-stride 10,5 enumerates the Test-S clips (tests213 manifest),
+(Table 5, generated Test-S scenes): --fps-stride 10,5 enumerates the Test-S clips (tests213 manifest),
 --expected-clips sets the clip count of the final report, --box-reading / --camera-time-poses select the fixed 4D
 scene of section 44, and --depth-pack adds AbsRel / RMSE / delta1 of the 0 m 4D render against the recorded LiDAR
 (recon/gen_depth_pack.py): the six real cameras of each pack frame are rendered at --depth-res, the expected depth is
@@ -88,7 +88,7 @@ def parse_args():
     p.add_argument("--depth-pack", type=Path, default=None)
     p.add_argument("--depth-res", default="224x400")
     p.add_argument("--da3-window", choices=["frame", "clip"], default="frame",
-                   help="clip = one DA3 pass per clip (GS_CLIPDEPTH_PLAN_20261026.md V1)")
+                   help="clip = one DA3 pass per clip (GS_CLIPDEPTH_PLAN.md V1)")
     p.add_argument("--da3-chunk", type=int, default=0, help="clip mode: chunk length in frames, 0 = one pass")
     p.add_argument("--da3-fuse", action="store_true", help="clip mode: static depth fusion (V2)")
     return p.parse_args()
@@ -216,7 +216,7 @@ def main():
     scene_desc = {k: getattr(opts, k) for k in ("edge_rel_h", "edge_rel_v", "window", "ownership",
                                                  "own_include_current", "da3_relabel", "sky_layer", "da3_mode",
                                                  "drop_bottom_rows", "box_reading")}
-    if args.da3_window != "frame":                  # 2026-10-26: recorded only when used (old reports unchanged)
+    if args.da3_window != "frame":                  # recorded only when used (old reports unchanged)
         scene_desc.update({k: getattr(opts, k) for k in ("da3_window", "da3_chunk", "da3_fuse", "fuse_offsets",
                                                           "fuse_tol_rel")})
     if args.da3_mode == "lowfreq":

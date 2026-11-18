@@ -1,4 +1,4 @@
-"""v3 review renders of the 149 eval clips (2026-10-19, report section 40).
+"""v3 review renders of the 149 eval clips (report section 40).
 
 The four videos of export_gs_v2_clips.py with the same names, views and finishing (depth-edge filter, max-scale
 cap, nearby-frame static fill, --bg-fill sky / ground colours, push-pull hole fill), but the scene comes from

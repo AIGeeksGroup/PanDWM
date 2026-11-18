@@ -231,6 +231,6 @@
     "informations": {
         "stage": "gs_decoder_video_v1",
         "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
-        "notes": "H20 P2 depth-supervised run per docs/plans/2026-08-06-h20-p2-gs-training-plan.md. The P1 zero-range shim is removed because real h5 range supervision is enabled. decoder.scale_max=5.0 remains enabled to bound untrained splat scales; latent refinement remains disabled."
+        "notes": "H20 P2 depth-supervised run per docs/plans/-h20-p2-gs-training-plan.md. The P1 zero-range shim is removed because real h5 range supervision is enabled. decoder.scale_max=5.0 remains enabled to bound untrained splat scales; latent refinement remains disabled."
     }
 }

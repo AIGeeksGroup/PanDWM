@@ -3,12 +3,12 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=48G
 #SBATCH --time=03:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b_20261101/logs/%x_%A_%a.log
-# 2026-11-01 G3b tab:gs_recon scores: gs_recon_ext249_20261024/scripts/ext_score.sbatch with this run's job file, the
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b/logs/%x_%A_%a.log
+# G3b tab:gs_recon scores: gs_recon_ext249/scripts/ext_score.sbatch with this run's job file, the
 # unchanged scorer (snapshot score.py, md5 3bc20a25...) on CPU.   JOBFILE=<file> sbatch --array=0-11 g3b_score.sbatch
 set -uo pipefail
 source $HOME/pandwm_env.sh
-X=$HOME/pandwm_runs/gs_recon_ext249_20261024
+X=$HOME/pandwm_runs/gs_recon_ext249
 mapfile -t ALL < <(grep -v '^#' ${JOBFILE:?JOBFILE} | grep -v '^\s*$')
 read -r M RS T MK RR SMP OUTF <<< "${ALL[${SLURM_ARRAY_TASK_ID:-0}]}"
 [ "$SMP" = "-" ] && SMP=""

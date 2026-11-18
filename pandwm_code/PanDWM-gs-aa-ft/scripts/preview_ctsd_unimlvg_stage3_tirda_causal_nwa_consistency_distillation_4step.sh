@@ -17,7 +17,7 @@ PANDWM=/path/to/pandwm_root/workspace/PanDWM
 ONEBEV_STITCH=/path/to/pandwm_root/workspace/OneBEV/tools/stitch
 
 CFG=$OPENDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation.json
-RUN=${RUN:-/path/to/pandwm_root/OpenDWM/runs/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation_20260521_023203}
+RUN=${RUN:-/path/to/pandwm_root/OpenDWM/runs/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation}
 STEP=${STEP:-4000}
 EMA=${EMA:-0}
 SCENE_INDEX=${SCENE_INDEX:-0}

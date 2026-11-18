@@ -4,16 +4,16 @@ PanDWM is trained on the nuScenes train split (700 scenes) and evaluated on the 
 
 ## Expected layout
 
-The configs and job scripts read data from `$ROOT/pandwm_data/` and `$ROOT/pandwm_full_train_700_20260929/` (`ROOT=/path/to/pandwm_root`):
+The configs and job scripts read data from `$ROOT/pandwm_data/` and `$ROOT/pandwm_full_train_700/` (`ROOT=/path/to/pandwm_root`):
 
 ```text
 pandwm_data/
   stable-diffusion-3.5-medium/                                # VAE and text encoders
   nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl          # validation index (evaluation)
   rgb/      bbox/      hdmap/                                  # validation panoramas and conditions
-pandwm_full_train_700_20260929/
+pandwm_full_train_700/
   rgb/      bbox/      hdmap/                                  # train panoramas and conditions
-pandwm_recovered_metadata_20260929/
+pandwm_recovered_metadata/
   nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl        # train index
 ```
 
@@ -35,18 +35,18 @@ Each index entry holds the six camera calibrations, the ego pose, the 12 Hz inte
 
 ## Evaluation clips
 
-The clip lists are in `pandwm_code/PanDWM_eval149_20261011/`. Clips are 35 frames at 10 Hz (3 recorded history frames and two 16-frame windows), except Test-L.
+The clip lists are in `pandwm_code/PanDWM_eval149/`. Clips are 35 frames at 10 Hz (3 recorded history frames and two 16-frame windows), except Test-L.
 
 | Set | Use | File |
 |---|---|---|
-| Val-150 | Comparison with other video models | `dev149_manifest_20261018.json` (149 scenes) + `scene0018_manifest_20261019.json` |
-| Dev-78 | Ablations and checkpoint selection | `dev78_manifest_20261018.json` |
-| Test-S | Test-set check and both Gaussian tables | `tests249_manifest_20261024.json` (= `tests213_manifest_20261018.json` + `tests_ext36_manifest_20261024.json`) |
-| Test-L | Long videos, 3 recorded + 12 × 16 generated frames | `review149_test71_long12_20261016.json` + `testl_ext12_long12_20261024.json` (`testl83_long12_20261024.json` lists all 83) |
+| Val-150 | Comparison with other video models | `dev149_manifest.json` (149 scenes) + `scene0018_manifest.json` |
+| Dev-78 | Ablations and checkpoint selection | `dev78_manifest.json` |
+| Test-S | Test-set check and both Gaussian tables | `tests249_manifest.json` (= `tests213_manifest.json` + `tests_ext36_manifest.json`) |
+| Test-L | Long videos, 3 recorded + 12 × 16 generated frames | `review149_test71_long12.json` + `testl_ext12_long12.json` (`testl83_long12.json` lists all 83) |
 
 The generated-scene Gaussian table uses the 83 Test-S clips that start 10 s into each scene.
 
 ## Other inputs
 
 - **Gaussian decoder training** uses the train index without the 5 held-out labelled scenes (`nuscenes_interp_12Hz_infos_train_minus_holdout5.pkl`, 695 scenes).
-- **LiDAR depth** for the depth metrics comes from the official nuScenes LiDAR data (`dwm_pano/recon/` in `PanDWM-cov3-20261101`; `gen_depth_pack.py` packs it for the generated scenes).
+- **LiDAR depth** for the depth metrics comes from the official nuScenes LiDAR data (`dwm_pano/recon/` in `PanDWM-cov3`; `gen_depth_pack.py` packs it for the generated scenes).

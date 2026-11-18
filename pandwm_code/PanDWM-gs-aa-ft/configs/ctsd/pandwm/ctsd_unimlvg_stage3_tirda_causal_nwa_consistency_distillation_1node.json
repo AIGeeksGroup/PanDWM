@@ -190,7 +190,7 @@
             }
         },
         "pretrained_model_name_or_path": "/path/to/pandwm_root/OpenDWM/ckpts/stable-diffusion-3.5-medium",
-        "model_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010/checkpoints/16000.pth",
+        "model_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa/checkpoints/16000.pth",
         "metrics": {
             "fid": {
                 "_class_name": "torchmetrics.image.fid.FrechetInceptionDistance",
@@ -202,7 +202,7 @@
                 "sequence_count": 16
             }
         },
-        "generator_ckpt": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010/checkpoints/16000.pth",
+        "generator_ckpt": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa/checkpoints/16000.pth",
         "generator_fsdp_wrap_strategy": "size",
         "real_score_fsdp_wrap_strategy": "size",
         "fake_score_fsdp_wrap_strategy": "size",
@@ -263,8 +263,8 @@
         "causal": true,
         "is_causal": true,
         "discrete_cd_N": 48,
-        "consistency_teacher_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010/checkpoints/16000.pth",
-        "consistency_ema_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010/checkpoints/16000.pth",
+        "consistency_teacher_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa/checkpoints/16000.pth",
+        "consistency_ema_checkpoint_path": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa/checkpoints/16000.pth",
         "consistency_discrete_steps": 48,
         "consistency_guidance_scale": 3.0,
         "consistency_ema_decay": 0.99,
@@ -547,7 +547,7 @@
     "informations": {
         "source_config": "/path/to/pandwm_root/workspace/OpenDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation.json",
         "stage": "causal_forcing_plus_plus_consistency_distillation_1node",
-        "initial_causal_checkpoint": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa_20260501_182010/checkpoints/16000.pth",
+        "initial_causal_checkpoint": "/path/to/pandwm_root/OpenDWM/runs/train_ctsd_unimlvg_stage3_tirda_causal_nwa/checkpoints/16000.pth",
         "notes": "1node OpenDWM pano adaptation of Causal-Forcing++ consistency distillation; keeps CTSD pano conditions and causal temporal mask.",
         "official_stage2_config_source": "externals/Causal-Forcing/configs/causal_cd_framewise.yaml",
         "official_stage2_parameters_preserved": true,

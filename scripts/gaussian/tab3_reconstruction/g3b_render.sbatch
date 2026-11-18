@@ -4,26 +4,26 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=100G
 #SBATCH --time=06:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b_20261101/logs/%x_%A_%a.log
-# 2026-11-01 tab:gs_recon with the FT3 G3b decoder (PanDWM-d2-refiner-20261021/CONSIST_PLAN_20261101.md section 5).
-# Settings of gs_recon_ext249_20261024/scripts/ext_ours_render.sbatch (config g2.json, pkl, DA3 weights, render_ours.py
-# modes 3d / 4d, the three resolutions) with the PanDWM-ft3-20261030 code and checkpoint G3b 2000 (md5 18e655d8...):
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b/logs/%x_%A_%a.log
+# tab:gs_recon with the FT3 G3b decoder (PanDWM-d2-refiner/CONSIST_PLAN.md section 5).
+# Settings of gs_recon_ext249/scripts/ext_ours_render.sbatch (config g2.json, pkl, DA3 weights, render_ours.py
+# modes 3d / 4d, the three resolutions) with the PanDWM-ft3 code and checkpoint G3b 2000 (md5 18e655d8...):
 #   3d: scene overrides {"plane_offset_px": 1.0}            (single frame, per-frame DA3 as before)
 #   4d: scene overrides {"da3_window": "clip", "da3_fuse": true, "plane_offset_px": 1.0}   (G3b's V2 scene, frames 0..20)
 # Task k of N renders positions k::N of the 213-clip targets, then of the 36-clip targets, for both modes.
 #   sbatch --array=0-2 g3b_render.sbatch
 set -uo pipefail
 source $HOME/pandwm_env.sh
-H=$HOME; X2=$H/pandwm_runs/gs_recon_g3b_20261101
-F=$H/pandwm_code/PanDWM-ft3-20261030
-CFG=$H/pandwm_runs/long_horizon_20260928/gs_long_demo_20261001/configs/g2.json
-CK=$H/pandwm_runs/gs_ft3_20261030/G3b/checkpoints/2000.pth
+H=$HOME; X2=$H/pandwm_runs/gs_recon_g3b
+F=$H/pandwm_code/PanDWM-ft3
+CFG=$H/pandwm_runs/long_horizon/gs_long_demo/configs/g2.json
+CK=$H/pandwm_runs/gs_ft3/G3b/checkpoints/2000.pth
 PKL=$H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
 DA3H=$H/pandwm_code/third_party/depth_anything_3
-T213=$H/pandwm_runs/gs_recon_20261022/targets.json
-T36=$H/pandwm_runs/gs_recon_ext249_20261024/inputs/targets_ext36.json
+T213=$H/pandwm_runs/gs_recon/targets.json
+T36=$H/pandwm_runs/gs_recon_ext249/inputs/targets_ext36.json
 EXT=/tmp/pandwm_g3b_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID:-0}; rm -rf $EXT; mkdir -p $EXT
-cp -a $H/.cache/pandwm_ext_golden_20261009/gsplat_cuda $EXT/
+cp -a $H/.cache/pandwm_ext_golden/gsplat_cuda $EXT/
 trap 'rm -rf $EXT' EXIT
 export PYTHONPATH=$F/gsaa_src:$F/gs4d_src:$H/pandwm_code/TATS_fvd:$H/pandwm_da3_pkgs/site TORCH_EXTENSIONS_DIR=$EXT
 export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True

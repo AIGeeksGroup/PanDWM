@@ -231,6 +231,6 @@
     "informations": {
         "stage": "gs_decoder_video_v1",
         "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
-        "notes": "H20 P1 smoke config. Latent refinement is disabled. The launcher supplies a guarded zero-range shim because train_step otherwise opens depth h5 files even when both depth loss weights are zero. decoder.scale_max=5.0 clamps world-space splat scales: the unbounded exp scale head of an untrained decoder emitted screen-covering splats whose gsplat isect_tiles buffer OOMed a 95G GPU at step ~190 on 2026-08-05."
+        "notes": "H20 P1 smoke config. Latent refinement is disabled. The launcher supplies a guarded zero-range shim because train_step otherwise opens depth h5 files even when both depth loss weights are zero. decoder.scale_max=5.0 clamps world-space splat scales: the unbounded exp scale head of an untrained decoder emitted screen-covering splats whose gsplat isect_tiles buffer OOMed a 95G GPU at step ~190 ."
     }
 }

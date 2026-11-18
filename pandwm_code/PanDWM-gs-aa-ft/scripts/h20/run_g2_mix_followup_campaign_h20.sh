@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 source "$SCRIPT_DIR/env.sh"
 
-CAMPAIGN_DIR="${CAMPAIGN_DIR:-$PANDWM_ROOT/runs/g2_mix_followup_campaign_20260825}"
+CAMPAIGN_DIR="${CAMPAIGN_DIR:-$PANDWM_ROOT/runs/g2_mix_followup_campaign}"
 BASE_METRICS="$PANDWM_ROOT/runs/gs_nuscenes6_stitch_g2/eval_decode_compare/2500_holdout5/metrics.json"
 MIX500_RUN="$PANDWM_ROOT/runs/gs_g2_ft_appearance_stage2mix500_offset2500"
 mkdir -p "$CAMPAIGN_DIR" "$PANDWM_ROOT/logs"

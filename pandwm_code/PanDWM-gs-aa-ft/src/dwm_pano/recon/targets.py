@@ -1,7 +1,6 @@
-"""Targets of the Gaussian reconstruction table (tab:gs_recon) on Test-S (2026-10-22,
-PanDWM-gs-recon-20261022/RECON_PLAN_20261022.md).
+"""Targets of the Gaussian reconstruction table (tab:gs_recon) on Test-S (PanDWM-gs-recon/RECON_PLAN.md).
 
-For every Test-S clip (tests213_manifest_20261018.json; dataset_index into the frozen eval enumeration: val pkl,
+For every Test-S clip (tests213_manifest.json; dataset_index into the frozen eval enumeration: val pkl,
 35 frames, fps_stride_tuples [[10, 5.0]], the dataset's bad_timestamps_us) the input frame is clip frame 20; the 4D
 history frames are clip frames 0, 5, 10, 15; the targets are
     next   clip frame 21,
@@ -20,7 +19,7 @@ pose, so the transform is exact); the dynamic 3D boxes are given in the info's L
 mmdet3d v0.x (x, y, z, w, l, h, -yaw - pi/2), for the static / all depth split.  "input" carries the same camera
 entries for the input frame itself (the six recorded images the external methods take as input) and its lidar2ego.
 
-    python -m dwm_pano.recon.targets --manifest tests213_manifest_20261018.json --data-pkl <val pkl>
+    python -m dwm_pano.recon.targets --manifest tests213_manifest.json --data-pkl <val pkl>
         --meta-dir <v1.0-trainval> --nusc-root <raw nuScenes root> --out targets.json
 """
 

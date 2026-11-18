@@ -19,13 +19,13 @@ case "$ARM" in baseline|control|self) ;; *) exit 2 ;; esac
 case "$HORIZON" in short|long) ;; *) exit 2 ;; esac
 
 DATA_ROOT=/path/to/pandwm_root
-CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_self_forcing_20260915
+CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_self_forcing
 BASE_CONFIG=$DATA_ROOT/pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
-EVAL_ROOT=$DATA_ROOT/pandwm_runs/self_forcing_stage2_20260915/evaluation
+EVAL_ROOT=$DATA_ROOT/pandwm_runs/self_forcing_stage2/evaluation
 RUN=$EVAL_ROOT/${RUN_TAG}${HORIZON}_${ARM}_seed${SEED}
 CHECKPOINT=$DATA_ROOT/pandwm_data/cd_10000_ema.pth
 if [ "$ARM" != baseline ]; then
-  CHECKPOINT=$DATA_ROOT/pandwm_runs/self_forcing_stage2_20260915/production/$ARM/checkpoints/8000_ema.pth
+  CHECKPOINT=$DATA_ROOT/pandwm_runs/self_forcing_stage2/production/$ARM/checkpoints/8000_ema.pth
 fi
 for path in "$CHECKPOINT" "$BASE_CONFIG"; do
   test -f "$path" || { echo "missing file: $path" >&2; exit 2; }

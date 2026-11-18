@@ -273,7 +273,7 @@
     "informations": {
         "stage": "gs_decoder_video_v1_production",
         "source_stage_checkpoint": "/path/to/pandwm_root/ckpts/cd_10000_ema.pth",
-        "notes": "Production GS decoder run: P2b winner recipe (weight_render_depth=0.01 + weight_range_l1=0.01) trained fresh to 15000 steps for P2 parity. P2b arm B stopped at 7500 (ablation budget) with RGB still climbing. Resume-from-7500 was rejected: fix_training_data_order=True pins set_epoch(0) every epoch, so resuming replays samples 0..7500 of the 13846-item train set and never reaches the remaining 46%. Per docs/plans/2026-08-13-next-steps-campaign-plan.md track 1.",
+        "notes": "Production GS decoder run: P2b winner recipe (weight_render_depth=0.01 + weight_range_l1=0.01) trained fresh to 15000 steps for P2 parity. P2b arm B stopped at 7500 (ablation budget) with RGB still climbing. Resume-from-7500 was rejected: fix_training_data_order=True pins set_epoch(0) every epoch, so resuming replays samples 0..7500 of the 13846-item train set and never reaches the remaining 46%. Per docs/plans/-next-steps-campaign-plan.md track 1.",
         "parent_config": "gs_decoder_p2b_rd0p01_rl0p01.json"
     }
 }

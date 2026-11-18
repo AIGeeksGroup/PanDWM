@@ -1,4 +1,4 @@
-"""D2 refiner inputs for the 149 review clips (2026-10-21, PanDWM-d2-refiner-20261021/D2_PLAN_20261021.md Task 9).
+"""D2 refiner inputs for the 149 review clips (PanDWM-d2-refiner/D2_PLAN.md Task 9).
 
 For every review clip (the v84i4250 generated latents, clips_root/clipNNN/latents.pt) and every signed lateral
 offset dy, the v4 far-view scene (C2 decoder + DA3 scale relabel + drop the 2 bottom decoder rows) is rendered

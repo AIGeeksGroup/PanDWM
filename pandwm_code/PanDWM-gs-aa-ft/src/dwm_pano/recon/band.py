@@ -1,8 +1,8 @@
-"""Band mask of a real nuScenes camera at any resolution (2026-10-22, tab:gs_recon).
+"""Band mask of a real nuScenes camera at any resolution (tab:gs_recon).
 
 The camera pixels whose content the panoramic band holds: the exact inverse of the OneBEV legacy warp that made the
-recorded panoramas, i.e. PanDWM_eval149_20261011/cam_band_feats.py LegacyInverseGeometry (md5 993f0eef; validated
-2026-10-20 against the recorded views: own-column MAE ~1/255, shift 0), with the output size a parameter instead of
+recorded panoramas, i.e. PanDWM_eval149/cam_band_feats.py LegacyInverseGeometry (md5 993f0eef; validated
+against the recorded views: own-column MAE ~1/255, shift 0), with the output size a parameter instead of
 the fixed 256 x 448.  For every output pixel q (native OpenCV index coordinates u = (j + 0.5) * 1600 / W - 0.5,
 v likewise) Newton finds the pano point camera c's legacy warp sends to q, started at the ideal calibrated-sphere
 solution of dwm_pano.nuscenes6_bridge; mask = converged, in front of the camera and inside the band (pre-crop pano

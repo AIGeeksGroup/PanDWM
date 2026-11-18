@@ -5,7 +5,7 @@ This repository contains code from the following projects. Their licenses apply 
 | Component | Location in this repository | License |
 |---|---|---|
 | [OpenDWM](https://github.com/SenseTime-FVG/OpenDWM) (`dwm` package, configs, training framework) | `dwm/` inside each code tree, `pandwm_code/PanDWM-gs-aa-ft/` | MIT, Copyright (c) 2024 SenseTime Research (`LICENSE`) |
-| [LPIPS](https://github.com/richzhang/PerceptualSimilarity) | `pandwm_code/*/vendor/lpips/`, `pandwm_code/PanDWM_long_horizon_20260928/lpips/` | BSD-2-Clause (`LPIPS-LICENSE`) |
+| [LPIPS](https://github.com/richzhang/PerceptualSimilarity) | `pandwm_code/*/vendor/lpips/`, `pandwm_code/PanDWM_long_horizon/lpips/` | BSD-2-Clause (`LPIPS-LICENSE`) |
 | [Causal Forcing](https://github.com/thu-ml/Causal-Forcing) reference files | `dwm_pano/pipelines/causal_forcing_official_reference/` | Apache-2.0 |
 
 External dependencies that are not included and must be obtained separately:

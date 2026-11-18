@@ -1,4 +1,4 @@
-"""Time-synchronised LiDAR for the tab:gs_recon depth metrics (2026-10-22, RECON_PLAN_20261022.md).
+"""Time-synchronised LiDAR for the tab:gs_recon depth metrics (RECON_PLAN.md).
 
 The 12 Hz interpolated infos point most non-keyframe targets at a LiDAR sweep 10-250 ms older than the info, while
 targets.py moved the points with the info's own ego pose.  This picks, for every target, the LIDAR_TOP sample_data

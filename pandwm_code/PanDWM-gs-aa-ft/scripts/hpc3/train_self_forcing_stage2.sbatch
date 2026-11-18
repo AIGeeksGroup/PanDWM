@@ -18,12 +18,12 @@ CURRICULUM_STEPS=${CURRICULUM_STEPS:-2000}
 case "$ARM" in warmup|control|self) ;; *) exit 2 ;; esac
 
 DATA_ROOT=/path/to/pandwm_root
-CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_self_forcing_20260915
+CODE_ROOT=$DATA_ROOT/pandwm_code/PanDWM_self_forcing
 BASE_CONFIG=$DATA_ROOT/pandwm_code/PanDWM/configs/ctsd/pandwm/h20/cd_eval_hpc3.json
 STAGE1=$DATA_ROOT/pandwm_data/stage1_causal_20000.pth
-WARMUP=$DATA_ROOT/pandwm_runs/self_forcing_stage2_20260915/production/warmup/checkpoints/2000_ema.pth
-RUN=$DATA_ROOT/pandwm_runs/self_forcing_stage2_20260915/$RUN_TAG/$ARM
-PARALLEL_SELF_MARKER=$DATA_ROOT/pandwm_runs/self_forcing_stage2_20260915/production/.self_parallel_owner
+WARMUP=$DATA_ROOT/pandwm_runs/self_forcing_stage2/production/warmup/checkpoints/2000_ema.pth
+RUN=$DATA_ROOT/pandwm_runs/self_forcing_stage2/$RUN_TAG/$ARM
+PARALLEL_SELF_MARKER=$DATA_ROOT/pandwm_runs/self_forcing_stage2/production/.self_parallel_owner
 # The original campaign job was submitted as warmup -> control -> self.  When
 # Self-Forcing is delegated to its own one-GPU Slurm job, let that original
 # campaign finish after control instead of launching a duplicate writer for

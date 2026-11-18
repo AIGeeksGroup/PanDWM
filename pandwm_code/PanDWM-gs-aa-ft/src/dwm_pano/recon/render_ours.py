@@ -1,4 +1,4 @@
-"""Our 3D / 4D Gaussian renders of the tab:gs_recon targets (2026-10-22, RECON_PLAN_20261022.md).
+"""Our 3D / 4D Gaussian renders of the tab:gs_recon targets (RECON_PLAN.md).
 
 Scene: the v4 settings (C2 decoder step 3000, DA3 scale relabel, the 2 bottom decoder rows dropped) on the RECORDED
 panoramas of the Test-S clip, VAE posterior-mean latents.  Only clip frames 0..20 enter (frame 20 = input), so no

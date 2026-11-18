@@ -10,8 +10,8 @@
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
-CODE_ROOT=/path/to/pandwm_root/pandwm_code/PanDWM_self_forcing_20260915
-MARKER=/path/to/pandwm_root/pandwm_runs/self_forcing_stage2_20260915/production/.self_parallel_owner
+CODE_ROOT=/path/to/pandwm_root/pandwm_code/PanDWM_self_forcing
+MARKER=/path/to/pandwm_root/pandwm_runs/self_forcing_stage2/production/.self_parallel_owner
 test -f "$MARKER" || { echo "missing delegation marker: $MARKER" >&2; exit 2; }
 echo "parallel Self-Forcing job=$SLURM_JOB_ID host=$(hostname) marker=$(cat "$MARKER")"
 cd "$CODE_ROOT"

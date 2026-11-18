@@ -110,7 +110,7 @@ export PYTHONUNBUFFERED=1
 export TORCHINDUCTOR_CACHE_DIR="$PANDWM_ROOT/torchinductor_cache"
 # eval_4step_h20.sh sets this to reclaim allocator fragmentation on a shared
 # GPU; this training launcher never did, and a 4-rank FSDP backward pass hit
-# "Failed to CUDA calloc async 24 bytes" on 2026-08-29 despite 70GB+ free.
+# "Failed to CUDA calloc async 24 bytes" despite 70GB+ free.
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"

@@ -19,7 +19,7 @@ PANDWM=/path/to/pandwm_root/workspace/PanDWM
 ONEBEV_STITCH=/path/to/pandwm_root/workspace/OneBEV/tools/stitch
 
 CFG=$OPENDWM/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_dmd.json
-RUN=${RUN:-/path/to/pandwm_root/OpenDWM/runs/ctsd_unimlvg_stage3_tirda_causal_nwa_dmd_20260524_062444}
+RUN=${RUN:-/path/to/pandwm_root/OpenDWM/runs/ctsd_unimlvg_stage3_tirda_causal_nwa_dmd}
 STEP=${STEP:-200}
 EMA=${EMA:-0}
 

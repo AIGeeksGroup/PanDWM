@@ -10,7 +10,7 @@
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
-CODE_ROOT=/path/to/pandwm_root/pandwm_code/PanDWM_self_forcing_20260915
+CODE_ROOT=/path/to/pandwm_root/pandwm_code/PanDWM_self_forcing
 cd "$CODE_ROOT"
 echo "campaign_job=$SLURM_JOB_ID host=$(hostname)"
 # Verify that 64-frame FID/FVD fits the same single H100 before committing

@@ -1,10 +1,10 @@
-"""2026-11-01 tab:gs_recon rows of the FT3 G3b decoder on the 249-clip Test-S (CONSIST_PLAN_20261101.md section 5).
+"""tab:gs_recon rows of the FT3 G3b decoder on the 249-clip Test-S (CONSIST_PLAN.md section 5).
 
 The 213-clip and 36-clip per-image rows of each G3b (mode, resolution) are concatenated and aggregated with the
-verbatim copies of score.py's summarize functions in gs_recon_ext249_20261024/scripts/merge_249.py (its own verbatim
+verbatim copies of score.py's summarize functions in gs_recon_ext249/scripts/merge_249.py (its own verbatim
 check is run first).  The stored rows of FINAL_249.json are printed next to the new ones.
 
-    python merge_g3b.py [tag]  (in ~/pandwm_runs/gs_recon_g3b_20261101; tag g3b (default) or g3bs; writes
+    python merge_g3b.py [tag]  (in ~/pandwm_runs/gs_recon_g3b; tag g3b (default) or g3bs; writes
                                FINAL_<TAG>_249.json)
 """
 import json
@@ -12,10 +12,10 @@ import sys
 from pathlib import Path
 
 H = Path.home()
-sys.path.insert(0, str(H / "pandwm_runs/gs_recon_ext249_20261024/scripts"))
+sys.path.insert(0, str(H / "pandwm_runs/gs_recon_ext249/scripts"))
 import merge_249 as m  # noqa: E402
 
-X2 = H / "pandwm_runs/gs_recon_g3b_20261101"
+X2 = H / "pandwm_runs/gs_recon_g3b"
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
                      "1 px with per-frame DA3, 4d = G3b's V2 scene (clip DA3 over frames 0..20 + fusion, plane "
                      "offsets 1 px); renders on A800 at all resolutions; scorer and masks as FINAL_249.json.",
              "columns": [c for c, _, _ in m.COLS], "rows": []}
-    old = json.loads((H / "pandwm_runs/gs_recon_ext249_20261024/FINAL_249.json").read_text())
+    old = json.loads((H / "pandwm_runs/gs_recon_ext249/FINAL_249.json").read_text())
     for mode in ("3d", "4d"):
         for res in ("224x400", "280x518", "352x640"):
             rows = {"image": [], "depth": []}

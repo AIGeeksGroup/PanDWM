@@ -131,7 +131,7 @@ def make_4step_inference(
                 else:
                     # CM-style stochastic multistep: re-noise with an
                     # independent draw. This is the historical default; every
-                    # number reported before 2026-09-01 used it.
+                    # number reported before used it.
                     new_noise = torch.randn(
                         latent_shape, generator=rng
                     ).to(pipeline.device)

@@ -8,23 +8,23 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs_20261023/logs/%x_%A_%a.log
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs/logs/%x_%A_%a.log
 #SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# 2026-10-23 Table 5 (Gaussians on generated Test-S scenes), our row: dwm_pano.eval_gs_shift on the v84i4250 s42
+# Table 5 (Gaussians on generated Test-S scenes), our row: dwm_pano.eval_gs_shift on the v84i4250 s42
 # Test-S generations, fixed 4D scene (section 44: camera-time poses, mmdet3d v0.x boxes) with the v4 settings
 # (C2 step 3000, DA3 scale relabel, 2 bottom rows dropped), shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m
 # render (recon/gen_depth_pack.py).  Task i evaluates clips [i*CHUNK, (i+1)*CHUNK); MERGE=1 merges.
 #   [CHUNK=18] sbatch --array=0-11 tab5_shift_hpc3.sbatch ;  MERGE=1 sbatch tab5_shift_hpc3.sbatch
 set -uo pipefail
-source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d-20261002/scripts_hpc3/common_env_hpc3.sh
-source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d-20261002/scripts_hpc3/da3_env_hpc3.sh
+source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/common_env_hpc3.sh
+source /path/to/pandwm_root/pandwm_code/PanDWM-gs4d/scripts_hpc3/da3_env_hpc3.sh
 export MASTER_PORT=$(( 20000 + (${SLURM_JOB_ID} + ${SLURM_ARRAY_TASK_ID:-0}) % 20000 ))
 export PANDWM_PANO_BLEND_W=128
-OUT=$DR/pandwm_runs/tab5_gen_gs_20261023
+OUT=$DR/pandwm_runs/tab5_gen_gs
 ST=$OUT/states${SUBSET:+_$SUBSET}
 CK=${CKPT:-$RUNS/c2_hpc2/checkpoints/3000.pth}
 VAL_PKL=$DR/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl
-CLIPS=${CLIPS_ROOT:-$DR/pandwm_runs/tests_20261018/v84i4250_s42}
+CLIPS=${CLIPS_ROOT:-$DR/pandwm_runs/tests/v84i4250_s42}
 CHUNK=${CHUNK:-18}
 TASK=${SLURM_ARRAY_TASK_ID:-0}
 S=$(( TASK * CHUNK )); E=$(( S + CHUNK )); if (( E > 213 )); then E=213; fi

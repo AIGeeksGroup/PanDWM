@@ -147,7 +147,7 @@ kept in the per-frame report when interpreting the small mode/sample offset.
   `PanoNuScenesDataset` for RGB/bbox/hdmap, but the actual archives must still
   be checked. It also assumes timestamp basenames do not conflict across
   shards.
-- The public caption zip was inspected from hf-mirror.com on 2026-08-05. It
+- The public caption zip was inspected from hf-mirror.com . It
   contained caption keys of the form
   `scene_token|camera_name|camera_timestamp`; each value had `time`,
   `weather`, `environment`, `objects`, and `image_description`. Confirm that
@@ -215,7 +215,7 @@ Use `scripts/h20/train_gs_smoke_h20.sh`; do not invoke `train.py` directly for
 this depth-free run. A future source change should make the loader and the two
 diagnostics conditional, after which this shim can be removed.
 
-### CRITICAL: splat scale clamp (OOM root cause, found 2026-08-05)
+### CRITICAL: splat scale clamp (OOM root cause, found )
 
 `PanoGaussianDecoder` maps its raw scale head through an unbounded
 `exp(raw) * scale_base`. Before the head has trained, some splats come out
@@ -302,7 +302,7 @@ machines should set `scale_max`.
   only the SD3.5 VAE from the model directory for latent encoding. The
   remapped Stage-2 paths are inactive metadata for this run.
 - The retained `weight_perceptual=0.05` also constructs a frozen LPIPS VGG16.
-  On 2026-08-05, h20 had the small torchmetrics LPIPS linear weights but no
+  On h20 had the small torchmetrics LPIPS linear weights but no
   torchvision VGG16 ImageNet checkpoint in the torch hub cache. Torchvision
   will try to fetch that checkpoint at pipeline startup. Pre-stage it if
   `download.pytorch.org` remains unreachable; do not mistake that download
@@ -344,7 +344,7 @@ machines should set `scale_max`.
 ## P2 GS decoder depth-supervised training and evaluation
 
 Follow the P2 campaign plan in
-`docs/plans/2026-08-06-h20-p2-gs-training-plan.md`. Run all commands below
+`docs/plans/-h20-p2-gs-training-plan.md`. Run all commands below
 from `/path/to/pandwm_root/code/PanDWM`.
 
 ### 1. Release the extracted P1 tar copies
@@ -394,7 +394,7 @@ check_extract_markers \
 }
 ```
 
-Do not remove `aslam_backup_20260805`, bbox, or hdmap data.
+Do not remove `aslam_backup`, bbox, or hdmap data.
 
 ### 2. Stream the depth subset
 

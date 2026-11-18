@@ -1,5 +1,5 @@
-"""GS renders of the review clips at a laterally shifted rig, encoded into video-model latents (2026-10-20, D1 of
-PanDWM-gs4d-20261002/GS_GAP_ANALYSIS_20261020.md, step 1 of 2; step 2 = PanDWM_eval149 d1_sdedit.py on HPC3).
+"""GS renders of the review clips at a laterally shifted rig, encoded into video-model latents (D1 of
+PanDWM-gs4d/GS_GAP_ANALYSIS.md, step 1 of 2; step 2 = PanDWM_eval149 d1_sdedit.py on HPC3).
 
 For every frame of a clip the gs_scene_v3 scene (4D: frame t over the static fill of nearby frames) is rendered at the
 six nuScenes cameras with the ego shifted sideways by dy and stitched with the pipeline's own hard seam into the

@@ -8,19 +8,19 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2_20261031/logs/%x_%A_%a.log
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
 #SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
-# 2026-10-31 D2 v2 (D2V2_PLAN_20261031.md section 3): d2_refine.sbatch with inputs / outputs under
-# pandwm_runs/d2v2_20261031 (SET=dev: inputs_dev, the GS-Dev 78 clips of the 149-clip protocol; SET=test with
-# MANIFEST=tests213_manifest_20261018.json FS=10,5: Test-S).  Copied from:
-# 2026-10-21 D2 refiner inference on the review clips (d2_refine.py; D2_PLAN_20261021.md Tasks 8 / 10 / 11).
+# D2 v2 (D2V2_PLAN.md section 3): d2_refine.sbatch with inputs / outputs under
+# pandwm_runs/d2v2 (SET=dev: inputs_dev, the GS-Dev 78 clips of the 149-clip protocol; SET=test with
+# MANIFEST=tests213_manifest.json FS=10,5: Test-S).  Copied from:
+# D2 refiner inference on the review clips (d2_refine.py; D2_PLAN.md Tasks 8 / 10 / 11).
 #   CK=<run>/checkpoints/1000.pth OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=c2b_drop2]
 #   [NOSTRICT=1 VIDEO=<list>] sbatch --array=0-3 d2_refine.sbatch      (array tasks split the clip list)
 set -uo pipefail
 DR=/path/to/pandwm_root
-D2=$DR/pandwm_code/PanDWM_d2_refiner_20261021
-C=$DR/pandwm_code/PanDWM_eval149_20261011
-R=$DR/pandwm_runs/d2v2_20261031
+D2=$DR/pandwm_code/PanDWM_d2_refiner
+C=$DR/pandwm_code/PanDWM_eval149
+R=$DR/pandwm_runs/d2v2
 PY=$DR/pandwm_venv/bin/python
 export PYTHONPATH=$D2/src:$D2/src_base:$DR/pandwm_code/TATS_fvd
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
@@ -35,7 +35,7 @@ EXTRA=""; [[ ${NOSTRICT:-0} == 1 ]] && EXTRA="--no-strict"
 echo "D2REF_START ck=${CK:?CK} out=${OUT:?OUT} clips=$CL shifts=${SHIFTS:-0,1,-1,2,-2,4,-4} steps=${STEPS:-20} g=${GMODE:-none}/${GSCALE:-1} init=${INIT_SIGMA:-0} seed=${SEED:-42} node=$(hostname) $(date -Is)"
 cd $D2 || exit 1
 $PY d2_refine.py --config ${CONFIG:-$D2/configs/d2v2_hpc3_8gpu.json} --checkpoint $CK $EXTRA \
-  --eval-config $C/cd_eval_frozen149_hpc3.json --manifest $C/${MANIFEST:-dev149_manifest_20261018.json} --fps-stride ${FS:-10,20} \
+  --eval-config $C/cd_eval_frozen149_hpc3.json --manifest $C/${MANIFEST:-dev149_manifest.json} --fps-stride ${FS:-10,20} \
   --inputs $R/inputs_${SET:-dev} --out-root $R/refined_${SET:-dev}/$OUT --clips "$CL" --shifts ${SHIFTS:-0,1,-1,2,-2,4,-4} \
   --steps ${STEPS:-20} --guidance-mode ${GMODE:-none} --guidance-scale ${GSCALE:-1} --init-sigma ${INIT_SIGMA:-0} \
   --video-clips "${VIDEO:-}" --seed ${SEED:-42}

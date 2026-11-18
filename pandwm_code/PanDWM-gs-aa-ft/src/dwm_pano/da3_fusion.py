@@ -1,4 +1,4 @@
-"""Static depth fusion across a clip for the DA3 crops (2026-10-26, GS_CLIPDEPTH_PLAN_20261026.md, arm V2).
+"""Static depth fusion across a clip for the DA3 crops (GS_CLIPDEPTH_PLAN.md, arm V2).
 
 Works in Depth Anything 3's pinhole crop space (dwm_pano_4d/da3_depth.Da3Ranger): F frames x 6 crops of metric
 camera z, crop intrinsics K (pixel centres at i + 0.5), the rig's cam2ego and every frame's ego pose (to frame 0's

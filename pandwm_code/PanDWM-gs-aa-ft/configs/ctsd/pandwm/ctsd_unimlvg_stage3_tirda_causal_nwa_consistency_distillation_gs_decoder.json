@@ -52,7 +52,7 @@
             "noise_timestep_min": 250,
             "noise_timestep_max": 750,
             "denoise_steps": 1,
-            "checkpoint_path": "/local/<user>/nuscene_360_train_model/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation_20260521_023203/checkpoints/10000_ema.pth",
+            "checkpoint_path": "/local/<user>/nuscene_360_train_model/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation/checkpoints/10000_ema.pth",
             "uncond_conditions_path": "/local/<user>/sd35_uncond_conditions.pt",
             "num_train_timestep": 1000,
             "common_config": {
@@ -227,7 +227,7 @@
     },
     "informations": {
         "stage": "gs_decoder_video_v1",
-        "source_stage_checkpoint": "/local/<user>/nuscene_360_train_model/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation_20260521_023203/checkpoints/10000_ema.pth",
+        "source_stage_checkpoint": "/local/<user>/nuscene_360_train_model/ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation/checkpoints/10000_ema.pth",
         "notes": "Video-form GS decoder: same PanoNuScenesDataset flow as the CD stage (bbox/hdmap/caption conditions disabled — the decoder consumes none). Range prior = precomputed pano depth h5 (float16 600x9600, capped 100 m, 0=hole). Validation reuses the train split because val depth h5 does not exist in this environment. BLOCKED until nuscenes v1.0-trainval sample.json lands at nuscenes_meta_dir."
     }
 }

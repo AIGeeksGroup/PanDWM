@@ -1,4 +1,4 @@
-"""Reference frames for Difix on the GS review videos (2026-10-20, Difix line of GS_GAP_ANALYSIS_20261020.md).
+"""Reference frames for Difix on the GS review videos (Difix line of GS_GAP_ANALYSIS.md).
 
 For every review camera of export_gs_v3_clips.py (near rig views chase / sweep / pan, the 3 m compare camera, the far
 chase 4 m behind / 2.5 m up and the +/-2 m sweep), the clip's own generated pano frame (VAE decode of latents.pt) is

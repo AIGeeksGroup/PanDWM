@@ -1,4 +1,4 @@
-"""Scores of tab:gs_recon (2026-10-22, RECON_PLAN_20261022.md), the same for every method.
+"""Scores of tab:gs_recon (RECON_PLAN.md), the same for every method.
 
 Inputs: targets.json, the masks of masks.py, and a method's renders <renders>/<H>x<W>/sample_<NNN>.pt
 ({"targets", "rgb" (n, 6, 3, H, W) uint8, "alpha" (n, 6, H, W) uint8, "depth" (n, 6, H, W) fp16}; a method without

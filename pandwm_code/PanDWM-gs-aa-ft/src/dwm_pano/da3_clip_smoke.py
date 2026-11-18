@@ -1,4 +1,4 @@
-"""Smoke test and temporal diagnostic for clip-level DA3 (2026-10-26, GS_CLIPDEPTH_PLAN_20261026.md sections 1, 5).
+"""Smoke test and temporal diagnostic for clip-level DA3 (GS_CLIPDEPTH_PLAN.md sections 1, 5).
 
 For a few generated Dev clips (eval_gs_shift's clip layout) this computes the DA3 crop depth of every frame three ways:
   V0  the current per-frame windows (t - 4, t, t + 4), each frame with its own ground scale (gs_scene_v3 "frame");

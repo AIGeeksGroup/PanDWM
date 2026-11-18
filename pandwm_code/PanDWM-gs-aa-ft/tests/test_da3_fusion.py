@@ -1,4 +1,4 @@
-"""CPU tests for dwm_pano/da3_fusion.py (2026-10-26, GS_CLIPDEPTH_PLAN_20261026.md section 5).
+"""CPU tests for dwm_pano/da3_fusion.py (GS_CLIPDEPTH_PLAN.md section 5).
 
 Synthetic rig: six pinhole cameras at 1.6 m on the ego origin, yaw 0, 60, ..., 300 deg (camera z forward, x right,
 y down), a scene of four vertical walls 25 m from the start, the ego driving +x at 1 m / frame.

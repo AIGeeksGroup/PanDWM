@@ -2125,7 +2125,7 @@ class CrossviewTemporalSD():
             self.common_config["frame_prediction_style"] == "diffusion_forcing"
         )
         if diffusion_forcing_mode:
-            # Relaxed 2026-04-28 from `>` to `>=` to support single-iteration AR
+            # Relaxed from `>` to `>=` to support single-iteration AR
             # (total_frame_count == sl_per_iter, e.g. our 16-frame clip with
             # sl_per_iter=16 + reference_frame_count=15: 1 iteration generating
             # frame 15 given frames 0-14 as reference). The AR loop body
@@ -2679,7 +2679,7 @@ class CrossviewTemporalSD():
 class PanoCrossviewTemporalSD(CrossviewTemporalSD):
     """2-pano fork of CrossviewTemporalSD.
 
-    Renamed 2026-04-28 from `StreamingCrossviewTemporalSD` (the old name was
+    Renamed from `StreamingCrossviewTemporalSD` (the old name was
     misleading because the class supports BOTH full-clip and streaming
     inference via `inference_config["sequence_length_per_iteration"]`, and
     BOTH bidirectional and causal training/inference via
@@ -2714,7 +2714,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
         self, latent_shape, start_timestep: int = 0, stop_timestep=None,
         take_time: int = 0
     ):
-        # Renamed 2026-04-28 from `inference_pipeline` (which shadowed the parent
+        # Renamed from `inference_pipeline` (which shadowed the parent
         # CrossviewTemporalSD.inference_pipeline at line 1544 with a different
         # signature). Parent's autoregressive_inference_pipeline /
         # evaluate_pipeline / preview_pipeline (else branch) call
@@ -3016,7 +3016,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
             _preview_slot_seed = int(_preview_seed_base) + _split_offset + _slot
             self.generator.manual_seed(_preview_slot_seed)
         try:
-            # Switched 2026-04-28 from `fifo_inference_pipeline` (streaming, asserts
+            # Switched from `fifo_inference_pipeline` (streaming, asserts
             # total_frame_count > sequence_length_per_iteration which fails for
             # full-clip preview where total == sl_per_iter == 16) to
             # `autoregressive_inference_pipeline` — same path the official

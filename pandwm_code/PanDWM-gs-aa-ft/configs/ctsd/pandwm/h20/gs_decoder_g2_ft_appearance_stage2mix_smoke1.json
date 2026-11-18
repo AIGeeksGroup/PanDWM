@@ -83,7 +83,7 @@
         "initial_decoder_checkpoint_path": "/path/to/pandwm_root/runs/gs_nuscenes6_stitch_g2/checkpoints/2500.pth",
         "latent_domain_adaptation": {
             "enabled": true,
-            "cache_dir": "/path/to/pandwm_root/cache/stage2_train_g2_smoke_20260825",
+            "cache_dir": "/path/to/pandwm_root/cache/stage2_train_g2_smoke",
             "probability": 0.5,
             "strict": true,
             "supervise_geometry": false,

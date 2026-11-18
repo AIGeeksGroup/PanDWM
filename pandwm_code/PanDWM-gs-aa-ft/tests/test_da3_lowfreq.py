@@ -1,4 +1,4 @@
-"""CPU tests for dwm_pano/da3_lowfreq.py (2026-10-26, GS_CLIPDEPTH_PLAN_20261026.md section 7.4).
+"""CPU tests for dwm_pano/da3_lowfreq.py (GS_CLIPDEPTH_PLAN.md section 7.4).
 
     PYTHONPATH=src python3 -m pytest -q tests/test_da3_lowfreq.py
 """

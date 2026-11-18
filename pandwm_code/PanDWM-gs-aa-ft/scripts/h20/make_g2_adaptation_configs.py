@@ -108,7 +108,7 @@ def main() -> None:
     smoke_adaptation = copy.deepcopy(
         ARMS["appearance_stage2mix"]["adaptation"])
     smoke_adaptation["cache_dir"] = \
-        "/path/to/pandwm_root/cache/stage2_train_g2_smoke_20260825"
+        "/path/to/pandwm_root/cache/stage2_train_g2_smoke"
     smoke["pipeline"]["latent_domain_adaptation"] = smoke_adaptation
     smoke["training_dataloader"].update({
         "num_workers": 1,

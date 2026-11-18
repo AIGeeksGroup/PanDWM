@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 2026-10-21 D2 refiner training (PanDWM-d2-refiner-20261021/D2_PLAN_20261021.md Tasks 8 / 9 / 11).
+# D2 refiner training (PanDWM-d2-refiner/D2_PLAN.md Tasks 8 / 9 / 11).
 #   TAG=pilot STEPS=1000 CKPT_STEPS=500 sbatch --job-name=pandwm_d2_pilot train_d2.sbatch
 #   SMOKE=1 sbatch --gres=gpu:2 --cpus-per-task=16 --mem=240G --time=01:00:00 --job-name=pandwm_d2_smoke train_d2.sbatch
 #   RESUME_FROM=<step> TAG=<existing run> STEPS=<new max> ... : resume in place (no overwrite check)
@@ -13,12 +13,12 @@
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=480G
 #SBATCH --time=12:00:00
-#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2_refiner_20261021/logs/%x_%j.log
+#SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2_refiner/logs/%x_%j.log
 #SBATCH --exclude=ACD1-3,ACD1-24,ACD1-50,ACD1-54,ACD1-56,ACD1-58,ACD1-59
 set -uo pipefail
 DR=/path/to/pandwm_root
-D2=$DR/pandwm_code/PanDWM_d2_refiner_20261021
-RUNROOT=$DR/pandwm_runs/d2_refiner_20261021/runs
+D2=$DR/pandwm_code/PanDWM_d2_refiner
+RUNROOT=$DR/pandwm_runs/d2_refiner/runs
 PY=$DR/pandwm_venv/bin/python
 SMOKE=${SMOKE:-0}; STEPS=${STEPS:-1000}; CKS=${CKPT_STEPS:-500}; LOGS=${LOG_STEPS:-10}; TAG=${TAG:-pilot}
 RESUME=${RESUME_FROM:-}
