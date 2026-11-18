@@ -43,12 +43,10 @@ Differences from WorldSplat:
 | `make_config.py` | builds configs from the G2-AA config (warm start from its `250.pth`) |
 | `configs/gs4d_hpc2*.json`, `configs/gs4d_hpc3.json` | HPC2 (no depth mirror, depth losses off), HPC3 (`--depth`) |
 | `scripts/*.sbatch` | smoke (debug, 20 steps + 5-clip eval), train (A800), eval |
-| `tests/` | CPU tests: geometry, and box extraction vs the repo's corner convention |
 
 ## Run
 
 ```bash
-python3 tests/test_geometry.py && python3 tests/test_dataset_boxes.py      # local, CPU
 sbatch scripts/smoke_hpc2.sbatch                                            # HPC2 debug
 RUN_TAG=train_v1 STEPS=15000 sbatch scripts/train_hpc2.sbatch               # HPC2 A800
 CHECKPOINT=$HOME/pandwm_runs/gs4d/train_v1/checkpoints/15000.pth NAME=v1_15000 \

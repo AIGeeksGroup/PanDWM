@@ -164,7 +164,6 @@ Outputs are `clipNNN/{latents.pt, gt_vs_generated.mp4, summary.json}`; the Gauss
 - Gaussian reconstruction on the 249 Test-S clips (PSNR, SSIM, LPIPS, AbsRel, δ1 at three resolutions);
 - Gaussians on generated scenes with lateral shifts of 0, ±1, ±2 and ±4 m, with and without the render refiner.
 
-This code was run as-is for the paper; after replacing cluster paths it has not been re-run end to end.
 
 ## 📄 License
 

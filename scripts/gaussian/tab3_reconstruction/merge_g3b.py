@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 H = Path.home()
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # merge_249.py ships next to this file
 sys.path.insert(0, str(H / "pandwm_runs/gs_recon_ext249/scripts"))
 import merge_249 as m  # noqa: E402
 

@@ -38,7 +38,7 @@ Each clip directory holds `latents.pt`, `gt_vs_generated.mp4` and `summary.json`
 | Ablations (Dev-78, 500 iterations each) | `pandwm_code/PanDWM-ablation`: configs from `scripts/make_ablation_configs.py`, training `scripts/train_abl.sbatch`, evaluation `scripts/abl_analyze.sbatch`, table `scripts/abl_table.py` |
 | Speed | `pandwm_code/PanDWM_long_horizon/src/dwm_pano/benchmark_speed.py` |
 
-Baseline outputs (UniMLVG, OpenDWM (SD3.5), DreamForge, DiST-4D, OmniNWM, and the front-view models of the qualitative comparison) were generated with their official code and scored with the same feature, flicker and controllability scripts; the baseline runners are not part of this release.
+Baseline outputs (UniMLVG, OpenDWM (SD3.5), DreamForge, DiST-4D, OmniNWM, and the front-view models of the qualitative comparison) were generated with their official code and scored with the same feature, flicker and controllability scripts (code versions and inputs are listed in Sec. 3 of the supplementary material).
 
 ## 3. Gaussian reconstruction (249 Test-S clips)
 
@@ -48,7 +48,7 @@ Code: `pandwm_code/PanDWM-cov3`. Scene construction is `gsaa_src/dwm_pano/gs_sce
    - 3D: `{"plane_offset_px": 1.0, "seam_bridge": 16, "seam_bridge_search": 6, "seam_bridge_layer": "under", "edge_extend": 8, "band_extend": 8}` (Depth Anything 3 per frame);
    - 4D: the same plus `{"da3_window": "clip", "da3_fuse": true}` (frames 0 to 20 of each clip).
 2. Score: `JOBFILE=score_jobs_g3bf.txt sbatch --array=0-11 g3b_score.sbatch`.
-3. Merge the 213-clip and 36-clip parts: `python3 merge_g3b.py g3bf`. It reuses the summary functions of `merge_249.py`, which is not included; the aggregation is the `summarize` code of `recon/score.py`.
+3. Merge the 213-clip and 36-clip parts: `python3 merge_g3b.py g3bf`. It reuses the summary functions of `merge_249.py` in the same folder, which are verbatim copies of the `summarize` code of `recon/score.py`.
 
 Only the recorded frames up to the input frame are loaded. Baselines (Omni-Scene, ReconDrive, DrivingForward, MCSplat) were rendered with their official code and scored with the same `score.py`, targets and masks.
 

@@ -40,7 +40,7 @@ The clip lists are in `pandwm_code/PanDWM_eval149/`. Clips are 35 frames at 10 H
 | Set | Use | File |
 |---|---|---|
 | Val-150 | Comparison with other video models | `dev149_manifest.json` (149 scenes) + `scene0018_manifest.json` |
-| Dev-78 | Ablations and checkpoint selection | `dev78_manifest.json` |
+| Dev-78 | Ablations | `dev78_manifest.json` |
 | Test-S | Test-set check and both Gaussian tables | `tests249_manifest.json` (= `tests213_manifest.json` + `tests_ext36_manifest.json`) |
 | Test-L | Long videos, 3 recorded + 12 × 16 generated frames | `review149_test71_long12.json` + `testl_ext12_long12.json` (`testl83_long12.json` lists all 83) |
 
