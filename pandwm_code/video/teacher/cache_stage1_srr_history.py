@@ -9,6 +9,8 @@ import torch
 import dwm.common
 from dwm_pano.generated_latent_cache import atomic_torch_save, scalar_int
 from dwm_pano.pipelines.ctsd_pano_srr import history_cache_path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval"))  # run_history_probe.py
 from run_history_probe import _encode_rgb, _window_batch
 
 

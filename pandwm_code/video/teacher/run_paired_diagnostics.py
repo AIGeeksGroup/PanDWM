@@ -18,6 +18,8 @@ import dwm.common
 from dwm_pano import evaluate_4step
 from dwm_pano.history_noise import make_history_for_window
 from dwm_pano.pano_stitch import stitch_pano_halves
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "eval"))  # run_history_probe.py
 from run_history_probe import _encode_rgb, _window_batch
 from uncompressed_metrics import (
     boundary_metrics, summarize_window, window_metrics)

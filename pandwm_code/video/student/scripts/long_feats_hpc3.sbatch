@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# features + analysis of long-video diagnostics, one GPU (eval_v7/long_feats.py, long_analyze.py).
+# features + analysis of long-video diagnostics, one GPU (eval/long_feats.py, long_analyze.py).
 #   ARMS="v83h2000 v83h4000 v84i4250 v84i4250raw"  tags in long_videos_hpc3 (videos <tag>_scene<N>_seed<S>)
 #   SEEDS="42 43" FIRST_WINDOW=1                   videos to read (default all 12 scenes)
 #   POOL="dev78gt=<eval149 arm dir>"               optional unpaired real pool (the 78 non-test 149-clip eval clips)

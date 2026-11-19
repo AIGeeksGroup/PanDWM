@@ -26,7 +26,7 @@ ABL=$HOME/pandwm_code/video/ablation
 CF=$HOME/pandwm_code/video/student
 DEMO=$HOME/pandwm_code/video/teacher
 R=$HOME/pandwm_runs
-CONFIG=$ABL/configs/abl_${ARM}_v8_4_hpc2_8gpu.json
+CONFIG=$ABL/configs/abl_${ARM}_v8_4_hpc3_8gpu.json
 [[ -f "$CONFIG" ]] || { echo "CONFIG_MISSING $CONFIG"; exit 1; }
 export PYTHONPATH=$HOME/pandwm_code/src:$HOME/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
