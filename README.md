@@ -43,25 +43,25 @@ On the nuScenes validation set, the student matches the FID of its 50-step causa
 
 ## 📁 Repository Layout
 
-This release is the code that produced the paper results, as it ran on our SLURM clusters. Cluster paths were replaced by placeholders (see [Paths](#paths)); nothing else was changed. Each folder under `pandwm_code/` is one code tree that the job scripts put on `PYTHONPATH`.
+This release is the code that produced the paper results, as it ran on our SLURM clusters. Cluster paths were replaced by placeholders (see [Paths](#paths)). All Python packages are in one shared tree, `pandwm_code/src/`, which every job script puts on `PYTHONPATH`; the other folders hold the configs, job scripts and entry points.
 
 | Folder | Contents |
 |---|---|
-| `pandwm_code/PanDWM_long_horizon` | Model (`dwm_pano/models/crossview_temporal_dit_pano.py`), base pipelines, OpenDWM `dwm` package, data loading, teacher rollouts |
-| `pandwm_code/PanDWM-cfdmd-A` | Student distillation (`src/dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), training configs, job scripts for training and generation |
-| `pandwm_code/PanDWM_eval149` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
-| `pandwm_code/PanDWM-gs-aa-ft` | 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`) and its early training stages |
-| `pandwm_code/PanDWM-gs4d` | 4D Gaussian decoder training (`dwm_pano_4d`) and its configs |
-| `pandwm_code/PanDWM-ft3` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation |
-| `pandwm_code/PanDWM-cov3` | Reconstruction evaluation: scene builder (`gs_scene_v3.py`), targets, masks, renderer and scorer (`dwm_pano/recon/`) |
-| `pandwm_code/PanDWM_d2_refiner` | Render refiner (model, data, training, `d2_refine.py`) |
-| `pandwm_code/PanDWM-fuse` | Multi-view consistency check (`consistency_eval.py` only) |
-| `scripts/gaussian/` | Job scripts for the reconstruction table, the generated-scene table and the refiner |
+| `pandwm_code/src` | All Python packages: model (`dwm_pano/models/crossview_temporal_dit_pano.py`), pipelines, data loading, OpenDWM `dwm` package, student (`dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`), 4D Gaussians (`dwm_pano_4d`), reconstruction evaluation (`dwm_pano/gs_scene_v3.py`, `dwm_pano/recon/`), render refiner (`dwm_pano_d2`) |
+| `pandwm_code/video/teacher` | Teacher rollouts, history experiments and long videos |
+| `pandwm_code/video/student` | Student distillation: training configs, job scripts for training and generation |
+| `pandwm_code/video/ablation` | Ablation configs and job scripts |
+| `pandwm_code/eval` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
+| `pandwm_code/gaussian/gs3d` | Early training stages of the 3D Gaussian decoder (OpenDWM-style configs) |
+| `pandwm_code/gaussian/gs4d` | 4D Gaussian decoder training and its configs |
+| `pandwm_code/gaussian/finetune` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation and multi-view consistency jobs |
+| `pandwm_code/gaussian/refiner` | Render refiner (configs, training and inference jobs, `d2_refine.py`) |
+| `pandwm_code/gaussian/recon_eval` | Job scripts for the reconstruction table (render, score, merge) |
 | `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
 
-Each folder under `pandwm_code/` is the code snapshot that produced the corresponding results, so shared packages such as `dwm` and `dwm_pano` appear in several folders and may differ slightly between them. Run every script with the copy inside its own folder, as the job scripts do.
+The experiments were run from separate copies of the code. In this release the copies are merged into `pandwm_code/src/`: where a file differed between copies, the version with all options is kept, and every option added by a later experiment is off by default, so the configs of earlier stages keep their behaviour.
 
-Many other scripts in these trees are development diagnostics; the entry points for every result are listed in [docs/reproduce.md](docs/reproduce.md).
+Many other scripts in these folders are development diagnostics; the entry points for every result are listed in [docs/reproduce.md](docs/reproduce.md).
 
 ## 📦 Data Preparation
 
@@ -69,7 +69,7 @@ PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes,
 
 1. **Panoramas and conditions.** The panoramic bands (`rgb/`) and the stitched 3D-box and HD-map conditions (`bbox/`, `hdmap/`) come from the preprocessed releases [`zeyuren2002/nuscene-360_train`](https://huggingface.co/datasets/zeyuren2002/nuscene-360_train) (revision `72a55450`) and [`zeyuren2002/nuscene_360_val`](https://huggingface.co/datasets/zeyuren2002/nuscene_360_val).
 2. **12 Hz index files.** Training uses `nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl` from [`Arlolo0/OmniNWM`](https://huggingface.co/Arlolo0/OmniNWM) (revision `223f11f1`). Evaluation uses our copy of `nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl` (SHA-256 `66aa82b0…`), which differs from the public file of the same name. TODO: release location.
-3. **Evaluation clips.** The clip lists are in `pandwm_code/PanDWM_eval149/`:
+3. **Evaluation clips.** The clip lists are in `pandwm_code/eval/`:
 
 | Set | Clips | Manifest |
 |---|---|---|
@@ -80,7 +80,7 @@ PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes,
 
 ## ⚙️ Environment Setup
 
-The paper results were produced with Python 3.12, PyTorch 2.7.1 (CUDA 12.8), torchvision 0.22.1, diffusers 0.31.0, transformers 4.57.1, accelerate 1.4.0, torchmetrics 1.6.0, timm 1.0.15, einops 0.8.2, av 14.2.0 and numpy 2.1.2. The Gaussian jobs additionally use [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3 and the [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3) source tree. `pandwm_code/PanDWM-gs-aa-ft/requirements.txt` lists the remaining OpenDWM dependencies.
+The paper results were produced with Python 3.12, PyTorch 2.7.1 (CUDA 12.8), torchvision 0.22.1, diffusers 0.31.0, transformers 4.57.1, accelerate 1.4.0, torchmetrics 1.6.0, timm 1.0.15, einops 0.8.2, av 14.2.0 and numpy 2.1.2. The Gaussian jobs additionally use [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3 and the [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3) source tree. `pandwm_code/gaussian/gs3d/requirements.txt` lists the remaining OpenDWM dependencies.
 
 Student training runs on one node with 8 GPUs; generation and Gaussian evaluation run on one GPU per array task.
 
@@ -114,11 +114,11 @@ The Gaussian decoder config sets `initial_decoder_checkpoint_path` to an earlier
 
 ## 🚀 Training
 
-Training proceeds in the stages described in the paper and its supplementary material. Job scripts are in `pandwm_code/PanDWM-cfdmd-A/scripts/`.
+Training proceeds in the stages described in the paper and its supplementary material. Job scripts are in `pandwm_code/video/student/scripts/`.
 
 ### Stage 1: Causal Teacher and Consistency Distillation
 
-The 50-step block-causal teacher is initialized from UniMLVG and trained with the OpenDWM trainer; the four-step student starts from consistency distillation of that teacher (`dwm_pano/pipelines/ctsd_pano_consistency_distillation.py`). The OpenDWM-style configs for these stages are in `pandwm_code/PanDWM-gs-aa-ft/configs/ctsd/pandwm/` (`ctsd_unimlvg_stage3_tirda_causal_nwa*.json`, `..._consistency_distillation*.json`); the exact run configurations of the two checkpoints used here are not part of this snapshot, and the checkpoints are not released.
+The 50-step block-causal teacher is initialized from UniMLVG and trained with the OpenDWM trainer; the four-step student starts from consistency distillation of that teacher (`dwm_pano/pipelines/ctsd_pano_consistency_distillation.py`). The OpenDWM-style configs for these stages are in `pandwm_code/gaussian/gs3d/configs/ctsd/pandwm/` (`ctsd_unimlvg_stage3_tirda_causal_nwa*.json`, `..._consistency_distillation*.json`); the exact run configurations of the two checkpoints used here are not part of this snapshot, and the checkpoints are not released.
 
 ### Stage 2: Distribution Matching on Self-Generated History
 
@@ -135,18 +135,18 @@ The training entry is `scripts/train_resumable_v7.py` (8 GPUs, `torch.distribute
 
 ### Stage 3: Gaussian Decoder
 
-The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2000 steps) is `pandwm_code/PanDWM-ft3/configs/gs4dd_hpc2_ft3_G3b.json` with `scripts/train_ft3_hpc2.sbatch` (`ARM=G3b`). Its 4D pipelines inherit `pipeline.py` → `pipeline_depth.py` → `pipeline_da3.py` → `pipeline_relabel.py` in `gs4d_src/dwm_pano_4d/`.
+The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2000 steps) is `pandwm_code/gaussian/finetune/configs/gs4dd_hpc2_ft3_G3b.json` with `scripts/train_ft3_hpc2.sbatch` (`ARM=G3b`). Its 4D pipelines inherit `pipeline.py` → `pipeline_depth.py` → `pipeline_da3.py` → `pipeline_relabel.py` in `pandwm_code/src/dwm_pano_4d/`.
 
 ### Stage 4: Render Refiner
 
-`scripts/gaussian/render_refiner/train_d2.sbatch` with `pandwm_code/PanDWM_d2_refiner/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
+`pandwm_code/gaussian/refiner/scripts/train_d2.sbatch` with `pandwm_code/gaussian/refiner/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
 
 ## 🤖 Inference
 
 Generate Test-S clips with the released student (stochastic four-step sampler, steps `[1000, 750, 500, 250]`, blend width 128, seed 42):
 
 ```bash
-cd pandwm_code/PanDWM-cfdmd-A
+cd pandwm_code/video/student
 TAG=v84i4250 CKPT=/path/to/pandwm_video_v84i4250_ema.pth SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch
 ```
 

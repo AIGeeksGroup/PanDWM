@@ -35,7 +35,7 @@ Each index entry holds the six camera calibrations, the ego pose, the 12 Hz inte
 
 ## Evaluation clips
 
-The clip lists are in `pandwm_code/PanDWM_eval149/`. Clips are 35 frames at 10 Hz (3 recorded history frames and two 16-frame windows), except Test-L.
+The clip lists are in `pandwm_code/eval/`. Clips are 35 frames at 10 Hz (3 recorded history frames and two 16-frame windows), except Test-L.
 
 | Set | Use | File |
 |---|---|---|
@@ -49,4 +49,4 @@ The generated-scene Gaussian table uses the 83 Test-S clips that start 10 s into
 ## Other inputs
 
 - **Gaussian decoder training** uses the train index without the 5 held-out labelled scenes (`nuscenes_interp_12Hz_infos_train_minus_holdout5.pkl`, 695 scenes).
-- **LiDAR depth** for the depth metrics comes from the official nuScenes LiDAR data (`dwm_pano/recon/` in `PanDWM-cov3`; `gen_depth_pack.py` packs it for the generated scenes).
+- **LiDAR depth** for the depth metrics comes from the official nuScenes LiDAR data (`pandwm_code/src/dwm_pano/recon/`; `gen_depth_pack.py` packs it for the generated scenes).
