@@ -10,7 +10,7 @@ dwm_pano_4d.da3_depth.Da3Ranger (camera k's own optical centre and orientation),
                  to the owned patches (no merge).
 Both live in the method's own normalised frame.  They are moved into frame t's ego with a rotation from the six camera
 orientations (polar factor of sum_i R_gt_i R_m_i^T) and a scale = median over trusted owned pixels of our clip-level
-DA3 metric z-depth (clip_da3_cache.py, GS_CLIPDEPTH_PLAN V1) over the method's own z-depth of its per-pixel centres;
+DA3 metric z-depth (clip_da3_cache.py) over the method's own z-depth of its per-pixel centres;
 each camera's Gaussians are re-anchored at that camera's true centre, X = s R (X_m - C_m,i) + C_gt,i (smoke:
 with six nearly co-centred cameras the methods' camera baselines are ill-conditioned, a single similarity left the
 centres 0.85 m off on average).  scale_mode "camera" (diagnostic: InfiniSplat's per-camera depth scales

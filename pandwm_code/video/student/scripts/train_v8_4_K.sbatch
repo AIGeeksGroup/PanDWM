@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # branch K = v8.4 (src/dwm_pano_cfdmd/pipeline_v8_4.py) with deep_dmd_scale 0.5 for rollout depth k >= 5
 # (the DMD gradient is halved on trained windows 6-11; GAN / mm3 / floor caps unchanged) from branch I step 4250
-# (seeds/I_4250, archived ).  Copy of scripts/train_v8_5.sbatch with ARM=K, campaign cfdmd_K,
-# config configs/cfdmd_K_gan_v8_4_deep_hpc3_8gpu.json, FROM=4250, MAX_STEPS default 4500 (compared with I 4500; report
-# section 27.12); --resume-data-offset from scripts/dataset_len.py as for I (4250 -> 1390).
+# (seeds/I_4250, archived).  Copy of scripts/train_v8_5.sbatch with ARM=K, campaign cfdmd_K,
+# config configs/cfdmd_K_gan_v8_4_deep_hpc3_8gpu.json, FROM=4250, MAX_STEPS default 4500 (compared with I 4500); --resume-data-offset from scripts/dataset_len.py as for I (4250 -> 1390).
 #   sbatch --job-name=pandwm_cfdmd_K scripts/train_v8_4_K.sbatch
 #SBATCH --job-name=pandwm_cfdmd_K
 #SBATCH --partition=<partition>

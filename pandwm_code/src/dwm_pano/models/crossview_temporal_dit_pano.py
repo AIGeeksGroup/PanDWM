@@ -396,7 +396,7 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
                 for _ in range(len(temporal_block_layers))
             ])
 
-            # §12.3 causal AR retrofit: install a FlexAttention-aware
+            # Causal AR retrofit: install a FlexAttention-aware
             # processor on every temporal block so that callers can pass a
             # `BlockMask` (block-causal pattern from LongLive) via the
             # `temporal_attention_mask` argument. The processor is a strict

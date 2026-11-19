@@ -22,7 +22,7 @@ stats only).  Videos then have three rows: pred / label / dac.
 
 v3: with --da3-anyview, adds "da3" / "da3_edge": Depth Anything 3 (da3_depth.py)
 on the VAE round trip, the six cameras of frames (0, gap, 2 gap) reconstructed together with their known
-intrinsics, rig extrinsics and ego poses; the ground-plane scale is the primary range (section 40.1; the pose and
+intrinsics, rig extrinsics and ego poses; the ground-plane scale is the primary range (the pose and
 metric-model scales and DA3 on the original, not round-tripped, frame are scored against the label too).  Pixels DA3 calls sky keep the decoder
 geometry, like pixels without a DA3 range below --far-cut.  Video frames use the window (t - gap, t, t + gap).
 """
@@ -86,10 +86,10 @@ def parse_args():
     p.add_argument("--da3-anyview", default="", help="DA3-LARGE-1.1 folder (config.json + model.safetensors)")
     p.add_argument("--da3-metric", default="", help="DA3METRIC-LARGE folder")
     p.add_argument("--da3-scale", choices=["ground", "pose", "metric"], default="ground",
-                   help="DA3 scale used to place the Gaussians (section 40.1: ground)")
+                   help="DA3 scale used to place the Gaussians (ground)")
     p.add_argument("--da3-relabel-mode", choices=["ray", "scale"], default="ray",
-                   help="ray: move along the pixel ray, offset dropped (sections 36-40.2); scale: about the ray "
-                        "origin, footprint kept (C1b, section 40.3)")
+                   help="ray: move along the pixel ray, offset dropped; scale: about the ray "
+                        "origin, footprint kept (C1b)")
     return p.parse_args()
 
 

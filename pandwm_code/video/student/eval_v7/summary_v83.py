@@ -1,4 +1,4 @@
-"""Print the H-milestone comparison for watch_v83.sh:  python summary_v83.py <tag> <previous tag>"""
+"""Print the H-milestone comparison:  python summary_v83.py <tag> <previous tag>"""
 import json
 import sys
 

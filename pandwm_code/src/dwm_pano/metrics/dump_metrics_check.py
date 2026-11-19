@@ -12,7 +12,7 @@ Two jobs, both on the PNG dump written by
    conversion. If they do not, the dump is lying and nothing downstream is
    trustworthy.
 
-2. **Sanity battery** (README section 7). These test the metric, not the model:
+2. **Sanity battery**. These test the metric, not the model:
 
    - `self_FID` / `self_FVD`: a distribution against itself must score 0.
      This is a WEAK test and should not be oversold: both sides are fed the
@@ -195,7 +195,7 @@ def main():
         "global_step": sorted(steps)[0] if steps else None,
     }
 
-    # Reference exclusion (README section 7.4). The validation clip is 35
+    # Reference exclusion. The validation clip is 35
     # frames, the first 3 are context, and generate_frames_for_reference is
     # false -- so every clip must contribute exactly 32 scored frames
     # (sequence_length_per_iteration=19 is the AR chunk size, not the clip

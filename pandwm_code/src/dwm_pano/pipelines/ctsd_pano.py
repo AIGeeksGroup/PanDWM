@@ -70,7 +70,7 @@ def dump_stitched_panos(
     conversion can be pinned. torchmetrics 1.6.0 casts with
     ``(imgs * 255).byte()`` -- truncation, not rounding -- so reproduce that
     cast here rather than the more natural ``round()``. Note this is a
-    deliberate deviation from README section 7.3, which specifies
+    deliberate deviation from the metric definition, which specifies
     ``round(clamp(x, 0, 1) * 255)``: parity with the metric we actually run
     beats parity with the written spec, but the ADM numbers therefore carry
     a systematic -0.5/255 bias relative to that spec.
@@ -1747,7 +1747,7 @@ class CrossviewTemporalSD():
             if getattr(self.model_wrapper, "mask_module", None) is not None:
                 model_conditions["noise"] = noise
 
-            # §12.3 train-time causal AR retrofit. The mask shape depends on
+            # Train-time causal AR retrofit. The mask shape depends on
             # the model's `temporal_attention_type`:
             #   - "pointwise": dense (T, T) -inf upper-triangular (per spatial
             #     position attention is over T tokens only).
@@ -1981,7 +1981,7 @@ class CrossviewTemporalSD():
             do_classifier_free_guidance=do_classifier_free_guidance,
             latents_shape=latents.shape)
 
-        # §12.3 causal AR retrofit (mirrors train_step). Mask shape depends on
+        # Causal AR retrofit (mirrors train_step). Mask shape depends on
         # the model's `temporal_attention_type`:
         #   - "pointwise": dense (T, T) -inf upper-triangular.
         #   - "rowwise" / "full": LongLive-style block-causal `BlockMask` via
@@ -2760,7 +2760,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
     `inference_config["temporal_attention_mask"]`).
 
     Backward-compat alias `StreamingCrossviewTemporalSD` is kept below so
-    legacy configs (A4/A4.5/A5.1, overfit, etc.) loading by class-name string
+    legacy configs loading by class-name string
     still resolve. New configs should use `PanoCrossviewTemporalSD`.
     """
 
@@ -3068,7 +3068,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
 
         # Per-slot deterministic preview seed: same dataset_index → same noise
         # at every training step. Visual diff across cycles = pure model weight
-        # evolution, NOT generator-state drift. Critical for clean Phase 1.6
+        # evolution, NOT generator-state drift. Critical for a clean
         # scaling evaluation. Save+restore generator state so training
         # stochasticity is preserved post-preview.
         # Opt-in via inference_config.preview_seed_base (None = legacy behavior).
@@ -3212,6 +3212,6 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
 
 
 # Backward-compat alias — preserves loading of legacy configs that reference
-# `dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD` (A4/A4.5/A5.1,
-# overfit, etc.). New configs should use `PanoCrossviewTemporalSD`.
+# `dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD`.
+# New configs should use `PanoCrossviewTemporalSD`.
 StreamingCrossviewTemporalSD = PanoCrossviewTemporalSD

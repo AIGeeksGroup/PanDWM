@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # v8.5 branch J (src/dwm_pano_cfdmd/pipeline_v8_5.py: v8.4 + the DMD real-score CFG restricted to t < tau_th,
 # tau_th 1000 -> 0 over steps 4250-4350, none after; HorizonDrive's delayed decay) from branch I step 4250
-# (seeds/I_4250, archived ).  Copy of scripts/train_v8_4.sbatch with ARM=J, campaign cfdmd_J,
+# (seeds/I_4250, archived).  Copy of scripts/train_v8_4.sbatch with ARM=J, campaign cfdmd_J,
 # config configs/cfdmd_J_gan_v8_5_hpc3_8gpu.json, FROM=4250, MAX_STEPS default 4500 (pilot; the rule is in report
 # section 27); --resume-data-offset from scripts/dataset_len.py as for I (4250 -> 1390).
 #   sbatch --job-name=pandwm_cfdmd_J scripts/train_v8_5.sbatch

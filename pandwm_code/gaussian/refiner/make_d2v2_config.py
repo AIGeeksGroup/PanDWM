@@ -1,6 +1,6 @@
 """Config of the D2 v2 refiner.
 
-configs/d2_full_hpc3_8gpu.json (the section 43.3 continuation: render-init samples 0.5, render dropout 0.1, lr 1e-5,
+configs/d2_full_hpc3_8gpu.json (the continuation run: render-init samples 0.5, render dropout 0.1, lr 1e-5,
 8-GPU FSDP) with
   init         D2 v1 step 4000 (runs/pilot/checkpoints/4000.pth, render branch already trained), strict load
   render_root  the round-trip pairs of gaussian/gs3d dwm_pano/d2v2_make_pairs.py (G3b decoder)

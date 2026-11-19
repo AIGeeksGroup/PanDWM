@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-5)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--min-items", type=int, default=1)
-    ap.add_argument("--render-init-prob", type=float, default=0.0, help="section 43.3 continuation: 0.5")
+    ap.add_argument("--render-init-prob", type=float, default=0.0, help="continuation run: 0.5")
     ap.add_argument("--render-init-min-sigma", type=float, default=0.5)
     args = ap.parse_args()
     c = build(json.loads(Path(args.base).read_text()), args.gpus, args.render_root, args.lr, args.seed,

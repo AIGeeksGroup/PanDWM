@@ -227,7 +227,7 @@ class PanoD2RefinerSD(PanoCrossviewTemporalSD):
         batch: collated window conditions (slice_sequence_batch of the clip, WINDOW frames);
         render: (1, WINDOW, 2, 17, h, w) render condition; reference: (1, >= reference_count, 2, 16, h, w) clean
         latents of the window's first reference_count frames (or None).  Returns (1, WINDOW, 2, 16, h, w) float
-        latents with the reference frames copied in.  init_sigma > 0 (section 43.2): start from the render latents
+        latents with the reference frames copied in.  init_sigma > 0: start from the render latents
         noised to the first scheduler sigma <= init_sigma, x = (1 - sigma) * render + sigma * noise, and run only
         the remaining steps (SDEdit start on the refiner); 0 = pure noise, all steps.
         """

@@ -13,7 +13,9 @@ terms on pixels whose label is below far_cut_m:
     weight_log_render * mean |log d_render  - log d_label|     (the rendered own-view depth)
 Defaults 0 / 0 are the parent bit for bit.  Missing label files still raise, as in the parent: the pilot trains on the
 G2 depth subset (pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl, 18638 frames, every frame has
-a label).: depth_optional=True makes the depth terms per batch: a batch gets them only
+a label).
+
+Formal run: depth_optional=True makes the depth terms per batch: a batch gets them only
 if every selected frame has a label file in range_dir, otherwise it trains on the colour terms alone (the parent's
 targets).  This lets one run mix all 700 training scenes (colour) with the 86 labelled ones (colour + depth).  The
 report gains depth_batch (1 / 0).  False (default) keeps the pilot's behaviour.

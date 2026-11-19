@@ -70,7 +70,7 @@ def main():
     p.add_argument("--guidance-mode", default="none", choices=["none", "all", "text"])
     p.add_argument("--guidance-scale", type=float, default=1.0)
     p.add_argument("--keep-layout", action="store_true", help="ablation: keep the original-trajectory boxes/maps")
-    p.add_argument("--init-sigma", type=float, default=0.0, help="section 43.2: start from the noised render")
+    p.add_argument("--init-sigma", type=float, default=0.0, help="start from the noised render")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--video-clips", default="")
     p.add_argument("--fps-stride", default="10,20",
@@ -126,7 +126,7 @@ def main():
                 continue
             old = torch.load(path, map_location="cpu", weights_only=True)["meta"]
             old_sampler = dict(old.get("sampler") or {})
-            old_sampler.setdefault("init_sigma", 0.0)             # outputs made before section 43.2 had no key
+            old_sampler.setdefault("init_sigma", 0.0)             # older outputs have no key
             if old.get("checkpoint") != args.checkpoint or old_sampler != sampler or \
                     old.get("inputs") != str(args.inputs):
                 raise RuntimeError(f"{path} exists from another checkpoint / sampler / input set; use a new --out-root")

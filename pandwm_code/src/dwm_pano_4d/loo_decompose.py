@@ -24,7 +24,7 @@ own rays to another range exactly like inference (dwm_pano_4d.da3_depth.rescale_
 0.5 < range < 99 m and DA3 sky < 0.3; others keep the decoder range), then the frame-level leave-one-out is scored:
   decoder   no change;
   da3frame  per-frame DA3 (gs_scene_v3 da3_window "frame", windows t-4 / t / t+4, ground scale; the v4 inference depth);
-  da3clip   one clip-level DA3 pass over the 19 frames + static depth fusion (GS_CLIPDEPTH_PLAN V2, the temporally
+  da3clip   one clip-level DA3 pass over the 19 frames + static depth fusion (the temporally
             consistent depth).
 DA3 runs on the recorded panoramas of the clip (SceneBuilder canvases set from vae_images), poses = camera-time infos.
 

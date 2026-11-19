@@ -8,7 +8,7 @@ PanoGaussianDecoder4DDepthPipeline come from DA3 run online on the step's own fr
 
 * the step's frames (frames_per_step, stride 2-4 at 10 fps) are reconstructed together by da3_depth.Da3Ranger: the six
   cameras cut back out of the stitched real pano, with the known intrinsics, rig extrinsics and ego poses; any-view
-  depth scaled to the metric model and then to the ego ground plane (scale "ground", section 40.1);
+  depth scaled to the metric model and then to the ego ground plane (scale "ground");
 * range = DA3's Euclidean range along every decoder pixel's exact content ray (the decoder's own range convention);
 * sky (DA3 sky >= sky_threshold) and DA3 range >= far_cut_m get sky_fill_m and stay valid, like the 100 m fill of the
   downloaded labels: the metre terms pull them to 100 m, the log terms skip them (they are >= far_cut_m);

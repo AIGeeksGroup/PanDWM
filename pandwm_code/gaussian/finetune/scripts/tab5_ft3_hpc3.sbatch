@@ -9,7 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs_ft3/logs/%x_%A_%a.log
-# round 3: tab5_shift_hpc3.sbatch on the 71-clip Test-S subset with
+# tab5_shift_hpc3.sbatch on the 71-clip Test-S subset with
 # the gaussian/finetune code copy (sharpness, no-offset), per-ARM states / report / samples, scene flags from
 # DA3FLAGS / EXTRA, and the s71 clip list built in.  Copied from:
 # Table 5 (Gaussians on generated Test-S scenes), our row: dwm_pano.eval_gs_shift on the v84i4250 s42

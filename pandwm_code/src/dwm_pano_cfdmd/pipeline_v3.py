@@ -1,6 +1,6 @@
 """Lower-memory critic step for the GAN variant (pipeline.py / pipeline_v2.py are untouched).
 
-Job 700295 (HPC3, 4x H100 80GB): the generator step passed (the v2 FSDP fix works) but the critic step ran
+On 4x H100 80GB the generator step passed (the v2 FSDP fix works) but the critic step ran
 out of memory in `total.backward()` (75.9 GiB allocated, 1 GiB more requested).  The original step keeps three
 fake-score autograd graphs alive at once: the flow-matching forward, plus the discriminator forwards on the
 real and the fake window, then back-propagates `critic_loss + w * disc_loss` together.

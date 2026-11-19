@@ -11,7 +11,7 @@ pano), each camera's holes (alpha < 0.5) are push-pull filled, difix repairs it 
 reference, and two outputs are stitched with the pipeline's own hard seam:
 * "fixm" (masked): the repair replaces only the holes, dilated by `dilate` px and feathered over `feather` px;
   covered pixels stay the render (protects colour / fidelity, as ExtraGS / ArtiFixer / DriveX do);
-* "fixg" (magnification-aware mask, 10-30 after the --mag-debug diagnostic): holes plus pixels whose content comes
+* "fixg" (magnification-aware mask): holes plus pixels whose content comes
   from Gaussians magnified > mag_thr x against their source view (mag_cull.angular_size, rendered as a colour
   channel), i.e. the low-resolution near content that stretches into smears; same dilation and feather;
 * "fixf" (full): the repaired camera image everywhere.

@@ -48,7 +48,7 @@ case $MODE in
     $PY -m dwm_pano.d2v2_export -c $GS4D/configs/gs_review_hpc3.json --data-pkl $VAL_PKL --checkpoint $CK \
       --clips-root $CLIPS --clips "$SEL" --fps-stride $FS --out-root $R/inputs_$SET \
       --da3-src $DA3_SRC --da3-anyview $DA3_ANYVIEW --da3-metric $DA3_METRIC ;;
-  shiftcheck)                                          # section 6.4: does the refiner keep the shift?
+  shiftcheck)                                          # does the refiner keep the shift?
     TAG=${TAG:?TAG}
     $PY -m dwm_pano.d2v2_shiftcheck -c $GS4D/configs/gs_review_hpc3.json --inputs $R/inputs_$SET \
       --refined $R/refined_$SET/$TAG --out $R/shiftcheck_$SET/$TAG ${EXTRA:-} ;;

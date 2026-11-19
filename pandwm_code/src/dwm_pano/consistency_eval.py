@@ -6,7 +6,7 @@ view s1: every canvas pixel of s1 with Gaussian coverage (alpha > 0.95, 0.5 m < 
 origin + direction * range (the exact ray the renderer sampled, calibrated_stitch.sampling_grid_to_ego_rays), is
 projected into the s2 canvas (azimuth / elevation of its direction from each camera centre; a first guess from 1D
 per-column / per-row tables refined by Gauss-Newton on the canvas's own azimuth / elevation maps, because the
-OneBEV canvas is not separable: rows drift by up to ~25 px from a single elevation table, run 786947; accepted only
+OneBEV canvas is not separable: rows drift by up to ~25 px from a single elevation table; accepted only
 in a column owned by that camera, with a residual below 0.5 px) and kept if s2 sees it (alpha > 0.95, range within 5 % + 0.2 m).  The same mask is used for every image kind, so the
 kinds differ only in their pixels:
 
@@ -23,7 +23,7 @@ kinds differ only in their pixels:
 
 PSNR on the masked pixels at full resolution, after 4 x 4 average pooling (less sensitive to sharpness differences:
 a sharper image pays more for the same sub-pixel misregistration; also 8 x 8), and on the near pixels (range
-< 20 m).  Pair "0:0" of raw checks the warp itself (should be near-lossless; smoke 786964: 64 dB); "0:0" of vid_raw /
+< 20 m).  Pair "0:0" of raw checks the warp itself (should be near-lossless, about 64 dB); "0:0" of vid_raw /
 vid_d2f is the same-view difference between the generated video and the G3b render / the refined 0 m view, the floor
 the shifted pairs of that kind start from.  Shards write jsonl rows; --merge averages them.
 """

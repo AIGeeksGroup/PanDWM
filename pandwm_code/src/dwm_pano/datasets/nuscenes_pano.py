@@ -204,7 +204,7 @@ def _group_infos_by_scene(infos, token2scene: Optional[dict] = None,
                 s = f"{loc}_{bucket}"
         # Persist the recovered scene_token back into the info dict so
         # downstream code (e.g. clips[idx][0]["scene_token"] in preview
-        # debug CSV / Phase 1.6 A4 held-out validation) can access it
+        # debug CSV / held-out validation) can access it
         # directly. Without this, recovered tokens live only as by_scene
         # keys and get lost in `_enumerate_pano_clips`.
         info["scene_token"] = s
@@ -661,7 +661,7 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
         # 1.6 A4) and preview CSV. Default-collated to List[str] of len B.
         result["scene_token"] = self.clips[idx][0].get("scene_token", "")
         # split (string: "train" / "val") — disambiguates train pkl vs val pkl
-        # within a ConcatDataset preview pool (A5.2+). Without this, two clips
+        # within a ConcatDataset preview pool. Without this, two clips
         # from different splits with the same dataset_index would be visually
         # ambiguous in preview_debug.csv.
         result["split"] = self.split

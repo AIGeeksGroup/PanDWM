@@ -11,7 +11,7 @@ default scene is exactly v2's:
   frame t is composited on top anyway, and its own disocclusion holes need the fill).
 * da3_relabel (C1): every frame's Gaussians are moved along their exact rays to the Depth Anything 3 range
   (dwm_pano_4d/da3_depth.py, windows (t - gap, t, t + gap) of VAE-decoded frames, da3_scale = ground by
-  default, section 40.1); pixels DA3 calls sky or without a DA3 range below far_cut keep the decoder geometry.
+  default); pixels DA3 calls sky or without a DA3 range below far_cut keep the decoder geometry.
 * sky_layer (B2): the Gaussians of pixels DA3 calls sky are dropped; renderers then take the sky colour from the
   frame's own decoded pano along the ray direction (sky is at infinity, so a pure translation does not move it).
 * box_reading (section 44): "legacy" reads gt_boxes as (x, y, z, dx, dy, dz, yaw) (export_gs_4d_demo.boxes_in_ego);
@@ -54,16 +54,16 @@ class SceneOptions:
     sky_layer: bool = False
     far_cut: float = 99.0
     da3_gap: int = 4
-    da3_scale: str = "ground"                                           # section 40.1
-    da3_mode: str = "ray"                                               # "scale" = C1b, section 40.3
-    # (round 2b): "global" = one DA3/decoder median range ratio per frame, the decoder keeps its local
+    da3_scale: str = "ground"
+    da3_mode: str = "ray"                                               # "scale" = C1b
+    # "global" = one DA3/decoder median range ratio per frame, the decoder keeps its local
     # depth; "blend" = per pixel, decoder range below blend_near_m, DA3 range beyond blend_far_m, linear in between
     # (weight from the DA3 range); both move Gaussians like "scale" (rescale_gaussians)
     blend_near_m: float = 10.0
     blend_far_m: float = 30.0
-    drop_bottom_rows: int = 0                                           # section 41.6: C2's band-edge line
+    drop_bottom_rows: int = 0                                           # C2's band-edge line
     box_reading: str = "legacy"                                         # section 44: "legacy" | "mmdet3d_v0x"
-    min_opacity: float = 0.0                                            # round 2 (E): prune faint Gaussians
+    min_opacity: float = 0.0                                            # prune faint Gaussians
     #: da3_window "clip" = one DA3 pass over all frames of the clip with
     # one ground scale (V1; da3_chunk N > 0 = chunks of N frames overlapping by N // 2, chained by their overlap and
     # each frame read from the chunk it is most central in); da3_fuse = static depth fusion over fuse_offsets with
@@ -535,7 +535,7 @@ class SceneBuilder:
 
         For an edge between columns c (foreground) and c + 1 (background, range ratio > 1 + tol) the source is the
         first KEPT pixel among c + 1 ... c + edge_extend_search on the background side whose range is still above the
-        foreground's (the pixels right at an edge are usually removed by the depth-edge filter: edge_extend 787527 with
+        foreground's (the pixels right at an edge are usually removed by the depth-edge filter: edge_extend with
         the adjacent pixel as source added nothing).  Copies are placed on the rays of the columns from the source
         back towards (and past) the edge, up to edge_extend columns beyond it, at the source's range; a copy is made
         where the column is not kept or is still in front of the background."""

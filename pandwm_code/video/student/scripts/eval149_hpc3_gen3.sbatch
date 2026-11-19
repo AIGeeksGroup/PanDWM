@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # copy of eval149_hpc3_gen2.sbatch whose base config can be swapped (EVAL_CFG), for the inference-only
 # step-schedule test of the v8.3 student: cd_eval_frozen149_hpc3_s13.json is the frozen-149 config with
-# pipeline.denoising_step_list [1000, 625, 250, 42] (the s13 schedule that took B0 from FVD 79.3 to 70.1 )
+# pipeline.denoising_step_list [1000, 625, 250, 42] (the s13 schedule that took B0 from FVD 79.3 to 70.1)
 # instead of the training schedule [1000, 750, 500, 250].  Still 4 network evaluations.  Everything else unchanged.
 # copy of eval149_hpc3_gen.sbatch with an optional launcher in front of lowmem_launch.py (LAUNCH, e.g.
 # corr_noise_launch.py for the temporally correlated sampler noise test; its PANDWM_RENOISE_CORR / PANDWM_INIT_CORR come

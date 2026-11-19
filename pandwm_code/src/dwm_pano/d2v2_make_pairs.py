@@ -1,8 +1,8 @@
 """Training pairs for the D2 v2 refiner.
 
 D2 v1 (d2_make_train.py) trained on renders at the ORIGINAL pose with Gaussians culled / taken from neighbours; at test
-time the refiner sees renders at a SHIFTED pose, so train and test inputs differed ( the 10-25
-survey, cause 1).  Here the degradation is the round trip of DiST-4D's cycle consistency / Difix3D's cycle
+time the refiner sees renders at a SHIFTED pose, so train and test inputs differed.
+Here the degradation is the round trip of DiST-4D's cycle consistency / Difix3D's cycle
 reconstruction, made with the decoder and scene settings the refiner is evaluated with (G3b,
 V2 clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes):
 

@@ -4,7 +4,7 @@
 # env ~/pandwm_env.sh, code = ~/pandwm_code/src (as on HPC3),
 # config = the HPC3 config with the path prefix /path/to/pandwm_root -> /path/to/pandwm_root only, and a
 # SMOKE first: SMOKE_STEPS (3) steps of the same config into a scratch campaign (abl_smoke_<ARM>_hpc2); only
-# if it exits 0 with a log row the real run starts, in the same allocation.  The smoke dir is moved to ~/_trash after.
+# if it exits 0 with a log row the real run starts, in the same allocation.  The smoke dir is removed after.
 #   ARM=D_notemp sbatch scripts/train_abl_hpc2.sbatch
 #SBATCH --job-name=pandwm_abl_D_hpc2
 #SBATCH --partition=<partition>
@@ -74,14 +74,14 @@ export CAMPAIGN_DIR=$CAMP PAUSE_FILE=$CAMP/PAUSE_REQUESTED
 # ---- smoke (once, before the real run starts) ----
 if [[ ! -e "$CAMP/SMOKE_PASSED" ]]; then
     SM=$R/abl_smoke_${ARM}_hpc2
-    [[ -e "$SM" ]] && { mkdir -p ~/_trash; mv "$SM" ~/_trash/$(basename "$SM")_$(date +%s); }
+    [[ -e "$SM" ]] && rm -rf "$SM"
     mkdir -p "$SM/gan/checkpoints" "$SM/gan/training_state" "$SM/gan/log"
     echo "SMOKE_START steps=$SMOKE_STEPS $(date -Is)"
     t0=$(date +%s)
     if ! run_train "$SM" "$SMOKE_STEPS" 1; then echo "SMOKE_FAIL $(date -Is)"; exit 1; fi
     echo "SMOKE_PASS steps=$SMOKE_STEPS wall=$(( $(date +%s) - t0 ))s $(date -Is)"
     echo "job=$SLURM_JOB_ID $(date -Is)" > "$CAMP/SMOKE_PASSED"
-    mkdir -p ~/_trash; mv "$SM" ~/_trash/$(basename "$SM")_passed_$(date +%s)
+    rm -rf "$SM"
 fi
 [[ -e "$CAMP/PAUSE_REQUESTED" ]] && { echo "Campaign is paused"; exit 1; }
 STEP=$(latest "$OUT")

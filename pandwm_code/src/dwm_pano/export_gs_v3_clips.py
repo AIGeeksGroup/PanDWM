@@ -61,11 +61,11 @@ def parse_args():
     p.add_argument("--ownership", action="store_true")
     p.add_argument("--da3-relabel", action="store_true")
     p.add_argument("--sky-layer", action="store_true")
-    p.add_argument("--da3-mode", choices=["ray", "scale"], default="ray", help="scale = C1b (section 40.3)")
+    p.add_argument("--da3-mode", choices=["ray", "scale"], default="ray", help="scale = C1b")
     p.add_argument("--fill-mode", choices=["pushpull", "bgrow"], default="pushpull",
-                   help="bgrow = background row fill first, push-pull for the rest (B3, section 40.4)")
+                   help="bgrow = background row fill first, push-pull for the rest (B3)")
     p.add_argument("--drop-bottom-rows", type=int, default=0,
-                   help="drop the Gaussians of the lowest N decoder rows (section 41.6, C2's band-edge line)")
+                   help="drop the Gaussians of the lowest N decoder rows (C2's band-edge line)")
     p.add_argument("--da3-src", default="")
     p.add_argument("--da3-anyview", default="")
     p.add_argument("--da3-metric", default="")

@@ -1,6 +1,6 @@
 """v5: history-blind discriminator + per-rank noise (pipeline.py / _v2 / _v4 / _resumable are untouched).
 
-Problems found on the run (701035, paused at step 1609):
+Problems found on the run (paused at step 1609):
 
 1. History shortcut.  The GAN real sample is (GT history, GT target) and the fake one is (generated history,
    generated target).  The 3 clean history slots reach the target tokens through the causal temporal blocks

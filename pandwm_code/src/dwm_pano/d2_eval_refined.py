@@ -9,11 +9,11 @@ like the video model's own outputs:
     --arm in=<review_inputs dir>:render     <dir>/clipNNN/render_dy<d>.pt["render"]   (GS render, VAE round trip)
     --arm d2=<refined dir>:latents          <dir>/clipNNN/d2_dy<d>.pt["latents"]      (refiner output)
     --arm Bf=<refined dir>:latents:fuse     the refiner output with its low frequencies (16 x 16 mean, bilinear
-                                            back up) replaced by those of the "in" frames (section 43.3: the
+                                            back up) replaced by those of the "in" frames (the
                                             refiner's detail with the GS render's colours); needs an "in" arm
 
 so the refined arm and its own input are measured through the same decode and stitch.  If an arm is named
-"in", every other arm also gets coarse_psnr (section 43.2): PSNR against the "in" frames after a 16 x 16
+"in", every other arm also gets coarse_psnr: PSNR against the "in" frames after a 16 x 16
 average pool (colour / layout agreement with the GS render, blind to the fine artefacts a refiner should fix).  Arm names are
 "<name>_<d>".  States are saved after every clip (--state) and merged with --merge, as in eval_gs_shift.py.
 """
