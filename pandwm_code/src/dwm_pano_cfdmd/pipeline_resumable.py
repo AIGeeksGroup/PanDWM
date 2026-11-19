@@ -1,4 +1,4 @@
-"""Plan A: v4 training with full rank-local state and safe pause boundaries."""
+"""v4 training with full rank-local state and safe pause boundaries."""
 import os
 import random
 import shutil

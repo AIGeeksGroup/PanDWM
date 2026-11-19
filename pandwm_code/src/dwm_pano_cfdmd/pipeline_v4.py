@@ -1,7 +1,7 @@
-"""Lower-memory critic step for the GAN variant, v4 (pipeline.py / _v2 / _v3 are untouched).
+"""Lower-memory critic step for the GAN variant, v4 (pipeline.py / _v2 are untouched).
 
-History: v1 (original) OOM'd in the critic backward, v3 (two backward passes, discriminator forwards touching the
-fake-score output) OOM'd in the second one because `0 * output` makes the backward walk all 24 blocks for both
+History: v1 (original) OOM'd in the critic backward, and a variant with two backward passes (discriminator forwards
+touching the fake-score output) OOM'd in the second one because `0 * output` makes the backward walk all 24 blocks for both
 the real and the fake discriminator forward.
 
 Observation: the discriminator's forward on the *generated* sample is the same call as the flow-matching
