@@ -10,7 +10,7 @@
 #SBATCH --time=02:00:00
 #SBATCH --output=logs_eval149/%x_%j.log
 # D1 step 2: SDEdit of shifted GS pano renders with the
-# locked v84i4250 EMA student (d1_sdedit.py), environment of verify_clips_runner.sbatch.
+# locked v84i4250 EMA student (d1_sdedit.py).
 #   CLIPS=2,60 SHIFTS=0,1,2 STARTS=2,3 sbatch d1_sdedit_hpc3.sbatch
 set -uo pipefail
 DR=/path/to/pandwm_root

@@ -11,7 +11,7 @@ run_eval149_videos.py generalised in four ways, everything else is the same code
     continues from the last 3 generated frames; the scored frames are 3..34 in both settings;
   * --student-steps: the student step list (default = the training list [1000, 750, 500, 250], the paper setting).
 With a manifest whose test_index equals the Dev-149 clip index, --dataset-stride 20 and the defaults, the output equals
-run_eval149_videos.py's bit for bit (checked by scripts/verify_clips_runner.sbatch).
+run_eval149_videos.py's bit for bit.
 
 Per clip: <out>/clip<test_index:03d>/latents.pt (35 latent frames, fp16, frames 0-2 = encoded recorded history or,
 for --history none, generated), gt_vs_generated.mp4 and summary.json.

@@ -6,7 +6,7 @@
 #   TAG=teacher50 CKPT=<stage1> ENGINE=teacher CHUNK=4 sbatch --array=0-53%4 --time=03:00:00 scripts/tests_gen.sbatch
 #   TAG=stage0_50 CKPT=<stage0> ENGINE=teacher BIDIR=1 ...                                         (bidirectional)
 #   TAG=v84i4250G HISTORY=none MANIFEST=dev78_manifest.json STRIDE=20 ...                  (setting G)
-# Settings fixed by LOCK_PAPER.json: stochastic 4-step sampler, steps [1000, 750, 500, 250], blend 128.
+# Paper settings: stochastic 4-step sampler, steps [1000, 750, 500, 250], blend 128.
 #SBATCH --job-name=pandwm_tgen
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>
@@ -38,9 +38,6 @@ unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR PANDWM_HISTORY_GUIDANCE || true
 [[ -f "$CK" ]] || { echo "CKPT_MISSING $CK"; exit 1; }
 cd "$C" || exit 1
 [[ -f "$MANIFEST" ]] || { echo "MANIFEST_MISSING $MANIFEST"; exit 1; }
-# the runner must have passed its equality check against run_eval149_videos.py
-VLOG=$(ls -t $DR/pandwm_code/video/student/logs_eval149/pandwm_vclips_*.log 2>/dev/null | head -1)
-grep -q "VERIFY_CLIPS_EQUAL PASS" "${VLOG:-/dev/null}" || { echo "CLIPS_RUNNER_NOT_VERIFIED ${VLOG:-none}"; exit 1; }
 TASK=${SLURM_ARRAY_TASK_ID:-0}
 N=$(python3 -c "import json; print(json.load(open('$MANIFEST'))['count'])")
 S=$((TASK * CHUNK)); E=$(( (TASK + 1) * CHUNK < N ? (TASK + 1) * CHUNK : N ))

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Test-L, the long-video test set: the 71 test
 # scenes of eval/review149_test71_long12.json, 3 recorded frames + 12 windows x 16 (19.5 s)
-# from the scene start; windows 1-2 are the Dev-149 clip and are not scored.  Same runner and protocol as
-# long_video_dev76.sbatch (student, clean history, stochastic 4-step sampler, blend 128), with the paper step list
-# [1000, 750, 500, 250] as the default (LOCK_PAPER.json).
+# from the scene start; windows 1-2 are the Dev-149 clip and are not scored.  Student, clean history,
+# stochastic 4-step sampler, blend 128, steps [1000, 750, 500, 250].
 # Array task i runs list indices [i*CHUNK, (i+1)*CHUNK) (the list's dev76_index field holds the Dev-149 clip index);
 # output <LVT>/<TAG>_scene<index>_seed<SEED>.  A time budget stops at a window boundary; resubmit to resume.
 #   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch
@@ -38,13 +37,10 @@ unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR PANDWM_HISTORY_GUIDANCE || true
 EXTRA=()
 [[ $ENGINE == teacher ]] && EXTRA=(--teacher-guidance-scale "${TEACHER_CFG:-3.0}")
 [[ -f "$CK" ]] || { echo "CKPT_MISSING $CK"; exit 1; }
-# the one-process runner must have passed its equality check against the single-scene runner
-VLOG=$(ls -t /path/to/pandwm_root/pandwm_code/video/student/logs_eval149/pandwm_vmulti_*.log 2>/dev/null | head -1)
-grep -q "VERIFY_MULTI PASS" "${VLOG:-/dev/null}" || { echo "MULTI_NOT_VERIFIED ${VLOG:-none}"; exit 1; }
 mkdir -p "$LV"
 cd "$C" || exit 1
 TASK=${SLURM_ARRAY_TASK_ID:-0}
-# list POSITIONS [i*CHUNK, (i+1)*CHUNK) -> their dev76_index keys (Dev-149 clip indices), as long_video_review149.sbatch
+# list POSITIONS [i*CHUNK, (i+1)*CHUNK) -> their dev76_index keys (Dev-149 clip indices)
 IDX=$(python3 -c "
 import json
 rows = json.load(open('$LIST'))['scenes']

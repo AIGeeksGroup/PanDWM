@@ -1,8 +1,8 @@
-"""train_resumable.py with a __main__ guard, so spawn-started dataloader workers can import it safely.
+"""Resumable student training launcher with a __main__ guard, so spawn-started dataloader workers can import it.
 
-Spawned workers re-import the launching script as __mp_main__.  train_resumable.py runs the trainer at import
-time, so every worker would start a second trainer; here only module-level settings the workers also need
-(PIL's truncated-image tolerance) run at import.  Otherwise identical to train_resumable.py.
+Spawned workers re-import the launching script as __mp_main__.  If the trainer ran at import time, every worker
+would start a second trainer; here only module-level settings the workers also need (PIL's truncated-image
+tolerance) run at import, and the trainer (vendor_snapshot/train.py) starts under the __main__ guard.
 """
 import os
 import runpy

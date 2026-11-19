@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # extend a finished branch from step 2000 to MAX_STEPS (default 3000).
 #   ARM=H: v8.3, campaign cfdmd_H, configs/cfdmd_Hx_gan_v8_3_hpc3_8gpu.json
-#   ARM=G: v8.2, campaign cfdmd_G, configs/cfdmd_Gx_gan_v8_2_hpc3_8gpu.json
 # The x configs equal the branch configs except pipeline.target_steps 3000 (with 2000 every later step would save).
 # Resumes in place from the branch's latest committed checkpoint with the same data offset, like train_v8_3.sbatch.
 # Before training past 2000 it hard-links the step-2000 state into seeds/<ARM>_2000 (scripts/seed_branch.py), which
@@ -19,14 +18,13 @@
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
 set -euo pipefail
-ARM=${ARM:?set ARM=G or ARM=H}
+ARM=${ARM:-H}
 MAX_STEPS=${MAX_STEPS:-3000}
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
 R=/path/to/pandwm_root/pandwm_runs
 case "$ARM" in
     H) export CAMPAIGN_DIR=$R/cfdmd_H; CONFIG=$CF/configs/cfdmd_Hx_gan_v8_3_hpc3_8gpu.json ;;
-    G) export CAMPAIGN_DIR=$R/cfdmd_G; CONFIG=$CF/configs/cfdmd_Gx_gan_v8_2_hpc3_8gpu.json ;;
     *) echo "UNKNOWN_ARM $ARM"; exit 1 ;;
 esac
 export PAUSE_FILE=$CAMPAIGN_DIR/PAUSE_REQUESTED

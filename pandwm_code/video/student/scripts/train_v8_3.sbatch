@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # branch H = v8.3 (pipeline_v8_3, configs/cfdmd_H_gan_v8_3_hpc3_8gpu.json: v8.2 with the reworked motion match:
 # seam step included, blur-proof low/high-frequency split, smooth log-ratio push, rollout window too), seeded from
-# seeds/F_1600 like v8.2.  Copy of train_v8_2.sbatch with the H names; its original header:
-# branch G = v8.2 (pipeline_v8_2, configs/cfdmd_G_gan_v8_2_hpc3_8gpu.json: v8.1 + first-window motion match,
-#  seeded from branch F).  It only resumes: the branch directory must first be seeded with a
+# seeds/F_1600 (branch F at step 1600).  It only resumes: the branch directory must first be seeded with a
 # hard-linked v7 run-D checkpoint (scripts/seed_branch.py); it never starts from B0.  Same campaign logic as
 # train_v7.sbatch otherwise (pause file, latest committed checkpoint, same data offset), no OOM fallback config.
 #SBATCH --job-name=pandwm_cfdmd_H
