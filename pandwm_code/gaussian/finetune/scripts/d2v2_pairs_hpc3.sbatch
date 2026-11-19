@@ -23,7 +23,7 @@ export PYTHONPATH=$DR/pandwm_code/src:$PYTHONPATH
 R=$DR/pandwm_runs/d2v2
 CK=${CKPT:-$RUNS/ft3/G3b/2000.pth}
 TRAIN_PKL=$DR/pandwm_recovered_metadata/nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl
-MANIFEST=$DR/pandwm_code/video/teacher/inputs/split_195_scene_manifest.json
+MANIFEST=$DR/pandwm_code/eval/split_195_scene_manifest.json
 TASK=${SLURM_ARRAY_TASK_ID:-0}
 mkdir -p $R/logs
 cd $GSAA

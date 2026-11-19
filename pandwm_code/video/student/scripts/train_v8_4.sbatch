@@ -25,7 +25,6 @@ MAX_STEPS=${MAX_STEPS:-4250}
 FROM=4000
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
-DEMO=/path/to/pandwm_root/pandwm_code/video/teacher
 R=/path/to/pandwm_root/pandwm_runs
 export CAMPAIGN_DIR=$R/cfdmd_I
 CONFIG=$CF/configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json

@@ -193,7 +193,7 @@
     "d2_config": {
       "render_dropout": 0.1,
       "max_start": 16,
-      "forbidden_scene_manifest": "/path/to/pandwm_root/pandwm_code/video/teacher/inputs/split_195_scene_manifest.json"
+      "forbidden_scene_manifest": "/path/to/pandwm_root/pandwm_code/eval/split_195_scene_manifest.json"
     },
     "model_load_state_args": {
       "strict": false

@@ -28,7 +28,6 @@ MAX_STEPS=${MAX_STEPS:-500}
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
 ABL=/path/to/pandwm_root/pandwm_code/video/ablation
-DEMO=/path/to/pandwm_root/pandwm_code/video/teacher
 R=/path/to/pandwm_root/pandwm_runs
 export CAMPAIGN_DIR=$R/abl_${ARM}
 CONFIG=$ABL/configs/abl_${ARM}_v8_4_hpc3_8gpu.json

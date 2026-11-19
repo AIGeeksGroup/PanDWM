@@ -18,7 +18,6 @@
 set -euo pipefail
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
-DEMO=/path/to/pandwm_root/pandwm_code/video/teacher
 export PYTHONPATH=/path/to/pandwm_root/pandwm_code/src:/path/to/pandwm_root/pandwm_code/TATS_fvd
 export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True

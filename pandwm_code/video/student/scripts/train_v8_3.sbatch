@@ -20,7 +20,6 @@
 set -euo pipefail
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
-DEMO=/path/to/pandwm_root/pandwm_code/video/teacher
 export CAMPAIGN_DIR=/path/to/pandwm_root/pandwm_runs/cfdmd_H
 export PAUSE_FILE=$CAMPAIGN_DIR/PAUSE_REQUESTED
 export PYTHONPATH=/path/to/pandwm_root/pandwm_code/src:/path/to/pandwm_root/pandwm_code/TATS_fvd

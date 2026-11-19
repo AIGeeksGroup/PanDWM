@@ -13,7 +13,6 @@ set -euo pipefail
 # HPC2 (A800 expedited) copy of train_v5.sbatch; backup queue for the HPC3 v5 run.
 source $HOME/pandwm_env.sh
 CF=$HOME/pandwm_code/video/student
-DEMO=$HOME/pandwm_code/video/teacher
 export CAMPAIGN_DIR=$HOME/pandwm_runs/cfdmd_C_hpc2
 export PAUSE_FILE=$CAMPAIGN_DIR/PAUSE_REQUESTED
 export PYTHONPATH=$HOME/pandwm_code/src:$HOME/pandwm_code/TATS_fvd

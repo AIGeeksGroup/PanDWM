@@ -24,7 +24,6 @@ SMOKE_STEPS=${SMOKE_STEPS:-3}
 source $HOME/pandwm_env.sh
 ABL=$HOME/pandwm_code/video/ablation
 CF=$HOME/pandwm_code/video/student
-DEMO=$HOME/pandwm_code/video/teacher
 R=$HOME/pandwm_runs
 CONFIG=$ABL/configs/abl_${ARM}_v8_4_hpc3_8gpu.json
 [[ -f "$CONFIG" ]] || { echo "CONFIG_MISSING $CONFIG"; exit 1; }
