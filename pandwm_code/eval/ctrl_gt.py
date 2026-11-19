@@ -7,7 +7,7 @@ For every clip, clip frame 3..34 and camera (cam_band_feats.CAM_ORDER), and for 
 the image is scored against the annotations of the info that holds that camera sweep:
   * boxes: pkl gt_boxes (LiDAR frame, (w, l, h), ccw yaw) -> camera with cams[c].sensor2lidar (includes the ego motion
     between LiDAR and camera time) -> native K -> 256x448 edge coords. Hull = projection of the box clipped at
-    z = 0.5 m. Required vehicle (car/truck/bus) / pedestrian GT and ignore regions by the rules of section 5;
+    z = 0.5 m. Required vehicle (car/truck/bus) / pedestrian GT and ignore regions by the protocol rules;
   * road: per pixel ray (native K, cams[c].sensor2ego, cams[c].ego2global) hits the world plane z = 0; GT road = hit
     inside the map-expansion drivable_area raster (exterior minus holes, 0.05 m); region = protocol mask & hit within
     50 m & not inside the hull of any annotated box within 60 m. near = region pixels within 20 m.

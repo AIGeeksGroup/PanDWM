@@ -1,8 +1,8 @@
 """
 OpenDWM pano adaptation of Causal Forcing++ consistency distillation.
 
-The algorithm follows the official Causal-Forcing implementation copied under
-``dwm_pano/pipelines/causal_forcing_official_reference``.  This module keeps the
+The algorithm follows the official Causal-Forcing implementation
+(https://github.com/thu-ml/Causal-Forcing).  This module keeps the
 OpenDWM CTSD data path, VAE, SD3 text/layout conditions, pano view dimension,
 and temporal causal mask behavior from ``ctsd_pano.PanoCrossviewTemporalSD``.
 """

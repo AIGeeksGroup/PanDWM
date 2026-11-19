@@ -6,7 +6,6 @@ This repository contains code from the following projects. Their licenses apply 
 |---|---|---|
 | [OpenDWM](https://github.com/SenseTime-FVG/OpenDWM) (`dwm` package, configs, training framework) | `pandwm_code/src/dwm/`, `pandwm_code/gaussian/gs3d/` | MIT, Copyright (c) 2024 SenseTime Research (`LICENSE`) |
 | [LPIPS](https://github.com/richzhang/PerceptualSimilarity) | `pandwm_code/src/lpips/` | BSD-2-Clause (`pandwm_code/src/lpips/LICENSE`) |
-| [Causal Forcing](https://github.com/thu-ml/Causal-Forcing) reference files | `pandwm_code/src/dwm_pano/pipelines/causal_forcing_official_reference/` | Apache-2.0 |
 
 External dependencies that are not included and must be obtained separately:
 

@@ -14,10 +14,10 @@ Metric states are saved after every clip (--state) so a run can be split over ar
 
 (Table 5, generated Test-S scenes): --fps-stride 10,5 enumerates the Test-S clips (tests213 manifest),
 --expected-clips sets the clip count of the final report, --box-reading / --camera-time-poses select the fixed 4D
-scene of section 44, and --depth-pack adds AbsRel / RMSE / delta1 of the 0 m 4D render against the recorded LiDAR
+scene, and --depth-pack adds AbsRel / RMSE / delta1 of the 0 m 4D render against the recorded LiDAR
 (recon/gen_depth_pack.py): the six real cameras of each pack frame are rendered at --depth-res, the expected depth is
 read at every LiDAR point inside the band with alpha >= 0.5 (nearest pixel), per image all / static points.  The
-defaults keep the section 40/41 behaviour.
+defaults keep the earlier behaviour.
 """
 
 from __future__ import annotations

@@ -12,7 +12,7 @@ its 3x3 intrinsics at 1600x900, and the camera-to-ego transform in the INPUT fra
     c2w = inv(E_input) @ E_cam(target camera timestamp) @ S_cam,
 with S = sensor2ego, E_cam the camera's own recorded ego pose and E_input the input frame's camera-time ego pose, the
 mean of its six cameras' ego poses (camera_time_pose).  The info-level ego2global of the 12 Hz pkl is the ego pose of
-the info's LiDAR sweep, which for interpolated frames lies up to 250 ms before the cameras (section 44); the scene's
+the info's LiDAR sweep, which for interpolated frames lies up to 250 ms before the cameras; the scene's
 Gaussians live in the camera rig, so the camera-time pose is their frame ("ego2global_pkl" keeps the pkl pose).
 The LiDAR sweep of the target info has lidar_to_cam[c] = inv(E_cam S_cam) @ E_info @ L2E (E_info = that sweep's own
 pose, so the transform is exact); the dynamic 3D boxes are given in the info's LiDAR frame as the pkl stores them,

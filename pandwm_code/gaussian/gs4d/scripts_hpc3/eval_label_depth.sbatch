@@ -16,7 +16,7 @@ set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 CK=${CHECKPOINT:-$RUNS/init/gs4d_cov_3000.pth}
 DACR=/path/to/pandwm_root/pandwm_code/third_party/depth_any_camera   # DAC=1 adds the dac / dac_edge variants (v2)
-[ -n "${DA3:-}" ] && source $GS4D/scripts_hpc3/da3_env_hpc3.sh       # DA3=1 adds da3 / da3_edge (v3, section 40)
+[ -n "${DA3:-}" ] && source $GS4D/scripts_hpc3/da3_env_hpc3.sh       # DA3=1 adds da3 / da3_edge (v3)
 mkdir -p $RUNS/label_depth
 echo "GSLD_START name=${NAME:?} ckpt=$CK resize=${RESIZE:-nearest} clips=${CLIPS:-25} node=$(hostname) $(date -Is)"
 $PY -m dwm_pano_4d.eval_label_depth -c $GS4D/configs/gs4dd_hpc3_C.json --checkpoint $CK \

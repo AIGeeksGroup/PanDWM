@@ -8,7 +8,7 @@
 #SBATCH --output=%x_%j.log
 set -euo pipefail
 
-SOURCE_JOB=${SOURCE_JOB:-608501}
+SOURCE_JOB=${SOURCE_JOB:?set SOURCE_JOB to the generation job directory}
 SPLIT_REPEATS=${SPLIT_REPEATS:-20}
 SPLIT_SEED=${SPLIT_SEED:-20260909}
 H=/path/to/pandwm_root

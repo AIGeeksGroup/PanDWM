@@ -9,14 +9,12 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs_ft3/logs/%x_%A_%a.log
-# tab5_shift_hpc3.sbatch on the 71-clip Test-S subset with
-# the gaussian/finetune code copy (sharpness, no-offset), per-ARM states / report / samples, scene flags from
-# DA3FLAGS / EXTRA, and the s71 clip list built in.  Copied from:
-# Table 5 (Gaussians on generated Test-S scenes), our row: dwm_pano.eval_gs_shift on the v84i4250 s42
-# Test-S generations, fixed 4D scene (section 44: camera-time poses, mmdet3d v0.x boxes) with the v4 settings
-# (C2 step 3000, DA3 scale relabel, 2 bottom rows dropped), shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m
-# render (recon/gen_depth_pack.py).  Task i evaluates clips [i*CHUNK, (i+1)*CHUNK); MERGE=1 merges.
-#   [CHUNK=18] sbatch --array=0-11 tab5_shift_hpc3.sbatch ;  MERGE=1 sbatch tab5_shift_hpc3.sbatch
+# Gaussians on generated scenes, our row: dwm_pano.eval_gs_shift on the v84i4250 seed-42 Test-S generations with
+# the G3b decoder, the fixed 4D scene (camera-time poses, mmdet3d v0.x boxes), DA3 scale relabel and the 2 bottom
+# decoder rows dropped, shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m render (recon/gen_depth_pack.py).
+# ARM selects the scene flags (DA3FLAGS / EXTRA); SUBSET=s71 runs the 71-clip Test-S subset.
+# Task i evaluates its share of the clips; MERGE=1 merges.
+#   [CHUNK=18] sbatch --array=0-11 tab5_ft3_hpc3.sbatch ;  MERGE=1 sbatch tab5_ft3_hpc3.sbatch
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

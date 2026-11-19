@@ -7,7 +7,7 @@ target frame and no later frame can leak; the scene canvases (DA3 input) are the
   4d     + the static Gaussians of the history frames 0, 5, 10, 15 (gs_scene_v3.static_world, moved into frame 20's
          ego); DA3 windows of 4 frames back (gap 4, clipped at frame 20).  Frames are registered with their
          camera-time ego poses (targets.camera_time_pose; the boxes follow through an adjusted lidar2ego) and the
-         dynamic boxes are read as mmdet3d v0.x (box_reading "mmdet3d_v0x"), section 44.
+         dynamic boxes are read as mmdet3d v0.x (box_reading "mmdet3d_v0x").
   4d_v4  the 4d scene exactly as v4 built it: the pkl's LiDAR-time ego poses for the registration and the DA3 windows,
          the legacy box reading.
 A history frame that IS the target frame is left out for that target (targets.json in_history).  Every target is

@@ -17,7 +17,7 @@ gs4d_relabel:
 * no_offset: every centre is put back on its pixel ray, origin + direction * range, before the slide (the decoder's
   free xyz offset is dropped; gs_scene_v3 SceneOptions.no_offset at test time).  InfiniSplat v2 (2610.20341) found
   free offsets on fixed depth hurt novel views (they compensate attribute errors);
-* plane_offset_px > 0 (section 6; needs no_offset false): keep only the offset's component across the
+* plane_offset_px > 0 (needs no_offset false): keep only the offset's component across the
   ray, softly bounded to that many decoder pixels (da3_depth.plane_offsets), so sub-pixel alignment survives while
   the depth stays on the ray; G1 / G2 (no offset) lost 0 m FID against G0 (free offset);
 * loo_perceptual: weight of an LPIPS term on the leave-one-out render (the parent's LOO is L1 only, which rewards

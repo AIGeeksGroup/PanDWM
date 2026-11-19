@@ -1,7 +1,7 @@
 """Write the ablation configs from the final run's config and print every key that differs.
 
 Source: video/student/configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json (identical to
-pandwm_runs/cfdmd_I/gan/log/config_used_job_714919.json, the run that produced the locked v84i4250 EMA).
+pandwm_runs/cfdmd_I/gan/log/config_used_job_<id>.json, the run that produced the locked v84i4250 EMA).
 
   A_ctrl    full recipe from the consistency-distilled student: the I config with the two schedules that were anchored
             to the staged run's history (temporal heads from step 1300, ramp 150; motion match from step 1600,

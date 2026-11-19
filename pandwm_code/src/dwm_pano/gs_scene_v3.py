@@ -14,7 +14,7 @@ default scene is exactly v2's:
   default); pixels DA3 calls sky or without a DA3 range below far_cut keep the decoder geometry.
 * sky_layer (B2): the Gaussians of pixels DA3 calls sky are dropped; renderers then take the sky colour from the
   frame's own decoded pano along the ray direction (sky is at infinity, so a pure translation does not move it).
-* box_reading (section 44): "legacy" reads gt_boxes as (x, y, z, dx, dy, dz, yaw) (export_gs_4d_demo.boxes_in_ego);
+* box_reading "legacy" reads gt_boxes as (x, y, z, dx, dy, dz, yaw) (export_gs_4d_demo.boxes_in_ego);
   the 12 Hz pkl stores mmdet3d v0.x boxes (x, y, z, w, l, h, -yaw - pi/2), which "mmdet3d_v0x" reads correctly.  The
   two agree only for boxes aligned with the LiDAR axes; a diagonal box is mirrored and covers about half the object.
 """
@@ -62,7 +62,7 @@ class SceneOptions:
     blend_near_m: float = 10.0
     blend_far_m: float = 30.0
     drop_bottom_rows: int = 0                                           # C2's band-edge line
-    box_reading: str = "legacy"                                         # section 44: "legacy" | "mmdet3d_v0x"
+    box_reading: str = "legacy"                                         # "legacy" | "mmdet3d_v0x"
     min_opacity: float = 0.0                                            # prune faint Gaussians
     #: da3_window "clip" = one DA3 pass over all frames of the clip with
     # one ground scale (V1; da3_chunk N > 0 = chunks of N frames overlapping by N // 2, chained by their overlap and
@@ -86,7 +86,7 @@ class SceneOptions:
     #: put every centre back on its pixel ray (origin + direction * decoder
     # range) before any relabel, dropping the decoder's xyz offset (pipeline_relabel.py no_offset)
     no_offset: bool = False
-    # (section 6): > 0 = keep the offset's across-ray component bounded to this many decoder pixels
+    # > 0 = keep the offset's across-ray component bounded to this many decoder pixels
     # (da3_depth.plane_offsets, pipeline_relabel.py plane_offset_px)
     plane_offset_px: float = 0.0
     #: colour every Gaussian with its pixel of the

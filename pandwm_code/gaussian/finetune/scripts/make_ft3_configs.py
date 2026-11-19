@@ -45,7 +45,7 @@ ARMS = {
               {"bound": 0.0, "no_offset": True, "loo_perceptual": 0.5},
               gs4d={"weight_composite_perceptual": 0.5}),
 }
-# section 6 (after the G0-G2 GS-Dev results: no offset lost 0 m FID, LPIPS 0.5 gave the sharpest renders
+# (after the G0-G2 GS-Dev results: no offset lost 0 m FID, LPIPS 0.5 gave the sharpest renders
 # and the best +-1/2/4 m): G3a = G0 + G2's LPIPS weights (free offsets); G3b = in-plane offsets bounded to 1 px
 # (da3_depth.plane_offsets) + G2's LPIPS weights.
 ARMS["G3a"] = arm("round-3 G3a: G0 (free offsets) + LPIPS 0.5 on own / composite / LOO",
