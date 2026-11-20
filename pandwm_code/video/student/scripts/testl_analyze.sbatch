@@ -3,6 +3,8 @@
 # long_analyze2.py with window buckets (windows 1-2 are the standard evaluation clip and are reported for
 # reference only) and the split-half reference.
 #   ARMS="v84i4250" SEEDS="42" OUTNAME=testl_v84_s42 sbatch scripts/testl_analyze.sbatch
+# LIST=<scene list> replaces the 71 test scenes (e.g. eval/testl_ext12_long12.json); PERWINDOW=<name> also
+# writes per-window metrics to $LV/<name>.json.
 # Feature files are per (arm, seed set): $FD/feats_<arm>.npz under FD=$LV/feats_s<seeds joined by _>.
 #SBATCH --job-name=pandwm_tlan
 #SBATCH --partition=<partition>
@@ -18,7 +20,7 @@ set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/eval
 LV=${LV_OUT:-$DR/pandwm_runs/long_videos_testl}
-LIST=$C/review149_test71_long12.json
+LIST=${LIST:-$C/review149_test71_long12.json}
 PY=$DR/pandwm_venv/bin/python
 export PYTHONPATH=$DR/pandwm_code/src:$DR/pandwm_code/TATS_fvd
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 TORCH_HOME=$DR/.cache/torch PYTHONUNBUFFERED=1
@@ -38,3 +40,8 @@ done
 OMP_NUM_THREADS=4 "$PY" long_color.py "$LV" "$LV/${OUTNAME}_color.json" --arms $ok --scenes $SC --seeds $SEEDS \
   --windows 12 || echo "COLOR_FAILED"
 echo "TLAN_END $(date -Is)"
+if [[ -n ${PERWINDOW:-} ]]; then
+  B=""; for w in $(seq 1 12); do B="$B w$w=$w-$w"; done
+  # shellcheck disable=SC2086
+  "$PY" long_analyze2.py "$FD" "$LV/$PERWINDOW.json" --arms $ok --seeds $SEEDS --buckets $B && echo "PERWINDOW_DONE"
+fi

@@ -79,7 +79,7 @@ PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes,
 
 ## ⚙️ Environment Setup
 
-The paper results were produced with Python 3.12, PyTorch 2.7.1 (CUDA 12.8), torchvision 0.22.1, diffusers 0.31.0, transformers 4.57.1, accelerate 1.4.0, torchmetrics 1.6.0, timm 1.0.15, einops 0.8.2, av 14.2.0 and numpy 2.1.2. The Gaussian jobs additionally use [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3 and the [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3) source tree. `pandwm_code/gaussian/gs3d/requirements.txt` lists the remaining OpenDWM dependencies.
+The paper results were produced with Python 3.12, PyTorch 2.7.1 (CUDA 12.8), torchvision 0.22.1, diffusers 0.31.0, transformers 4.57.1, accelerate 1.4.0, torchmetrics 1.6.0, timm 1.0.15, einops 0.8.2, av 14.2.0 and numpy 2.1.2. The Gaussian jobs additionally use [gsplat](https://github.com/nerfstudio-project/gsplat) 1.5.3 and the [Depth Anything 3](https://github.com/ByteDance-Seed/Depth-Anything-3) source tree. `requirements.txt` lists the remaining OpenDWM dependencies.
 
 Student training runs on one node with 8 GPUs; generation and Gaussian evaluation run on one GPU per array task.
 

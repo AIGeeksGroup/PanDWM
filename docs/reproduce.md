@@ -20,7 +20,7 @@ Fixed settings of the paper model: EMA weights at iteration 4250, stochastic fou
 | Val-150 (scene-0018) | same with `MANIFEST=$EV/scene0018_manifest.json`, run through `relaxed_sync.py` (see its docstring) |
 | Dev-78 | `MANIFEST=$EV/dev78_manifest.json STRIDE=20` |
 | Test-L, 71 scenes | `TAG=v84i4250 CKPT=<video ckpt> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch` |
-| Test-L, 12 extension scenes | `LIST=$EV/testl_ext12_long12.json ... sbatch scripts/long_video_testl_ext.sbatch` |
+| Test-L, 12 extension scenes | `LIST=$EV/testl_ext12_long12.json ... sbatch scripts/long_video_testl.sbatch` |
 | 50-step causal teacher (reference rows) | `ENGINE=teacher TAG=teacher50 CKPT=<teacher ckpt> CHUNK=4` with the same scripts |
 | Setting G (no recorded history) | `TAG=v84i4250G HISTORY=none` |
 
@@ -34,7 +34,7 @@ Each clip directory holds `latents.pt`, `gt_vs_generated.mp4` and `summary.json`
 | Six-camera metrics (supplementary) | `scripts/camspace_feats.sbatch`, `scripts/camspace_analyze.sbatch` |
 | Flicker and sharpness ratios | `$EV/flicker_diag.py` (`flicker_diag_subset.py` for subsets) |
 | Controllability | `scripts/ctrl_pred.sbatch` (`$EV/ctrl_predict.py`, `ctrl_gt.py`), then `$EV/ctrl_analyze.py` |
-| Long-video per-window metrics (Test-L) | `scripts/testl_analyze.sbatch`, `scripts/testl_analyze_ext.sbatch` (`long_feats.py`, `long_analyze2.py`) |
+| Long-video per-window metrics (Test-L) | `scripts/testl_analyze.sbatch` (`LIST=` for the 12 extension scenes; `long_feats.py`, `long_analyze2.py`) |
 | Ablations (Dev-78, 500 iterations each) | `pandwm_code/video/ablation`: configs from `scripts/make_ablation_configs.py`, training `scripts/train_abl.sbatch`, evaluation `scripts/abl_analyze.sbatch`, table `scripts/abl_table.py` |
 | Speed | `pandwm_code/src/dwm_pano/benchmark_speed.py` |
 
