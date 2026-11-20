@@ -606,40 +606,13 @@
         }
     },
     "informations": {
-        "source_config": "/path/to/pandwm_root/pandwm_code/gaussian/gs3d/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
-        "stage": "causal_forcing_plus_plus_consistency_distillation",
+        "experiment": "ablation of the four-step student: recorded instead of self-generated history",
         "initial_causal_checkpoint": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
-        "notes": "OpenDWM pano adaptation of Causal-Forcing++ consistency distillation; keeps CTSD pano conditions and causal temporal mask.",
-        "official_stage2_config_source": "externals/Causal-Forcing/configs/causal_cd_framewise.yaml",
-        "official_stage2_parameters_preserved": true,
-        "opendwm_pano_latent_shape": [
-            1,
-            19,
-            2,
-            16,
-            32,
-            288
-        ],
-        "experiment": "Plan D: v7 GAN (fair, capped discriminator) + teacher guidance 3",
         "frames_per_clip": 179,
         "gan": [
             0.01,
             0.01
         ],
-        "dataloader_note": "a job died with ENOMEM forking dataloader workers from 45 GB ranks; preview loader removed (never used), data loaded in the main process",
-        "gan_fix_note": "pipeline_v2 adds 0*fake_score_output in the generator step (FSDP pre-backward hook fix, a job failure); bad_timestamps_us blacklists the truncated JPEG 1531884295049111.jpg (a job failure). Otherwise identical to cfdmd_v1_gan.json.",
-        "hpc3_note": "path prefix /path/to/pandwm_root -> /path/to/pandwm_root, otherwise identical to cfdmd_v1_gan_v2.json (HPC2 earlier jobs).",
-        "v4_note": "pipeline_v4 shares one fake-score forward between the flow-matching loss and the fake discriminator logit, and back-propagates the real-window discriminator term separately (HPC3 OOM in earlier jobs); otherwise identical to cfdmd_v1_gan_v2_hpc3.json.",
-        "gpu8_note": "mesh_shape [1,8] for an 8-GPU memory diagnostic (global batch 8); otherwise identical to cfdmd_v1_gan_v4_hpc3.json.",
-        "arm": "gan",
-        "checkpoint_policy": "full state every 50 steps or 1800 seconds; first at 5; latest three committed snapshots",
-        "v7_note": "v7 replaces v5 before v5 started. (1) real_guidance_scale 3 -> 2: DMD used x_c + s(x_c - x_u) = effective guidance 4 while the teacher sampler and B0's distillation use 3 (run A over-sharpened, PSNR -0.42 dB). (2) Discriminator = per-token heads on detached fake-score blocks 6/12/18 (F trained by flow matching only), hinge loss. (3) Its noise level is tied to the exit step of the judged sample (final step at t=502: sigma 0.05-0.50); real and fake share sigma and noise. (4) Pairs: rollout window judged as a 16-frame clip without the student history; first window with the real history in both. (5) Adversarial gradient at the student output capped at 0.35 x DMD per term; 100 steps heads-only, then a 200-step ramp of the adversarial weight to 0.01. Everything else as cfdmd_B_gan_v5. HPC3 copy.",
-        "dataloader_note_v7": "run A spent ~13 s/step loading data in the main process (53 s wall vs 35-37 s train_step). One spawn worker per rank loads the next clip during the current step (spawn: a fresh process, no fork of the 45 GB rank, the old ENOMEM cause); prefetch 1 keeps host memory low (one ~2.2 GB clip buffered per rank, 8 ranks within the 480G request). Needs the main-guarded launcher scripts/train_resumable_v7.py.",
-        "layers_note": "disc_layers 6/12/18 -> 4/12/23 after the target-only probe (a job, 64 clips, held-out AUC with v5's noise history): block 4 and block 23 are the strongest (sigma 0.83: 0.934 / 0.904; sigma 0.95: 0.785 / 0.755), block 12 the weakest (0.843 / 0.688); frozen-teacher features are no better.",
-        "v8_note": "branch E: v7 config unchanged except pipeline_v8 (disc_temporal=true: one extra head per feature block scoring each pooled token's change from the previous target frame), resumed from a hard-linked v7 run D checkpoint with the same data offset and RNG state, so D and E differ only in the temporal heads. Aim: the flicker of v7 (step-500 eval: frame-to-frame change +20% vs GT, B0 +7%).",
-        "v8_1_note": "branch F: v8 config with pipeline_v8_1. v8's temporal heads had LayerNorm on the change f_k - f_{k-1}, which divides out how much a token changes (the head could not ask for smaller changes; v8's flicker monitor rose 1.075 -> 1.123 over steps 1151-1430), and they pushed the student from their first step. v8.1: temporal input = LayerNorm(f_k) - LayerNorm(f_{k-1}) into Linear-SiLU-Linear; temporal heads train from the branch start but enter the student loss only from step 1300, ramping to full weight by 1450. Resumed from v7 run D's full step-1150 state (hard links via /path/to/pandwm_root/pandwm_runs/seeds/D_1150; the step-1000 optimizer/RNG state was pruned by branch E's checkpoint rotation), same data offset and RNG state as D will use when it resumes.",
-        "v8_2_note": "branch G: v8.1 config with pipeline_v8_2: adds a motion-match term on the student's first window (relu(student latent frame-to-frame change / real change - 1), only the excess is penalised; gradient capped at 0.35 x DMD; weight ramps 0 -> 1 over steps 1600-1700). Reason: v7 step 1000 changes ~15% more per frame than GT at all scales (B0 5-8%) and the v8.1 temporal heads gave only ~0.5%. Resumed from branch F's latest full state (archived under /path/to/pandwm_root/pandwm_runs/seeds/F_<step>), same data order and RNG as v7 D.",
-        "v8_3_note": "branch H: v8.2 config with pipeline_v8_3, seeded from seeds/F_1600 like v8.2 so v7 D, v8.2 G and v8.3 H meet at step 2000 on the same data. The motion match now includes the history -> first generated frame step, splits latents into a 4x4-pooled low-pass part and the high-frequency residual (HF change relative to HF energy, one-sided; LF change two-sided with a 0.9 floor), uses squared log ratios (smooth) under the same 0.35 x DMD cap, and also applies to the trained rollout window when the main pass exited at the final step. Weight ramp 1600-1700 as v8.2. Why: (static-scene boiling, unconstrained seam step, blur-sensitive raw change, capped on/off push).",
-        "ext_note": "second extension of branch H from step 3000 to 4000 (the step-2500 eval was the best so far and the curve was still improving). Equal to cfdmd_Hx_gan_v8_3_hpc3_8gpu.json except pipeline.target_steps 4000, so steps after 3000 do not each save a full checkpoint."
+        "checkpoint_policy": "full state every 50 steps or 1800 seconds; first at 5; latest three committed snapshots"
     }
 }
