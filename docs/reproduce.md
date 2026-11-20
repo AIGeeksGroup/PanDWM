@@ -71,7 +71,7 @@ The DiST-4D and DiST-4D + ReconDrive rows were computed with their official code
 |---|---|
 | Video student, 4 stages, 4250 iterations | `$CF/scripts/train_v7.sbatch` → `train_v8_1.sbatch` → `train_v8_3.sbatch` / `train_ext.sbatch` / `train_ext2.sbatch` → `train_v8_4.sbatch` (see the README) |
 | Gaussian decoder, final stage G3b | `gaussian/finetune/scripts/train_ft3_hpc2.sbatch` with `ARM=G3b`, config `configs/gs4dd_hpc2_ft3_G3b.json`, 2000 steps from the previous stage |
-| Earlier decoder stages | 3D: `gaussian/gs3d/configs/ctsd/pandwm/local/`; 4D: `gaussian/gs4d/configs/` (`make_c2_config.py` and the other `make_*_config.py` scripts) |
+| Earlier decoder stages | 3D: `gaussian/gs3d/configs/`; 4D: `gaussian/gs4d/configs/` (`make_c2_config.py` and the other `make_*_config.py` scripts) |
 | Render refiner | `gaussian/refiner/scripts/train_d2.sbatch`, config `gaussian/refiner/configs/d2_pilot_hpc3_8gpu.json`, 4000 steps |
 
 The decoder and the refiner are trained on the nuScenes train split only; `src/dwm_pano_d2/pipeline.py` rejects any training clip from the 83 evaluation scenes.

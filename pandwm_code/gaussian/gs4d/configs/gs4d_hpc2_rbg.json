@@ -253,7 +253,7 @@
     "initial_data_offset": 2500,
     "notes": "Isolated antialiased-rasterizer adaptation. Start from the completed mix75 G2-250 checkpoint; freeze Stage-2 and VAE; train only the GS head for 250 steps. The gsplat eps2d schedule is 0.0 to 0.1 over steps 0..200. The original 75% cached generated-latent exposure and RGB/LPIPS/depth/range objectives are retained. Semantic-mask files are absent from the HPC mirror, so only segmentation supervision is explicitly disabled; this run must be reported as an AA adaptation, not as a matched replacement for the original mix75 checkpoint.",
     "experiment": "WorldSplat-style 4D training of the PanDWM Gaussian decoder",
-    "base_config": "/path/to/pandwm_root/pandwm_code/gaussian/gs3d/configs/ctsd/pandwm/hpc3/gs_decoder_g2_aa_eps0to0p1_250.json",
+    "base_config": "/path/to/pandwm_root/pandwm_code/gaussian/gs3d/configs/gs_decoder_g2_aa_eps0to0p1_250.json",
     "depth_losses": false,
     "init": "G2-AA 250.pth"
   }

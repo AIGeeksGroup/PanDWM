@@ -549,7 +549,7 @@
         "persistent_workers": true
     },
     "informations": {
-        "source_config": "/path/to/pandwm_root/pandwm_code/gaussian/gs3d/configs/ctsd/pandwm/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
+        "source_config": "/path/to/pandwm_root/pandwm_code/video/teacher/configs/ctsd_unimlvg_stage3_tirda_causal_nwa_3node.json",
         "stage": "causal_forcing_plus_plus_consistency_distillation",
         "initial_causal_checkpoint": "/path/to/pandwm_root/pandwm_data/cd_10000_ema.pth",
         "notes": "OpenDWM pano adaptation of Causal-Forcing++ consistency distillation; keeps CTSD pano conditions and causal temporal mask.",

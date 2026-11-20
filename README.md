@@ -48,14 +48,16 @@ This release is the code that produced the paper results, as it ran on our SLURM
 | Folder | Contents |
 |---|---|
 | `pandwm_code/src` | All Python packages: model (`dwm_pano/models/crossview_temporal_dit_pano.py`), pipelines, data loading, OpenDWM `dwm` package, student (`dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`), 4D Gaussians (`dwm_pano_4d`), reconstruction evaluation (`dwm_pano/gs_scene_v3.py`, `dwm_pano/recon/`), render refiner (`dwm_pano_d2`) |
+| `pandwm_code/video/teacher` | Causal teacher (Stage 1) and consistency distillation: OpenDWM-style configs and training scripts |
 | `pandwm_code/video/student` | Student distillation: training configs, job scripts for training and generation |
 | `pandwm_code/video/ablation` | Ablation configs and job scripts |
 | `pandwm_code/eval` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
-| `pandwm_code/gaussian/gs3d` | Early training stages of the 3D Gaussian decoder (OpenDWM-style configs) |
+| `pandwm_code/gaussian/gs3d` | Configs of the early 3D Gaussian decoder stages and the anti-aliased fine-tune job |
 | `pandwm_code/gaussian/gs4d` | 4D Gaussian decoder training and its configs |
 | `pandwm_code/gaussian/finetune` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation and multi-view consistency jobs |
 | `pandwm_code/gaussian/refiner` | Render refiner (configs, training and inference jobs, `d2_refine.py`) |
 | `pandwm_code/gaussian/recon_eval` | Job scripts for the reconstruction table (render, score, merge) |
+| `pandwm_code/baselines` | Runs of OmniNWM, GEM, Vista, Epona and HorizonDrive on the common clips, and their scoring (`common/`) |
 | `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
 
 The experiments were run from separate copies of the code. In this release the copies are merged into `pandwm_code/src/`: where a file differed between copies, the version with all options is kept, and every option added by a later experiment is off by default, so the configs of earlier stages keep their behaviour.
@@ -117,7 +119,7 @@ Training proceeds in the stages described in the paper and its supplementary mat
 
 ### Stage 1: Causal Teacher and Consistency Distillation
 
-The 50-step block-causal teacher is initialized from UniMLVG and trained with the OpenDWM trainer; the four-step student starts from consistency distillation of that teacher (`dwm_pano/pipelines/ctsd_pano_consistency_distillation.py`). The OpenDWM-style configs for these stages are in `pandwm_code/gaussian/gs3d/configs/ctsd/pandwm/` (`ctsd_unimlvg_stage3_tirda_causal_nwa*.json`, `..._consistency_distillation*.json`); the exact run configurations of the two checkpoints used here are not part of this snapshot, and the checkpoints are not released.
+The 50-step block-causal teacher is initialized from UniMLVG and trained with the OpenDWM trainer; the four-step student starts from consistency distillation of that teacher (`dwm_pano/pipelines/ctsd_pano_consistency_distillation.py`). The OpenDWM-style configs and training scripts for these stages are in `pandwm_code/video/teacher/` (`ctsd_unimlvg_stage3_tirda_causal_nwa*.json`, `..._consistency_distillation.json`); the exact run configurations of the two checkpoints used here are not part of this snapshot, and the checkpoints are not released.
 
 ### Stage 2: Distribution Matching on Self-Generated History
 
