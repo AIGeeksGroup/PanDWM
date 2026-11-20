@@ -1,4 +1,4 @@
-"""Render fixed, non-cherry-picked qualitative panels for the paper."""
+"""Render qualitative comparison panels for fixed clips (given by --item) from the real and generated dumps of each method."""
 from __future__ import annotations
 
 import argparse
@@ -77,7 +77,7 @@ def image_array(video, frame):
 
 
 def resize_for_panel(video, height, width):
-    """Normalize display resolution without changing metric source tensors."""
+    """Resize a clip to the display resolution (display only; metric tensors are untouched)."""
     if tuple(video.shape[-2:]) == (height, width):
         return video
     resized = F.interpolate(
@@ -154,8 +154,7 @@ def render_panel(
              top + (frame_height - (box[3] - box[1])) / 2),
             label, fill="black", font=label_font)
 
-    # A thin separator and scene label for each method group make the large panel
-    # readable without adding text over any evaluated pixels.
+    # Scene label for each group of rows, drawn outside the video pixels.
     for row_start, label in scene_labels:
         group_end = min(row_start + scene_group_size, row_count) - 1
         group_mid = (

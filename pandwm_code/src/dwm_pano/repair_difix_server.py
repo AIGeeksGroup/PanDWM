@@ -1,11 +1,11 @@
-"""difix_ref worker process.
+"""Worker process for the reference-conditioned repair model.
 
-Difix3D's pipeline and custom UNet / VAE need the versions its requirements.txt pins (diffusers 0.25.1,
-transformers 4.38.0, huggingface-hub 0.25.1, peft 0.9.0); the evaluation environment has diffusers 0.31 (SD3).
-So repair_difix.DifixRepair runs this file as a separate interpreter with the pinned packages first on PYTHONPATH,
-and talks to it over stdin / stdout: every message is an 8-byte little-endian length plus a pickle.
-Request {"image": (3, H, W) float16 in [0, 1], "ref": same} -> reply {"image": (3, H, W) float16}; {"quit": True}
-or EOF ends the worker.  The first reply is {"ready": True, "versions": {...}}.  Does not import dwm_pano.
+Its pipeline and custom UNet / VAE need the package versions pinned by its requirements (diffusers 0.25.1,
+transformers 4.38.0, huggingface-hub 0.25.1, peft 0.9.0), while the evaluation environment has a newer diffusers. So
+repair_difix.DifixRepair runs this file as a separate interpreter with the pinned packages first on PYTHONPATH and
+talks to it over stdin / stdout: every message is an 8-byte little-endian length plus a pickle.
+Request {"image": (3, H, W) float16 in [0, 1], "ref": same} gives reply {"image": (3, H, W) float16}; {"quit": True}
+or EOF ends the worker. The first reply is {"ready": True, "versions": {...}}. Does not import dwm_pano.
 
     python repair_difix_server.py <difix_ref model dir> <Difix3D/src>
 """

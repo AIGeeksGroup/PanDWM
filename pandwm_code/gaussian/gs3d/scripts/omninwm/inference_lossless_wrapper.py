@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Run official OmniNWM inference with an additional lossless RGB tap.
+"""Run the official OmniNWM inference and additionally save the decoded six-view RGB tensor.
 
-The official ``tools/inference.py`` module is loaded unchanged. Its global
-``process_and_save`` callback is wrapped so the decoded six-view RGB tensor is
-saved before the official visualization/MP4 writer mutates it. Model loading,
-dataset construction, denoising, VAE decode, and official output saving remain
-the upstream implementation.
+The upstream ``tools/inference.py`` is loaded unchanged; its ``process_and_save``
+callback is wrapped so the tensor is saved before the visualization/MP4 writer
+modifies it.
 """
 
 from __future__ import annotations

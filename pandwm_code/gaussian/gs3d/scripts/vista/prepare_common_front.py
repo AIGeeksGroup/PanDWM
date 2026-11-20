@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""Materialize Vista inputs/targets from the frozen 149-clip protocol.
+"""Write Vista inputs and targets for the 149 common clips.
 
-This is a data adapter only.  It does not modify Vista's network, checkpoint,
-sampler, or conditioning implementation.  For each PanDWM clip it extracts
-the calibrated CAM_FRONT band for common-frame offsets 9..33.  Offset 9 is
-Vista's single condition frame; generated offsets 1..16 are scored against
-the common target frames 10..25.
+For each clip the front-camera band is extracted for common frame offsets 9 to 33.
+Offset 9 is Vista's single condition frame; generated frames 1 to 16 are scored
+against common target frames 10 to 25.
 """
 from __future__ import annotations
 

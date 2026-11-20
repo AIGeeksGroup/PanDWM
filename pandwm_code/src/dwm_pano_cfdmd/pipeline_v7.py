@@ -1,51 +1,23 @@
-"""v7: a discriminator that judges the generated frames fairly, a capped GAN push, and teacher guidance matched
-to how the student is used.  All earlier pipeline files are untouched; v7 subclasses v5 (per-rank noise,
-milestones, EMA gate and the skip counter are kept) but owns both update steps.
+"""Context-Forced DMD with multi-layer per-token discriminator heads and a capped adversarial gradient.
 
-Review of v5 before it started (code, the run-A diagnostic, a literature survey):
+Subclasses the v5 pipeline (per-rank noise, milestones, EMA gate, skip counter) but owns both update steps.
+- Discriminator: small per-token heads (pooled tokens) on several fake-score blocks (`disc_layers`), hinge loss
+  for D and -mean(D) for the student. The fake score is trained by flow matching only; discriminator forwards
+  run without gradient and only the heads learn.
+- Noise level: one sigma per sample, tied to the exit step the fake sample came from (`disc_exit_matched`).
+  Real and fake of a pair share sigma and noise.
+- Pairs: "rollout" judges the 16 target frames of the trained window alone (`disc_rollout_input` "truncate"
+  rebuilds the conditions for those frames; "noise" replaces the history by noise). "first" judges the first
+  window sampled from the real history against the real future.
+- GAN push: the adversarial gradient reaching the student output is rescaled per sample to at most
+  `gan_ratio_cap` times the DMD gradient; the adversarial weight is 0 for the first `gan_warmup[0]` steps and
+  then ramps linearly over `gan_warmup[1]` steps. `adv_schedule` "both" uses both pairs on every student
+  step, "alternate" one pair per student step.
+- Optional `gt_regression_weight`: MSE of the first student window to the real future.
 
-1. Teacher guidance stronger than anything the student was built for.  The DMD real score is
-   x_c + s * (x_c - x_u) with s = real_guidance_scale = 3: effective guidance 1 + s = 4.  The teacher's own
-   sampler (ctsd_pano.py, x_u + 3 * (x_c - x_u)) and the consistency distillation that made B0 both use 3.
-   Run A step 1585 is sharper than the real footage (Laplacian variance 371 vs GT 329, B0 352) and further
-   from the real future (PSNR -0.42 dB).  Fix: config real_guidance_scale = 2.0 (effective 3).  No code.
-2. The discriminator mostly looked at noise.  It reused the DMD sampler (shift 5): median t = 833, 83% of
-   inputs above sigma 0.5, where the targets are invisible (run-A logit gap 1.71 at sigma 0.21, 0.05 at 0.95).
-   And 75% of its fakes are blurry early-exit predictions, so at low noise "blurry = fake" is the easy rule,
-   which pushes the student towards sharper output.  Fix: one sigma per sample tied to the exit step the fake
-   came from (Self-Forcing's ts_schedule): a sample that left the 4-step sampler at step s is judged with
-   sigma between the sampler's next and current noise levels (training steps 1000/900/751/502: the final step
-   covers [disc_sigma_min, 0.502]).
-   Real and fake of a pair share sigma and the noise tensor.
-3. D trained the fake score.  Its loss went into F, the network DMD relies on, on inputs F never saw (history
-   at t = 1000, targets lower).  Fix: F is trained by flow matching only; the discriminator forwards run under
-   no_grad and only small heads learn (LingBot-World, LADD).  This also makes the critic step cheaper than v5.
-4. One mean-pooled logit per clip: the gradient was the same vector for every token, a global "sharper"
-   push that cannot point at an edge or seam.  Fix: per-token heads (2 x 2 pooled tokens) on several blocks
-   (`disc_layers`), hinge loss for D, -mean(D) for the student.
-5. Real and fake now differ only in the frames being judged:
-     "rollout" pair, trained (third) window: the 16 target frames alone as a 16-frame clip with conditions
-       rebuilt for those frames (`disc_rollout_input` "truncate"; "noise" = v5's noise history), so the
-       student-made history is not visible;
-     "first" pair, first window: real history clean in both; fake = the first rollout window the step already
-       sampled with the deployed 4-step sampler, real = the real future.  Here the discriminator may also judge
-       whether the future follows the real past.
-6. Nothing bounded the GAN push.  Fix: the adversarial gradient that reaches the student's output is rescaled
-   to at most `gan_ratio_cap` x the DMD gradient (closed form), per sample; adversarial weight 0 for the first
-   `gan_warmup[0]` steps (heads learn first), then a linear ramp over `gan_warmup[1]` steps.
-   `adv_schedule` "both" applies the rollout and the first-window term on every student step (two passes, one
-   student graph at a time); "alternate" uses one of them per student step (rollout on even, first on odd
-   student steps), so the student step peaks like v5's.
-
-Optional, off by default: `gt_regression_weight` (MSE of the student's first window to the real future).
-
-Every critic row reports the same keys (the trainer averages each key over all rows; a job).  Rollout
-pair: disc_loss / disc_real_acc / disc_fake_acc / d_real / d_fake / d_gap_lo / d_gap_hi; first pair: disc1_*;
-student (value of the last student step): gan_dmd_ratio, gan_cap_frac, adv_first, gt_reg, gan_weight;
-monitors (real footage = 1.0): hf_ratio_w1 / hf_ratio_w2 (latent high-frequency energy of the deployed first /
-second rollout window over GT; > 1 = sharper than real), motion_ratio_w1 (frame-to-frame change over GT;
-< 1 = less motion), mem_peak_gb (largest allocated GPU memory of any rank so far in this process).  Metrics are
-averaged over all ranks.
+Every critic row reports the same keys, since the trainer averages each key over all rows. Metrics are averaged
+over ranks. hf_ratio_* and motion_ratio_w1 compare latent high-frequency energy and frame-to-frame change of
+the rollout windows with the real footage (1.0 = same as real).
 """
 import math
 
@@ -85,7 +57,7 @@ class CapGrad(torch.autograd.Function):
 
 
 def make_heads(layers, hidden, width=256):
-    """One small per-token head per feature block (same layer types as the v1-v5 head)."""
+    """One small per-token head per feature block."""
     return torch.nn.ModuleDict({
         str(int(layer)): torch.nn.Sequential(torch.nn.LayerNorm(hidden), torch.nn.Linear(hidden, width),
                                              torch.nn.SiLU(), torch.nn.Linear(width, 1))
@@ -117,9 +89,9 @@ def latent_motion(x):
 
 
 class PanoContextForcedDMDv7(PanoContextForcedDMDv5):
-    # pipeline.PanoContextForcedDMD.__init__ assigns its mean-pool head to `self.disc_head`, builds the head
-    # optimizer from it and, on resume, loads <step>_disc_head.pth into it.  The property swaps in the v7 heads
-    # at that assignment, so the optimizer, resume, save_checkpoint and milestones all use them unchanged.
+    # The base __init__ assigns its mean-pool head to `self.disc_head`, builds the head optimizer from it and, on
+    # resume, loads <step>_disc_head.pth into it. This property swaps in the multi-layer heads at that assignment,
+    # so the optimizer, resume, save_checkpoint and milestones all use them unchanged.
     @property
     def disc_head(self):
         return self._v7_heads
@@ -381,7 +353,7 @@ class PanoContextForcedDMDv7(PanoContextForcedDMDv5):
         adv_pairs = self._adv_pairs_this_step()
         self._stash["cond_main"] = cond
 
-        # Main pass: DMD exactly as v5 / pipeline.py, plus the capped rollout adversarial term.
+        # Main pass: DMD as in the base pipeline, plus the capped rollout adversarial term.
         x0_pred = self._run_generator(latent_shape, cond, image_latents=history, reference_frame_count=CONTEXT,
                                       grad_on_last=True)
         exit_main = self._last_exit_idx
@@ -407,8 +379,7 @@ class PanoContextForcedDMDv7(PanoContextForcedDMDv5):
         self._backward(loss)
         loss_value = float(loss.item())
         del x0_pred, diff, loss, target, noisy, x0_det
-        # Fake-score / head gradients of the adversarial path are discarded at the end of the student step;
-        # free them now so the first-window pass does not carry them.
+        # Fake-score / head gradients of the adversarial path are discarded; free them before the first-window pass.
         self.critic_optimizer.zero_grad(set_to_none=True)
         if self.use_gan:
             self.disc_optimizer.zero_grad(set_to_none=True)
@@ -450,7 +421,7 @@ class PanoContextForcedDMDv7(PanoContextForcedDMDv5):
             self.optimizer.step()
             self._last_gen_step_ok = True
         self.optimizer.zero_grad()
-        self.critic_optimizer.zero_grad()          # F / head gradients of the adversarial path are not theirs
+        self.critic_optimizer.zero_grad()          # drop fake-score / head gradients of the adversarial path
         if self.use_gan:
             self.disc_optimizer.zero_grad()
         if not self._last_gen_step_ok:
@@ -479,7 +450,7 @@ class PanoContextForcedDMDv7(PanoContextForcedDMDv5):
         exit_c = self._last_exit_idx
         use_scaler = self.training_config.get("enable_grad_scaler", False)
 
-        # 1) flow matching on the clean student history: unchanged, and now F's only objective.
+        # 1) flow matching on the clean student history (the fake score's only objective).
         noisy, ts, sigmas_b, noise = self._noised_with_clean_history(x0, history)
         cond_critic = self._with_mask(cond, latent_shape)
         with self.get_autocast_context():

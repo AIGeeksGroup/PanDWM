@@ -9,11 +9,11 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-# D2 v2 GS side, gaussian/finetune code copy.
-#   MODE=export [SET=dev] sbatch --array=0-5 d2v2_gs_hpc3.sbatch      export packs (0, +-1, +-2, +-4 m) for GS-Dev 78
-#   MODE=eval TAG=<name> [REFINED=<dir>] sbatch --array=0-5 d2v2_gs_hpc3.sbatch ; MODE=eval TAG=<name> MERGE=1 sbatch ...
-#   SET=test: Test-S 71 (clips 1, 4, ..., 211 of tests/v84i4250_s42, fps-stride 10,5)
-#   SET=testext: the 12 clips 214, 217, ..., 247 that extend Test-S to the 83 clips of tab:gs_gen
+# GS side of the shifted-view refinement evaluation.
+#   MODE=export [SET=dev] sbatch --array=0-5 <script>      export packs for shifts 0, +-1, +-2, +-4 m
+#   MODE=eval TAG=<name> [REFINED=<dir>] sbatch --array=0-5 <script> ; MODE=eval TAG=<name> MERGE=1 sbatch <script>
+#   SET=test: 71 test clips (1, 4, ..., 211, fps-stride 10,5)
+#   SET=testext: the 12 extension clips 214, 217, ..., 247 that bring the test set to 83 clips
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

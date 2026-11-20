@@ -2,8 +2,8 @@
 another config:  python3 scripts/seed_branch.py <source gan dir> <branch gan dir> <step>
 
 Links every file the checkpoint manifest lists (model, EMA, critic, discriminator heads, rank-local optimizer and
-RNG state) plus the manifest itself; nothing is copied or modified, and the source run is unaffected (its later
-pruning only removes its own directory entries).  Writes BRANCH_OF.json next to the branch's checkpoints.
+RNG state) plus the manifest itself; nothing is copied or modified, and the source run is unaffected.
+Writes BRANCH_OF.json next to the branch's checkpoints.
 """
 import json
 import os

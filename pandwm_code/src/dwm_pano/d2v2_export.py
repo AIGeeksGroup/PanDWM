@@ -1,18 +1,17 @@
-"""D2 v2 refiner inputs for generated clips.
+"""Export refiner inputs for generated clips, including the pixels the evaluation composites with.
 
-As d2_export_shift.py, but with the scene the round-trip pairs and the GS-Dev G3b numbers use (d2v2_make_pairs:
-G3b decoder, V2 clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes) and, besides the refiner's render
-condition, the pixels the evaluation composites with:
+Same as d2_export_shift.py, but with the scene used by the round-trip pairs (d2v2_make_pairs: V2 clip DA3 and fusion,
+in-plane offsets, camera-time poses, v0.x boxes) and, besides the refiner's render condition, the composited pixels:
 
     <out-root>/clipNNN/render_dy<d>.pt
-        {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8     (D2 condition, d2_render format)
-         "pixels": (35, 3, 256, 4114) uint8   the push-pull filled render, exactly eval_gs_shift's 4D output
+        {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8     (condition, d2_render format)
+         "pixels": (35, 3, 256, 4114) uint8   the push-pull filled render, as in eval_gs_shift's 4D output
          "fixmask": (35, 256, 4114) uint8     1 where the render is a hole (alpha < 0.5) or its content is magnified
-                                              > mag_thr x against its source view (in band only)
+                                              more than mag_thr against its source view (in band only)
          "meta"}
 
-Frames 3..34 of "pixels" are the frames eval_gs_shift scores; frames 0..2 are rendered too so the refiner's two
-windows have their whole input.  Clips: the eval149 generations (clips_root/clipNNN/latents.pt, summary.json).
+Frames 3..34 of "pixels" are the frames eval_gs_shift scores; frames 0..2 are rendered too so both refiner windows
+have their whole input. Clips: <clips_root>/clipNNN/latents.pt with summary.json.
 """
 
 from __future__ import annotations
@@ -41,7 +40,7 @@ def parse_args():
     p.add_argument("--clips-root", required=True, type=Path)
     p.add_argument("--clips", required=True, help="comma list or start:end")
     p.add_argument("--shifts", default="0,1,-1,2,-2,4,-4")
-    p.add_argument("--fps-stride", default="10,20", help="dataset fps,stride (Test-S: 10,5)")
+    p.add_argument("--fps-stride", default="10,20", help="dataset fps,stride (10,5 for the test clips)")
     p.add_argument("--mag-thr", type=float, default=2.0)
     p.add_argument("--out-root", required=True, type=Path)
     p.add_argument("--time-budget-s", type=float, default=0.0)

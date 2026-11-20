@@ -1,26 +1,22 @@
 """One Gaussian scene per clip, completed by the render-conditioned video model.
 
-d2v2_eval.py's d2f arm improves the lateral-shift views by running the D2 refiner on the RENDERED images, i.e. a
-second model after the Gaussians.  Here the refiner's outputs are folded back into the scene instead, and the scored
-views are plain renders of that one Gaussian set:
+Instead of refining rendered images with a second model after the Gaussians (the d2f arm of d2v2_eval.py), the
+refiner's outputs are folded back into the scene, and the scored views are plain renders of that one Gaussian set:
 
-  1. base scene A: the G3b scene of the generated clip ("a"), or of the refiner's 0 m output ("r0");
-  2. for every completion shift c (default +-2, +-4 m): scene B_c = the G3b decoder on the refiner's output at c
+  1. base scene A: the scene of the generated clip ("a"), or of the refiner's 0 m output ("r0");
+  2. for every completion shift c (default +-2, +-4 m): scene B_c = the decoder on the refiner's output at c
      (d2_refine.py's <refined>/clipNNN/d2_dy<c>.pt), with the clip's infos moved by c (d2v2_shift_infos);
   3. B_c keeps only the Gaussians of its pixels where A, rendered at c, is a hole (alpha < 0.5; select "hole") or a
-     hole or magnified > mag_thr x against its source view (select "fix"), dilated by --mask-dilate canvas pixels;
-  4. the union (A, every kept B_c moved into A's ego frame; current over 4D fill as render_frame) is rendered at the
-     evaluation shifts and written in d2v2_export's pack format, so d2v2_eval.py (raw arm) scores it unchanged.
+     hole or magnified more than mag_thr times against its source view (select "fix"), dilated by --mask-dilate
+     canvas pixels;
+  4. the union (A plus every kept B_c moved into A's ego frame; current over 4D fill as in render_frame) is rendered
+     at the evaluation shifts and written in d2v2_export's pack format, so d2v2_eval.py (raw arm) scores it unchanged.
 
-Variants "<base>_<select>" with base in {a, r0} and select in {none, hole, fix, holefill, fixfill} (B_c adds its
-current frame only, or with "...fill" also its 4D fill as fuse_v1 did) share the scenes of a clip:
+Variants are named "<base>_<select>" with base in {a, r0} and select in {none, hole, fix}, plus optional "+flags"
+(see FLAGS). Variants of a clip share the scenes:
     <out-root>/<variant>/clipNNN/render_dy<d>.pt   {"pixels": (35, 3, 256, 4114) uint8, "fixmask": (35, 256, 4114)
                                                      uint8 (holes of the fused render), "meta"}
 --vae-colour colours every Gaussian with its VAE-decoded pixel (SceneOptions.vae_colour).
-
-fuse_v3: fuse_diag showed that A plus the layer of the viewed shift is clean while the layers decoded at
-OTHER shifts float in front of A; "+carve" drops every completion Gaussian lying in the free space of another view
-(0 m: A; c': A + B_c'), "+under" composites the completion under the whole base.
 """
 
 from __future__ import annotations
@@ -46,8 +42,8 @@ from dwm_pano.gs_scene_v3 import SceneBuilder, composite, composite_depth
 
 BASES = ("a", "r0")
 SELECTS = ("none", "hole", "fix")
-# "+fill": B_c also adds its 4D fill (fuse_v1); "+carve": drop completion Gaussians in another view's free space
-# (free_space_keep); "+under": render A (current over fill) OVER the completion layers instead of depth-sorting them
+# Variant flags: "+fill": B_c also adds its 4D fill; "+carve": drop completion Gaussians in another view's free space
+# (free_space_keep); "+under": render A (current over fill) over the completion layers instead of depth-sorting them
 # together; "+align": scale each completion layer's ranges to A's rendered ranges first (range_alignment).
 # "<base>_holefill" / "_fixfill" are accepted for "<base>_hole+fill" / "_fix+fill".
 FLAGS = ("fill", "carve", "under", "align")
@@ -175,10 +171,11 @@ def stitched_range(pipe, cur, fill, dy):
 
 
 def range_alignment(ranges_b, range_a, alpha_a, clamp=0.7, erode=2, far=80.0):
-    """(2, H, 2304) factors exp(l) for a completion layer's ranges: l = log(A's rendered range / the layer's range)
-    on the pixels both see (A alpha > 0.95, eroded by `erode`, 0.5 < ranges < far), push-pull filled into the rest
-    of each half (the holes take the correction of their surroundings), clamped to +-clamp.  Returns (factors,
-    fraction of pixels used)."""
+    """(2, H, 2304) factors exp(l) for a completion layer's ranges: l = log(A's rendered range / the layer's range) on the
+    pixels both see (A alpha > 0.95, eroded by `erode`, 0.5 < ranges < far), push-pull filled into the rest of each half
+    (the holes take the correction of their surroundings), clamped to +-clamp. Returns (factors, fraction of pixels
+    used).
+    """
     rho_a, a = canvas_halves(range_a), canvas_halves(alpha_a)
     rho_b = ranges_b.to(rho_a)
     ok = (a > 0.95) & (rho_a > 0.5) & (rho_a < far) & (rho_b > 0.5) & (rho_b < far)
@@ -192,11 +189,11 @@ def range_alignment(ranges_b, range_a, alpha_a, clamp=0.7, erode=2, far=80.0):
 
 
 def free_space_keep(pipe, g, refs, tol_rel, tol_abs, pool=3):
-    """(N,) bool: False for Gaussians whose centre lies in front of the surface another view sees, i.e. in space
-    that view observed as empty: inside a camera, reference alpha > 0.5 and camera z < depth * (1 - tol_rel) -
-    tol_abs.  Depth and alpha are min-pooled over pool x pool pixels, so only clear violations away from edges and
-    holes count (fuse_diag: completion layers decoded at other shifts float in front of A and of the view's own
-    layer)."""
+    """(N,) bool: False for Gaussians whose centre lies in front of the surface another view sees, i.e. in space that view
+    observed as empty: inside a camera, reference alpha > 0.5 and camera z < depth * (1 - tol_rel) - tol_abs. Depth and
+    alpha are min-pooled over pool x pool pixels, so only clear violations away from edges and holes count (completion
+    layers decoded at other shifts otherwise float in front of A and of the view's own layer).
+    """
     p = g[:, 0:3]
     keep = torch.ones(p.shape[0], dtype=torch.bool, device=p.device)
     if not p.shape[0]:
@@ -338,7 +335,7 @@ def main():
                     cur, fill = base.decode(t), base.fill(t)
                     if "align" in flags:
                         for c, scene in used.items():
-                            scene.decode(t)                                  # unscaled ranges -> scene._ranges[t]
+                            scene.decode(t)                                  # stores the unscaled ranges in scene._ranges[t]
                             range_a, alpha_a = stitched_range(pipe, cur, fill, c)
                             factor, used_frac = range_alignment(scene._ranges[t], range_a, alpha_a, args.align_clamp)
                             scene.range_scale[t] = factor

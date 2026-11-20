@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
-# ablation: final analysis on Dev-78.
-#   FID / FVD-1 / FVD-2: tests_analyze.py (eval, unchanged) on the clip_feats.py features of every
-#   arm x seed {42, 1000}, pairs CONTROL:arm (control minus arm), delete-one-scene jackknife, 1000 scene bootstraps for
-#   the sign probability; flicker: flicker_stats.py (flicker, unchanged) on every gt_vs_generated.mp4, then
-#   abl_flicker.py (dev rule, fixed reference = recorded half of eval149_hpc3_v83/v84i4250); table abl_table.py.
+# Ablation analysis on Dev-78: FID / FVD (tests_analyze.py, paired control-minus-arm with jackknife and bootstrap),
+# flicker (flicker_stats.py, then abl_flicker.py against a fixed reference), and the summary table (abl_table.py).
 #   NAME=abl3 ARMS="A_ctrl B_noadv D_notemp b0" CONTROL=A_ctrl sbatch scripts/abl_analyze.sbatch
-# Feature files: $EV/feats/feats_<arm>_s<seed>.npz; mp4 roots: $EV/abl_<arm>_s<seed> (b0 seed 42: the eval149 run whose
-# features were reused, eval149_hpc3_v83/b0).
+# Feature files: $EV/feats/feats_<arm>_s<seed>.npz; mp4 roots: $EV/abl_<arm>_s<seed> (b0 seed 42 reads $REF/b0).
 #SBATCH --job-name=pandwm_abl_an
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

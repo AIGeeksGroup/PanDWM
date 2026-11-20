@@ -1,24 +1,12 @@
-"""4D GS decoder with a usable depth term.
+"""4D GS decoder with log-depth loss terms.
 
-Why: the review renders of the locked video model (v84i4250) show the GS problems are geometric (curtains at depth
-edges, seam cracks, ripple stripes, holes), while the original-camera round trip is fine.  The 4D decoder's held-out
-frame PSNR plateaued at ~21.5 dB from step 1000 of the coverage run (round trip ~32.6 dB) and it was trained without
-depth (no labels on HPC2).  HPC3 holds dense estimated panorama depth for 20000 train frames (pandwm_data/train/depth,
-600 x 9600 float16, 100 m = hole / sky fill); the inherited depth terms are metre L1 at weight 0.002, dominated by far
-pixels.
-
-What changes (everything else is PanoGaussianDecoder4DPipeline.train_step, copied): on the own term, two log-depth L1
-terms on pixels whose label is below far_cut_m:
+Same training step as PanoGaussianDecoder4DPipeline (copied), plus two log-depth L1 terms on the own-frame loss, on
+pixels whose label is below far_cut_m:
     weight_log_range  * mean |log r_decoder - log r_label|     (the decoder's per-pixel range)
     weight_log_render * mean |log d_render  - log d_label|     (the rendered own-view depth)
-Defaults 0 / 0 are the parent bit for bit.  Missing label files still raise, as in the parent: the pilot trains on the
-G2 depth subset (pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl, 18638 frames, every frame has
-a label).
-
-Formal run: depth_optional=True makes the depth terms per batch: a batch gets them only
-if every selected frame has a label file in range_dir, otherwise it trains on the colour terms alone (the parent's
-targets).  This lets one run mix all 700 training scenes (colour) with the 86 labelled ones (colour + depth).  The
-report gains depth_batch (1 / 0).  False (default) keeps the pilot's behaviour.
+With both weights 0 the step equals the parent's. Missing label files raise, as in the parent, unless
+depth_optional=True: then a batch gets the depth terms only if every selected frame has a label file in range_dir,
+and otherwise trains on the colour terms alone. The report gains depth_batch (1 or 0).
 """
 
 from __future__ import annotations
@@ -46,23 +34,23 @@ class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
             raise ValueError(f"unknown gs4d_depth options: {sorted(unknown)}")
 
     def _extra_own_loss(self, batch, frame, gaussians):
-        """Hook for subclasses : an extra own-frame loss of frame `frame` given its Gaussians, as
+        """Hook for subclasses: an extra own-frame loss of frame `frame` given its Gaussians, as
         (scalar tensor or None, {report key: float}).  None adds nothing, so the parent's loss is unchanged."""
         return None, {}
 
     def _train_gaussians(self, k, g, predicted_range, gt_ranges, gt_range_valid, pixel_origins,
                          camera_origin_scale):
-        """Hook for subclasses : frame k's Gaussians as every loss sees them, given its decoder output
+        """Hook for subclasses: frame k's Gaussians as every loss sees them, given its decoder output
         and depth labels (None without labels).  Returns (g, {report key: float}); the default keeps g, so the
         parent's step is unchanged."""
         return g, {}
 
     def _loo_extra_loss(self, rgb, target_rgb, mask):
-        """Hook for subclasses : an extra leave-one-out term on the LOO render, as (scalar tensor or
+        """Hook for subclasses: an extra leave-one-out term on the LOO render, as (scalar tensor or
         None, {report key: float}), added to that target's LOO L1.  None keeps the parent's loss."""
         return None, {}
 
-    # A copy of PanoGaussianDecoder4DPipeline.train_step; the only changes are marked "depth pilot".
+    # A copy of PanoGaussianDecoder4DPipeline.train_step plus the log-depth terms and the subclass hooks.
     def train_step(self, batch: dict, global_step: int):
         step_start = time.time()
         self.decoder_wrapper.train()
@@ -72,8 +60,7 @@ class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
         if self.gs4d["random_background"]:
             colour = torch.rand(3, generator=self.generator)
             prob = self.gs4d["random_background_prob"]
-            # prob = 1 draws nothing extra, so the RNG stream (frame choice)
-            # matches runs made before this option existed.
+            # prob = 1 draws nothing extra, so the RNG stream (frame choice) is unchanged.
             if prob >= 1.0 or float(torch.rand((), generator=self.generator)) < prob:
                 self._train_background = colour.to(self.device)
         vae_images = batch["vae_images"]
@@ -84,9 +71,9 @@ class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
         half_images = vae_images[:, frame_indices].flatten(0, 1).to(self.device)
         use_depth = (self.training_config.get("weight_render_depth", 0.0) > 0.0
                      or self.training_config.get("weight_range_l1", 0.0) > 0.0
-                     or self.gs4d_depth["weight_log_range"] > 0.0        # depth pilot
-                     or self.gs4d_depth["weight_log_render"] > 0.0)      # depth pilot
-        if use_depth and self.gs4d_depth["depth_optional"]:                  # formal run: labelled batches only
+                     or self.gs4d_depth["weight_log_range"] > 0.0
+                     or self.gs4d_depth["weight_log_render"] > 0.0)
+        if use_depth and self.gs4d_depth["depth_optional"]:                  # labelled batches only
             range_dir = self.training_config["range_dir"]
             use_depth = all(os.path.exists(os.path.join(
                 range_dir, "{}.h5".format(int(batch["frame_timestamps_us"][0, int(f)])))) for f in frame_indices)
@@ -104,13 +91,13 @@ class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
         own_total = torch.zeros((), device=self.device)
         report = {"loss": 0.0, "own_rgb_l1": 0.0, "own_perceptual": 0.0,
                   "own_render_depth_l1": 0.0, "own_range_l1": 0.0,
-                  "own_log_range_l1": 0.0, "own_log_render_l1": 0.0,      # depth pilot
+                  "own_log_range_l1": 0.0, "own_log_render_l1": 0.0,
                   "composite_rgb_l1": 0.0, "composite_perceptual": 0.0,
                   "loo_rgb_l1": 0.0, "loo_coverage": 0.0, "motion_rgb_l1": 0.0,
                   "dynamic_fraction": 0.0,
                   "rasterize_eps2d": self.active_rasterize_eps2d,
                   "frame_span": float(frame_indices[-1] - frame_indices[0]),
-                  "depth_batch": float(use_depth)}                           # formal run
+                  "depth_batch": float(use_depth)}
         for k in range(frame_count):
             frame_images = half_images[k:k + 1]
             with torch.no_grad():
@@ -162,8 +149,8 @@ class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
                     + self.training_config["weight_range_l1"] * range_l1
                 report["own_render_depth_l1"] += depth_l1.item() / frame_count
                 report["own_range_l1"] += range_l1.item() / frame_count
-                # depth pilot: log-depth L1 on the decoder range and on the rendered own-view depth, labels below
-                # far_cut_m only (the labels hold 100 m for holes / sky)
+                # Log-depth L1 on the decoder range and on the rendered own-view depth, labels below far_cut_m
+                # only (the labels hold a fill value for holes and sky).
                 far, eps = self.gs4d_depth["far_cut_m"], 1e-3
                 gt_k = gt_ranges[k:k + 1]
                 log_range = masked_mean(

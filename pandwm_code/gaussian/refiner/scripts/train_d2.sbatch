@@ -3,7 +3,7 @@
 #   TAG=pilot STEPS=1000 CKPT_STEPS=500 sbatch --job-name=pandwm_d2_pilot train_d2.sbatch
 #   SMOKE=1 sbatch --gres=gpu:2 --cpus-per-task=16 --mem=240G --time=01:00:00 --job-name=pandwm_d2_smoke train_d2.sbatch
 #   RESUME_FROM=<step> TAG=<existing run> STEPS=<new max> ... : resume in place (no overwrite check)
-#   CONFIG_FILE=$D2/configs/d2_full_hpc3_8gpu.json : the continuation run (render-init samples)
+#   CONFIG_FILE=<config.json> : training config to use instead of the default pilot config
 #SBATCH --job-name=pandwm_d2
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

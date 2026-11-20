@@ -1,28 +1,26 @@
-"""Training pairs for the D2 v2 refiner.
+"""Training pairs for the shifted-view refiner.
 
-D2 v1 (d2_make_train.py) trained on renders at the ORIGINAL pose with Gaussians culled / taken from neighbours; at test
-time the refiner sees renders at a SHIFTED pose, so train and test inputs differed.
-Here the degradation is the round trip of DiST-4D's cycle consistency / Difix3D's cycle
-reconstruction, made with the decoder and scene settings the refiner is evaluated with (G3b,
-V2 clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes):
+The refiner is evaluated on renders at a shifted pose, so its training inputs are made by a round trip (in the spirit
+of cycle-consistency / cycle-reconstruction training), using the decoder and scene settings the refiner is evaluated
+with (clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes):
 
-  1. the real clip's 35 frames -> G3b scene A (the ground-truth halves are its canvases);
-  2. scene A rendered with every camera moved by dy laterally -> push-pull filled panos V (a "video" at the shifted
-     trajectory, with the holes, stretching and edge artefacts of a dy-shift);
-  3. V -> VAE latents -> G3b scene B, whose infos are the clip's moved by dy (d2v2_shift_infos: ego pose moved, LiDAR
-     frame and boxes kept in place);
-  4. scene B rendered back at -dy, i.e. at the recorded cameras, where the ground truth exists.
+  1. the real clip's 35 frames give scene A (the ground-truth halves are its canvases);
+  2. scene A is rendered with every camera moved by dy laterally and push-pull filled into panos V (a "video" at the
+     shifted trajectory, with the holes, stretching and edge artefacts of a dy-shift);
+  3. V is encoded to VAE latents and decoded into scene B, whose infos are the clip's moved by dy (d2v2_shift_infos:
+     ego pose moved, LiDAR frame and boxes kept in place);
+  4. scene B is rendered back at -dy, i.e. at the recorded cameras, where the ground truth exists.
 
-The render condition of step 4 is written in the D2 v1 format (dwm_pano_d2.data.D2RenderDataset reads it unchanged),
-plus the per-latent-pixel fraction of render pixels whose content was magnified > 2x (mag_cull.angular_size, scene
-B's sources against the recorded rig), for loss weighting / masks:
+The render condition of step 4 is written in the d2_make_train.py format (dwm_pano_d2.data.D2RenderDataset reads it
+unchanged), plus the per-latent-pixel fraction of render pixels whose content was magnified by more than 2x
+(mag_cull.angular_size, scene B's sources against the recorded rig), for loss weighting / masks:
 
     <out-root>/clip<NNNNN>.pt    {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8 coverage,
                                   "magmask": (35, 2, 32, 288) uint8, "meta"}
     <out-root>/clip<NNNNN>.json  meta
 
 A fraction plain_prob of the clips (hash of seed, index) skips the round trip and renders scene A at the recorded pose
-(mode "plain": teaches the refiner to leave good renders alone).  |dy| is drawn from DY_CHOICES with a random sign.
+(mode "plain": teaches the refiner to leave good renders alone). |dy| is drawn from DY_CHOICES with a random sign.
 Existing clips are skipped, so tasks can be resubmitted; dev / heldout scenes are refused.
 """
 
@@ -46,7 +44,7 @@ from dwm_pano.export_gs_v2_clips import pushpull_fill
 from dwm_pano.gs_scene_v3 import RIG_HEIGHT_M, SceneBuilder, SceneOptions, composite
 
 VERSION = "d2v2_pairs_v1"
-DY_CHOICES = (1.0, 2.0, 2.0, 3.0, 4.0, 4.0)            # |dy| in metres; the evaluated 2 and 4 m weighted double
+DY_CHOICES = (1.0, 2.0, 2.0, 3.0, 4.0, 4.0)            # |dy| in metres; 2 and 4 m are weighted double
 
 
 def parse_args():
@@ -106,7 +104,7 @@ def d2v2_shift_infos(infos, dy):
 
 
 def scene_options():
-    """G3b's evaluation scene."""
+    """The evaluation scene options of the decoder."""
     return SceneOptions(da3_relabel=True, da3_mode="scale", drop_bottom_rows=2, box_reading="mmdet3d_v0x",
                         da3_window="clip", da3_fuse=True, plane_offset_px=1.0)
 

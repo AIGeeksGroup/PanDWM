@@ -1,9 +1,9 @@
-"""D2 refiner inputs for the 149 review clips.
+"""Export refiner inputs for the review clips.
 
-For every review clip (the v84i4250 generated latents, clips_root/clipNNN/latents.pt) and every signed lateral
-offset dy, the v4 far-view scene (C2 decoder + DA3 scale relabel + drop the 2 bottom decoder rows) is rendered
-at the rig moved by dy (d2_render.degraded_canvas mode "shift": current frame + 4D fill, pushpull hole fill)
-and encoded exactly like the training pairs (d2_render.encode_condition):
+For every clip (generated latents in <clips_root>/clipNNN/latents.pt) and every signed lateral offset dy, the far-view
+scene (decoder, DA3 scale relabel, 2 bottom decoder rows dropped) is rendered at the rig moved by dy
+(d2_render.degraded_canvas mode "shift": current frame plus 4D fill, push-pull hole fill) and encoded like the
+training pairs (d2_render.encode_condition):
 
     <out-root>/clipNNN/render_dy<d>.pt    {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8,
                                            "meta": {...}}

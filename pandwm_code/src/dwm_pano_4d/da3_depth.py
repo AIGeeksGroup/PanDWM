@@ -1,26 +1,20 @@
-"""Depth Anything 3 metric range for the pano band.
+"""Depth Anything 3 (DA3) metric range for the pano band.
 
-DAC ran a single-image panorama model on the 33 deg band and failed (sky at 2-6 m, near road
-25-30 % too close, blurry).  Here the six nuScenes cameras are cut back out of the stitched pano as pinhole crops and
-several frames are reconstructed together with their known intrinsics, rig extrinsics and ego poses.
+The six cameras are cut back out of the stitched pano as pinhole crops, and several frames are reconstructed together
+with their known intrinsics, rig extrinsics and ego poses. DA3 is used as a library from its src/ (network only),
+with the any-view Large model and the metric Large model (single-image metric depth and sky probability).
 
-* Code: github ByteDance-Seed/Depth-Anything-3 @ 3d835ec1 (Apache-2.0), used as a library from its src/ (only the
-  network: torch, einops, omegaconf, addict).  Weights: DA3-LARGE-1.1 (any-view, pose conditioned, CC BY-NC 4.0)
-  and DA3METRIC-LARGE (single-image metric depth + sky, Apache-2.0).
-* Crops: the pipeline's own hard-seam grid (calibrated_stitch.build_owned_pano_sampling_grid) maps every canvas
-  pixel to the source-camera pixel it shows.  Inverting it (scattered linear interpolation, nearest outside the
-  owned patch) gives for camera k a pinhole image on camera k's own optical centre and orientation, scaled to one
-  common crop size (DA3 batches need equal sizes) with the intrinsics adjusted.  Crop pixels outside the owned
-  patch are edge-stretched and their depth is never read back.
-* Model: the recipe of depth_anything_3.model.da3.NestedDepthAnything3Net with the Large any-view model in place of
-  the Giant one (the published nested checkpoint, 6.76 GB, was not downloaded): any-view depth least-squares scaled
-  to the metric model's depth on confident non-sky pixels.
-* Scale: "pose" (primary) makes the predicted camera centres match the known ones (Umeyama), what
-  DepthAnything3.inference(align_to_input_ext_scale=True) does when poses are given; "metric" keeps the metric
-  model's scale.  The pose / metric ratio is returned as a diagnostic.
-* Read back: every decoder pixel samples its owner camera's z-depth at the source pixel it shows and turns it into
-  the Euclidean range along its exact content ray (z / z-cosine = z * pipe.half_range_correction).
-* Sky: the metric model's sky probability (sky where >= 0.3, DA3's threshold), read back the same way.
+* Crops: the pipeline's hard-seam grid (calibrated_stitch.build_owned_pano_sampling_grid) maps every canvas pixel to
+  the source-camera pixel it shows. Inverting it gives, for camera k, a pinhole image on camera k's own optical
+  centre and orientation, scaled to one common crop size with the intrinsics adjusted.
+* Model: the recipe of depth_anything_3.model.da3.NestedDepthAnything3Net with the Large any-view model; its depth is
+  least-squares scaled to the metric model's depth on confident non-sky pixels.
+* Scale: "pose" makes the predicted camera centres match the known ones (Umeyama), as
+  DepthAnything3.inference(align_to_input_ext_scale=True) does; "metric" keeps the metric model's scale; "ground"
+  puts the near road on the ego ground plane.
+* Read back: every decoder pixel samples its owner camera's z-depth at the source pixel it shows and converts it to
+  the Euclidean range along its content ray (z * pipe.half_range_correction).
+* Sky: the metric model's sky probability (sky at or above 0.3), read back the same way.
 """
 
 from __future__ import annotations
@@ -46,10 +40,9 @@ SKY_THRESHOLD = 0.3
 def load_da3_net(repo_src, weights_dir, device):
     """One DepthAnything3Net from a Hugging Face folder (config.json + model.safetensors).
 
-    The official loader (PyTorchModelHubMixin.from_pretrained) is not strict.  DA3-LARGE-1.1 ships without the
-    norm parameters of three auxiliary ray heads (head.scratch.output_conv2_aux.{1,2,3}.2), which only feed the
-    ray output that _process_camera_estimation discards (poses come from cam_dec); any other missing or
-    unexpected key is an error."""
+    The official loader (PyTorchModelHubMixin.from_pretrained) is not strict. The any-view checkpoint ships without
+    the norm parameters of three auxiliary ray heads (head.scratch.output_conv2_aux.{1,2,3}.2), which only feed an
+    output that is discarded; any other missing or unexpected key is an error."""
     import json
     if repo_src not in sys.path:
         sys.path.insert(0, repo_src)
@@ -152,8 +145,8 @@ class Da3Ranger:
             k_crop[1, 1] *= s
             k_crop[0, 2] = (k_crop[0, 2] - x0) * s + ox
             k_crop[1, 2] = (k_crop[1, 2] - y0) * s + oy
-            # Outside camera k's owned patch: the canvas pixel seen in the same direction (ideal band mapping), i.e.
-            # the neighbour camera's content with a small parallax error, instead of an edge stretch.
+            # Outside camera k's owned patch use the canvas pixel seen in the same direction (ideal band mapping)
+            # instead of an edge stretch.
             pix = np.stack([np.arange(self.crop_w)[None, :].repeat(self.crop_h, 0) + 0.5,
                             np.arange(self.crop_h)[:, None].repeat(self.crop_w, 1) + 0.5,
                             np.ones((self.crop_h, self.crop_w))], axis=-1)
@@ -268,8 +261,8 @@ class Da3Ranger:
                     "ground_over_metric": scale_ground / max(scale_metric, 1e-12), "crops": images}
         for name, scale in (("pose", scale_pose), ("metric", scale_metric), ("ground", scale_ground)):
             out_maps[f"range_{name}"] = self.to_decoder_grid(pipe, depth * scale, frame_count) * correction[None]
-        #: the crop-space maps behind the ranges above,
-        # frame-major (F * 6, crop_h, crop_w); depth_crop is the unscaled any-view depth (multiply by a scale_*)
+        # Crop-space maps behind the ranges above, frame-major (F * 6, crop_h, crop_w); depth_crop is the unscaled
+        # any-view depth (multiply by a scale_*).
         out_maps.update(depth_crop=depth, sky_crop=sky, K_crop=intrinsics)
         return out_maps
 
@@ -308,10 +301,10 @@ class Da3Ranger:
 
 
 def rescale_gaussians(g, pred_range, new_range, valid, origins):
-    """C1b: scale each valid pixel's Gaussian about its ray origin by s = new / pred range,
-    mean o + s (m - o) and scales * s, so its footprint seen from that camera is unchanged (the original view
-    renders as before up to the compositing order) while its distance follows the new range.  g (N, 14) in
-    decoder order; pred_range / new_range / valid (V, H, W); origins (N, 3).  Returns (g', range')."""
+    """Scale each valid pixel's Gaussian about its ray origin by s = new / pred range (mean o + s (m - o), scales * s).
+
+    Its footprint seen from that camera is unchanged while its distance follows the new range. g is (N, 14) in
+    decoder order; pred_range, new_range and valid are (V, H, W); origins is (N, 3). Returns (g', range')."""
     use = valid.reshape(-1)
     ratio = (new_range.reshape(-1).float() / pred_range.reshape(-1).float().clamp_min(1e-3)).clamp(0.25, 4.0)
     out = g.clone()
@@ -325,11 +318,11 @@ PIXEL_PITCH_RAD = 2.0 * math.pi / 2304          # decoder grid column pitch (230
 
 
 def plane_offsets(g, origins, dirs, ranges, px):
-    """: centres on their pixel rays, origin + dir * range, plus only
-    the component of the decoder's xyz offset across the ray, softly bounded to px decoder pixels at that range
-    (norm n -> m tanh(n / m), m = px * PIXEL_PITCH_RAD * range; StereoGaussians-style in-plane offset).  The depth
-    along the ray is the range itself.  g (N, 14) decoder order, origins / dirs (N, 3), ranges (N,) or any shape
-    with N elements.  Used in training (pipeline_relabel.py plane_offset_px) and at test time (gs_scene_v3)."""
+    """Place centres on their pixel rays (origin + dir * range) plus only the component of the decoder's xyz offset
+    across the ray, softly bounded to px decoder pixels at that range (norm n becomes m tanh(n / m),
+    m = px * PIXEL_PITCH_RAD * range). The depth along the ray is the range itself.
+
+    g is (N, 14) in decoder order, origins and dirs are (N, 3), ranges has N elements in any shape."""
     r = ranges.reshape(-1, 1).to(g.dtype)
     unit = dirs / dirs.norm(dim=-1, keepdim=True).clamp_min(1e-9)
     on_ray = origins + dirs * r
@@ -341,10 +334,10 @@ def plane_offsets(g, origins, dirs, ranges, px):
 
 
 def bounded_range(pred_range, da3_range, bound):
-    """: DA3 range with a bounded decoder residual,
-    da3 * exp(bound * tanh(log(pred / da3) / bound)): the decoder may move a Gaussian at most a factor exp(+-bound)
-    off DA3 and is DA3 itself when it agrees.  bound 0 = DA3 (the "scale" relabel).  Differentiable in pred_range;
-    used both in training (pipeline_relabel.py) and at test time (gs_scene_v3 da3_mode "bounded")."""
+    """DA3 range with a bounded decoder residual: da3 * exp(bound * tanh(log(pred / da3) / bound)).
+
+    The decoder may move a Gaussian at most a factor exp(+-bound) off DA3. bound 0 returns the DA3 range.
+    Differentiable in pred_range."""
     if bound <= 0.0:
         return da3_range
     log_da3 = da3_range.clamp_min(1e-3).log()

@@ -4,7 +4,7 @@ Latents come from ``run_long_rollout.py`` (``window01.pt`` .. ``window12.pt``,
 ``future_latent`` = 16 generated frames each) with the three real context
 frames VAE-encoded here, or, with ``--latent-source gt``, from VAE-encoding
 every real frame (the decoder's upper bound on this clip).  Each frame is
-decoded independently (the G2 protocol) and rendered three ways:
+decoded independently and rendered three ways:
 
 * the original six cameras, stitched exactly like the GS training target,
   stacked under the ground truth;
@@ -167,8 +167,8 @@ def main() -> None:
         pipeline.active_rasterize_eps2d = args.eps2d
 
         install_strict_pano_hardseam_stub()
-        # No Stage-2 sampling happens here, so the plain GS dataset (no
-        # bbox/hdmap conditioning images) is the right one.
+        # No sampling happens here, so the plain GS dataset (no bbox/hdmap
+        # conditioning images) is used.
         dataset_config = build_dataset_config(
             config["training_dataset"], pkl_path=args.data_pkl,
             fps_stride_tuples=[[10, 20]])

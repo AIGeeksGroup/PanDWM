@@ -1,15 +1,14 @@
-"""Per-window pixel statistics of long videos, generated / recorded (a diagnostic).
+"""Per-window pixel statistics of long videos, generated vs recorded.
 
-What kind of systematic drift lifts the late-window FID: brightness, contrast, colour or sharpness.  Per 16-frame
-window of gt_vs_generated.mp4 (recorded top, generated bottom; every 2nd frame), on the stitched pano:
+Per 16-frame window of gt_vs_generated.mp4 (recorded top, generated bottom; every 2nd frame), on the stitched pano:
   luma     mean of L (CIELAB, 0-255 OpenCV scale)
   contrast std of L over the frame
-  sat      HSV saturation on lit pixels
+  sat      HSV saturation on lit pixels (V > 60)
   chroma   mean sqrt(a^2 + b^2) (a, b centred at 128)
   sharp    Laplacian variance of the grey frame
-Ratios generated / recorded per video and window, then the mean over videos (log-mean for sharp).  Also the share of
-videos whose window-12 luma moved more than 5% away from the recorded one, by direction, and the same table for night
-videos (recorded window-1 luma < 70; dark-pixel noise makes their saturation meaningless) and day videos apart.
+Ratios generated / recorded per video and window, then the mean over videos (log-mean for sharp). Also reports the
+share of videos whose window-12 luma moved more than 5% away from the recorded one, by direction, and the same table
+for night videos (recorded window-1 luma < 70) and day videos apart.
   python3 long_color.py <root> <out.json> --arms A B --scenes ... --seeds 42 43
 """
 import argparse

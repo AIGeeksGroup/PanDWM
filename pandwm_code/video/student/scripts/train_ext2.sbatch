@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# second extension of branch H, from step 3000 to MAX_STEPS (default 4000).  Copy of
-# scripts/train_ext.sbatch (left untouched while a job runs from it) with three changes:
-#   - config configs/cfdmd_Hx2_gan_v8_3_hpc3_8gpu.json (target_steps 4000; with 3000 every later step would save);
-#   - it needs the branch at >= 3000 (the first extension finished) and seeds seeds/H_3000 before training on;
-#   - markers PLAN_HX2_START / PLAN_HX2_COMPLETE.
+# Second extension, from step 3000 to MAX_STEPS (default 4000).  Copy of scripts/train_ext.sbatch with its own
+# config (target_steps 4000); it requires the run to be at step 3000 or later (the first extension finished)
+# and seeds seeds/H_3000 before training on.
 #   sbatch --job-name=pandwm_cfdmd_Hx2 --dependency=afterok:<jobid> scripts/train_ext2.sbatch
 #SBATCH --job-name=pandwm_cfdmd_ext
 #SBATCH --partition=<partition>

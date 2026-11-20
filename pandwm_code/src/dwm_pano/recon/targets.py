@@ -1,23 +1,22 @@
-"""Targets of the Gaussian reconstruction table (tab:gs_recon) on Test-S.
+"""Targets for the Gaussian reconstruction evaluation.
 
-For every Test-S clip (tests213_manifest.json; dataset_index into the frozen eval enumeration: val pkl,
-35 frames, fps_stride_tuples [[10, 5.0]], the dataset's bad_timestamps_us) the input frame is clip frame 20; the 4D
-history frames are clip frames 0, 5, 10, 15; the targets are
-    next   clip frame 21,
-    half   clip frame 25 (0.5 s after the input),
-    back   the first 12 Hz scene frame behind the input whose path length (ego x-y, frame to frame) is >= --distance,
-    fwd    the same ahead of the input.
-For every target and each of the six cameras (bridge CAM_ORDER) the file gives the recorded image (raw nuScenes path),
-its 3x3 intrinsics at 1600x900, and the camera-to-ego transform in the INPUT frame's ego system,
+For every test clip in the manifest (dataset_index into the frozen eval enumeration: val pkl, 35 frames,
+fps_stride_tuples [[10, 5.0]], the dataset's bad_timestamps_us) the input frame is clip frame 20 and the 4D history
+frames are clip frames 0, 5, 10, 15. The targets are
+    next   clip frame 21
+    half   clip frame 25 (0.5 s after the input)
+    back   first 12 Hz scene frame behind the input whose ego x-y path length is at least --distance
+    fwd    the same ahead of the input
+For every target and each of the six cameras (bridge CAM_ORDER) the file gives the recorded image, its 3x3
+intrinsics at 1600x900, and the camera-to-ego transform in the input frame's ego system,
     c2w = inv(E_input) @ E_cam(target camera timestamp) @ S_cam,
-with S = sensor2ego, E_cam the camera's own recorded ego pose and E_input the input frame's camera-time ego pose, the
-mean of its six cameras' ego poses (camera_time_pose).  The info-level ego2global of the 12 Hz pkl is the ego pose of
-the info's LiDAR sweep, which for interpolated frames lies up to 250 ms before the cameras; the scene's
-Gaussians live in the camera rig, so the camera-time pose is their frame ("ego2global_pkl" keeps the pkl pose).
-The LiDAR sweep of the target info has lidar_to_cam[c] = inv(E_cam S_cam) @ E_info @ L2E (E_info = that sweep's own
-pose, so the transform is exact); the dynamic 3D boxes are given in the info's LiDAR frame as the pkl stores them,
-mmdet3d v0.x (x, y, z, w, l, h, -yaw - pi/2), for the static / all depth split.  "input" carries the same camera
-entries for the input frame itself (the six recorded images the external methods take as input) and its lidar2ego.
+with S the sensor2ego, E_cam the camera's own recorded ego pose and E_input the input frame's camera-time ego pose
+(camera_time_pose, the mean over its six cameras). The info-level ego2global of the 12 Hz pkl belongs to the LiDAR
+sweep and can be up to 250 ms older than the cameras; the Gaussians live in the camera rig, so the camera-time pose is
+used ("ego2global_pkl" keeps the pkl pose). The LiDAR sweep of the target info has
+lidar_to_cam[c] = inv(E_cam S_cam) @ E_info @ L2E. Dynamic 3D boxes are given in the info's LiDAR frame as stored in
+the pkl (mmdet3d v0.x: x, y, z, w, l, h, -yaw - pi/2), for the static / all depth split. "input" carries the same
+camera entries for the input frame itself and its lidar2ego.
 
     python -m dwm_pano.recon.targets --manifest tests213_manifest.json --data-pkl <val pkl>
         --meta-dir <v1.0-trainval> --nusc-root <raw nuScenes root> --out targets.json

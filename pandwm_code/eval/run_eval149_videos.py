@@ -1,10 +1,8 @@
 """Render the frozen 149-clip validation protocol (35 frames) with one model load.
 
-Same clips as the FID/FVD protocol (``cd_eval_hpc3.json`` validation dataset:
-35 frames, fps_stride [[10, 20]], one window per val scene).  Each clip uses
-the three real context frames, then two closed-loop 16-frame windows.  The
-sampler generator is reseeded per clip from (seed, dataset index), so a clip's
-output does not depend on how the 149 clips are split into jobs.
+Each clip uses the three real context frames, then two closed-loop 16-frame windows (35 frames,
+fps_stride [[10, 20]], one window per val scene). The sampler generator is reseeded per clip from
+(seed, dataset index), so a clip's output does not depend on how the clips are split into jobs.
 
 Per clip: gt_vs_generated.mp4 (stitched pano, GT top / generated bottom),
 latents.pt (35 latent frames, fp16, for the Gaussian decoder) and summary.json.
@@ -61,8 +59,7 @@ def main():
         dwm.common.global_state[key] = dwm.common.create_instance_from_config(value)
     pipeline = dwm.common.create_instance_from_config(
         pc, output_path=str(args.out_root), config=config, device=device)
-    # 4-step sampling uses pipeline.model only; drop the frozen teacher and
-    # EMA copies so the student fits a 48 GB GPU (no RNG or output change).
+    # 4-step sampling uses pipeline.model only; drop the frozen teacher and EMA copies to save memory.
     for name in ("teacher_model", "teacher_model_wrapper",
                  "ema_model", "ema_model_wrapper"):
         if getattr(pipeline, name, None) is not None:
@@ -94,8 +91,7 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
         t0 = time.monotonic()
         pipeline.generator.manual_seed(args.seed * 1000 + index)
-        # Single-process load: re-creating a multi-worker DataLoader per clip
-        # hung after the first clip of every job on HPC2.
+        # Single-process load: a multi-worker DataLoader re-created per clip hung after the first clip.
         batch = collate([dataset[index]])
         reference = _encode_rgb(pipeline, batch["vae_images"][:, :3])
         latent_shape = (1, 19, *reference.shape[2:])

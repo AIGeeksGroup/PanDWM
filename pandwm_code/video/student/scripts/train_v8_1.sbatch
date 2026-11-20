@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# branch F = v8.1 (pipeline_v8_1, configs/cfdmd_F_gan_v8_1_hpc3_8gpu.json: v8 with the temporal-head fixes,
-#  seeded from v7 run D step 1150).  It only resumes: the branch directory must first be seeded with a
-# hard-linked v7 run-D checkpoint (scripts/seed_branch.py); it never starts from B0.  Same campaign logic as
-# train_v7.sbatch otherwise (pause file, latest committed checkpoint, same data offset), no OOM fallback config.
+# Student training with the v8.1 pipeline (temporal-head fixes).  It only resumes: the output directory must
+# first be seeded with a hard-linked v7 checkpoint (scripts/seed_branch.py).  Same logic as train_v7.sbatch
+# (pause file, latest committed checkpoint, same data offset), but without the OOM fallback config.
 #SBATCH --job-name=pandwm_cfdmd_F
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

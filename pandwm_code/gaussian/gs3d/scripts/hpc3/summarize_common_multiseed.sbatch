@@ -6,6 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=00:10:00
 #SBATCH --output=%x_%j.log
+# Collect the HorizonDrive and PanDWM results of seeds 0, 42 and 1000 into one table.
+# Usage: HORIZON_SEED0_JOB=.. HORIZON_SEED1000_JOB=.. PANDWM_SEED0_JOB=.. PANDWM_SEED1000_JOB=.. sbatch summarize_common_multiseed.sbatch
 set -euo pipefail
 
 HORIZON_SEED0_JOB=${HORIZON_SEED0_JOB:?}

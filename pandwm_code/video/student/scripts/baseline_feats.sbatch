@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Val-150 features of a six-camera baseline run (baseline_feats.py), paper instrument.
+# Features of a six-camera baseline run on the Val-150 scenes (baseline_feats.py).
 #   RUNS=<run dir> NAME=<arm name> sbatch baseline_feats.sbatch
 #SBATCH --job-name=pandwm_bfeat
 #SBATCH --partition=<partition>

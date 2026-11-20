@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Register Vista's official OpenCLIP dependency in an offline HF cache."""
+"""Register the OpenCLIP weights that Vista needs in an offline Hugging Face cache."""
 from __future__ import annotations
 
 import argparse
@@ -56,8 +56,7 @@ def main():
         snapshot.symlink_to(Path("../../blobs") / SHA256)
     if reference.exists() and reference.read_text(encoding="utf-8").strip() != REVISION:
         raise FileExistsError("refs/main contains a different revision")
-    # huggingface_hub treats the whole refs file as the commit identifier and
-    # does not strip a trailing newline in its cache scanner.
+    # No trailing newline: huggingface_hub reads the whole refs file as the revision.
     reference.write_text(REVISION, encoding="utf-8")
     print("registered", MODEL_ID, REVISION)
     print("snapshot", snapshot)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize three official OmniNWM common149 evaluations."""
+"""Aggregate the OmniNWM FID/FVD results of the three seeds into a JSON summary and a Markdown row."""
 
 from __future__ import annotations
 

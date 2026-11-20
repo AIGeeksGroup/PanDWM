@@ -1,4 +1,8 @@
-"""Standalone P2 and G1 evaluation for the panoramic Gaussian decoder."""
+"""Standalone evaluation of the panoramic Gaussian decoder on holdout and validation clips.
+
+Latents come from the ground-truth VAE (--latent-source gt), from the generative model (stage2), or from either one
+passed through a decode / re-encode round trip (stage2_reencode, gt_reencode).
+"""
 
 from __future__ import annotations
 
@@ -13,7 +17,7 @@ from typing import Any
 
 try:
     import h5py
-except ModuleNotFoundError:  # Keep --help usable on the CPU-only machine.
+except ModuleNotFoundError:  # keep --help usable without h5py
     h5py = None
 
 import numpy as np
@@ -44,7 +48,7 @@ ARM_SUFFIXES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate a P2 GS decoder checkpoint on holdout and val."
+        description="Evaluate a GS decoder checkpoint on holdout and val."
     )
     parser.add_argument("-c", "--config", required=True, type=Path)
     parser.add_argument("-r", "--run-dir", required=True, type=Path)
@@ -55,7 +59,7 @@ def parse_args() -> argparse.Namespace:
         "--latent-source",
         choices=("gt", "stage2", "stage2_reencode", "gt_reencode"),
         default="gt",
-        help="Latent arm used by the G1 domain-gap evaluation.",
+        help="Source of the latents fed to the GS decoder.",
     )
     parser.add_argument("--stage2-config", type=Path)
     parser.add_argument("--stage2-run", type=Path)
@@ -63,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--stage2-ema",
         action="store_true",
-        help="Load the Stage-2 EMA checkpoint instead of the raw checkpoint.",
+        help="Load the EMA checkpoint of the generative model instead of the raw checkpoint.",
     )
     parser.add_argument(
         "--smoke",
@@ -127,19 +131,16 @@ def build_g1_dataset_config(
     pkl_path: Path | None = None,
     fps_stride_tuples: list[list[float]] | None = None,
 ) -> dict[str, Any]:
-    """Add the Stage-2 conditioning fields to a GS dataset config.
+    """Add the conditioning fields used by the generative model to a GS dataset config.
 
-    The GS training and validation configs are the source of truth for clip
-    enumeration.  Only fields consumed by the CD condition builder are added,
-    so the RGB, timestamps, and frame selection remain identical to the GT arm.
+    The GS training and validation configs define the clip enumeration; only fields consumed by the condition builder
+    are added, so RGB, timestamps and frame selection stay identical to the GT arm.
     """
     dataset_config = build_dataset_config(
         source, pkl_path=pkl_path, fps_stride_tuples=fps_stride_tuples)
     base_config = dataset_config["base_dataset"]
     base_config.update({
-        # Defaults preserve the original LOCAL evaluation protocol.  The
-        # explicit overrides make a byte-identical sparse holdout replica
-        # usable on another cluster without changing clip enumeration.
+        # directories can be overridden through the environment
         "bbox_dir": os.environ.get(
             "PANDWM_BBOX_DIR", "/path/to/pandwm_root/data/bbox"),
         "hdmap_dir": os.environ.get(
@@ -221,8 +222,7 @@ def select_middle_frame_indices(
             f"frames_per_step={frames_per_step} exceeds clip length "
             f"{frame_count}"
         )
-    # Select the midpoint of each equal-width temporal bin. This avoids clip
-    # endpoints while keeping the frame subset deterministic and evenly spaced.
+    # midpoint of each equal-width temporal bin (deterministic, avoids the clip endpoints)
     positions = (
         (torch.arange(frames_per_step, dtype=torch.float64) + 0.5)
         * frame_count
@@ -308,9 +308,7 @@ class RGBMetricAccumulator:
             valid_channels = valid.unsqueeze(1).expand_as(rendered)
             mse = (rendered - target).square()[valid_channels].mean()
             psnr = float((10.0 * torch.log10(1.0 / mse)).item())
-            # SSIM and LPIPS do not accept an external validity mask.  Make
-            # the fixed stitch-invalid cells equal on both sides.  They are
-            # calibration-dependent, never candidate-dependent.
+            # SSIM and LPIPS take no validity mask, so set the stitch-invalid cells equal on both sides
             rendered = torch.where(
                 valid.unsqueeze(1), rendered, target)
         ssim = float(
@@ -481,9 +479,7 @@ def decode_latents_to_images(
         if hasattr(vae_pipeline, "common_config")
         else 12
     )
-    # Shared-GPU escape hatch: the whole-clip VAE decode is the peak
-    # allocation of the re-encode arms; a smaller batch trades time for
-    # headroom when a co-tenant process grows mid-run.
+    # the whole-clip VAE decode is the peak allocation; a smaller batch trades time for memory
     env_batch = os.environ.get("PANDWM_G1_DECODE_BATCH")
     if env_batch:
         decode_batch = int(env_batch)
@@ -501,9 +497,7 @@ def decode_latents_to_images(
         try:
             import diffusers
         except ModuleNotFoundError:
-            # The GS pipeline has no image_processor of its own.  This is the
-            # same [-1, 1] -> [0, 1] operation used by VaeImageProcessor and
-            # keeps parser/unit smokes usable on the CPU-only machine.
+            # no diffusers: same [-1, 1] to [0, 1] mapping as VaeImageProcessor
             images = (image_tensor / 2.0 + 0.5).clamp(0.0, 1.0)
         else:
             image_processor = diffusers.image_processor.VaeImageProcessor(
@@ -550,9 +544,8 @@ def make_stage2_latent_provider(
     infer_fn = getattr(stage2_pipeline, "_g1_4step_inference", None)
     if infer_fn is None and stage2_pipeline is not None:
         candidate = getattr(stage2_pipeline, "inference_pipeline", None)
-        # A callable installed directly on an instance (as the 4-step helper
-        # does) is safe to reuse.  A bound class method may still be the
-        # original 50-step path, so rebuild that one below.
+        # a callable set on the instance (as the 4-step helper does) is reused; a bound class method
+        # may still be the 50-step path, so that one is rebuilt below
         if candidate is not None and not hasattr(candidate, "__self__"):
             infer_fn = candidate
     if latent_source != "gt_reencode":
@@ -591,9 +584,7 @@ def make_stage2_latent_provider(
     def roundtrip_latents(
         decode_pipeline: Any, clip_latents: torch.Tensor
     ) -> torch.Tensor:
-        # Decode->postprocess->encode a few frames at a time: a whole 19-frame
-        # clip through the VAE in one call is a >10 GiB activation spike, which
-        # does not fit next to the co-resident Stage-2 stack on a shared GPU.
+        # decode, postprocess and encode a few frames at a time to bound VAE activation memory
         step = roundtrip_frame_step()
         chunks = []
         for start in range(0, clip_latents.shape[1], step):
@@ -608,12 +599,7 @@ def make_stage2_latent_provider(
     def provider(batch: dict[str, Any]) -> torch.Tensor:
         if latent_source == "gt_reencode":
             vae_images = batch["vae_images"].to(gs_pipeline.device)
-            # The original path encoded all 19 frames (38 panorama halves)
-            # in one VAE call before applying the round-trip microbatch.  On
-            # the shared LOCAL that left a >10 GiB activation spike outside the
-            # memory guard and made this arm OOM even with
-            # PANDWM_G1_ROUNDTRIP_FRAMES=1.  Apply the same fixed microbatch
-            # to the initial GT encoding as to the decode/re-encode pass.
+            # the initial GT encoding uses the same microbatch as the decode / re-encode pass
             gt_latents = encode_clip_images(gs_pipeline, vae_images)
             roundtrip = roundtrip_latents(gs_pipeline, gt_latents)
             if tuple(roundtrip.shape[:3]) != tuple(vae_images.shape[:3]):
@@ -655,15 +641,13 @@ def make_stage2_latent_provider(
             )
         return roundtrip
 
-    # Published so callers can label which frames are context instead of
-    # keeping their own copy of this constant, which would silently disagree
-    # the moment this one changes.
+    # exposed so callers can label which frames are context
     provider.reference_frame_count = reference_frame_count
     return provider
 
 
 def install_strict_pano_hardseam_stub() -> None:
-    """Install the P0 hard-seam stub before any conditioned dataset import."""
+    """Install a hard-seam stub that disables online panorama stitching, before any conditioned dataset import."""
     def unavailable_stitcher(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError(
             "Online pano stitching is unavailable; verify every bbox and "
@@ -810,13 +794,10 @@ def build_stage2_pipeline(
                 resume_from=stage2_step,
             )
     finally:
-        # The shim is needed only while the constructor requests teacher/EMA
-        # copies.  Restore the class method so importing this module does not
-        # alter later pipeline construction in the same interpreter.
+        # the shim is only needed while the constructor requests teacher/EMA copies; restore the class method
         pipeline_class._build_auxiliary_model = original_build_auxiliary_model
 
-    # The 4-step callable decodes the whole clip with this batch size, and so
-    # do the re-encode arms; one override covers every decode on this pipeline.
+    # one override covers every decode on this pipeline
     env_batch = os.environ.get("PANDWM_G1_DECODE_BATCH")
     if env_batch:
         pipeline.common_config["memory_efficient_batch"] = int(env_batch)
@@ -853,10 +834,8 @@ def evaluate_dataset(
     if collate_fn is not None:
         loader_kwargs["collate_fn"] = collate_fn
     loader = torch.utils.data.DataLoader(dataset, **loader_kwargs)
-    # ``PanoGaussianDecoderPipeline.encode_half_latents`` uses the global
-    # torch RNG for posterior.sample().  Reset once at the start of each split
-    # so a re-encode arm is reproducible regardless of which split ran first.
-    # The GT arm passes None and therefore keeps its original RNG stream.
+    # encode_half_latents samples the posterior with the global torch RNG; reseed per split so
+    # re-encode runs do not depend on split order (the GT arm passes None and keeps its RNG stream)
     if rng_seed is not None:
         torch.manual_seed(rng_seed)
     rgb_protocol_label = pipeline.supervision_output_label()
@@ -1170,8 +1149,7 @@ def main() -> None:
             device,
         )
 
-    # Match train.py construction, but do not pass resume_from: eval loads only
-    # the raw decoder state dict and never loads the optimizer checkpoint.
+    # built as in train.py but without resume_from: only the decoder state dict is loaded
     pipeline = dwm.common.create_instance_from_config(
         config["pipeline"],
         output_path=str(args.run_dir),
@@ -1224,16 +1202,13 @@ def main() -> None:
             holdout_config)
         expected_validation = dwm.common.create_instance_from_config(
             validation_config)
-        # These untouched GS-config datasets are the GT arm's canonical clip
-        # enumeration.  The conditioned copies must match frame-for-frame.
+        # the unmodified GS-config datasets define the clip enumeration; the conditioned copies must match
         assert_dataset_frame_manifest(
             expected_holdout, holdout_dataset, "holdout5")
         assert_dataset_frame_manifest(
             expected_validation, validation_dataset, "val32")
     else:
-        # This construction is the canonical GT clip enumeration.  The
-        # generated arms above compare against a fresh copy of these configs;
-        # GT itself is the reference and must keep its original path.
+        # GT arm: the plain GS-config datasets are the reference enumeration
         holdout_dataset = dwm.common.create_instance_from_config(holdout_config)
         validation_dataset = dwm.common.create_instance_from_config(
             validation_config

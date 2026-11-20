@@ -1,30 +1,15 @@
-"""Band-limited FVD in the six *real* nuScenes camera frames.
+"""Band-limited FVD in the six real nuScenes camera frames.
 
-This is the metric half of the protocol bridge (see
-:mod:`dwm_pano.nuscenes6_bridge`).  It exists so a number from this project
-can be stated in the space every published driving video-generation number
-lives in, instead of only in this project's own panorama space.
+Metric half of the protocol bridge (see :mod:`dwm_pano.nuscenes6_bridge`).  It subclasses
+:class:`PanoPatchFrechetVideoDistance` and overrides only where the six views come from: the parent slices
+six Voronoi column bands out of the stitched pano, while this metric takes six views that
+:func:`dwm_pano.nuscenes6_bridge.resample_pano_to_rig` resampled into the real cameras.  Normalization,
+resize, I3D weights, Frechet computation and per-camera accounting are inherited.
 
-It subclasses :class:`PanoPatchFrechetVideoDistance` and overrides *only*
-where the six views come from: the parent slices six Voronoi column bands out
-of a V=1 stitched pano, while this one takes six views that
-:func:`dwm_pano.nuscenes6_bridge.resample_pano_to_rig` already resampled into
-the real cameras.  Normalization, resize, I3D weights, Frechet math and the
-per-camera accounting are inherited unchanged, so the two are the same
-instrument family and differ by exactly one documented step.
-
-What the resulting number is and is not
----------------------------------------
-It **is** comparable across arms that pass through the identical bridge, and
-across the real-vs-real floor computed the same way.
-
-It is **not** comparable to any published full-frame nuScenes number.  The
-pano is a +-16.67 deg elevation band, so about 16% of the rows of the five
-~39 deg cameras and 46% of CAM_BACK's rows have no content to render at all.
-Report it as ``FVD-I3D-nusc6band-<clip_len>-n<samples>`` and never drop the
-``band`` or the sample count: the estimator's absolute magnitude is
-bias-dominated at these sample sizes (a real-vs-real floor with zero model
-reads far above zero), so only same-n arm-vs-arm reads are meaningful.
+The number is comparable across methods that pass through the same bridge, but not to full-frame nuScenes
+numbers: the pano covers only a limited elevation band, so part of the rows of each camera has no content to
+render.  Report it as ``FVD-I3D-nusc6band-<clip_len>-n<samples>`` and keep the sample count, since the
+estimator is biased at these sample sizes and only same-n comparisons are meaningful.
 """
 import os
 from pathlib import Path
@@ -68,10 +53,8 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
         self.apply_valid_mask = bool(apply_valid_mask)
         self.render_size = (int(render_height), int(render_width))
         self.max_calibration_entries = int(max_calibration_entries)
-        # External-method comparisons persist generated pixels between the
-        # generator and this metric.  Enable this only when every arm is
-        # deliberately pinned to the same lossless uint8 interchange format.
-        # Default off preserves every historical float-input score.
+        # Enable only when generated pixels are stored in a lossless uint8
+        # format for every method being compared; off by default (float input).
         self.quantize_uint8 = bool(quantize_uint8)
         if compute_front_fid:
             from torchmetrics.image.fid import FrechetInceptionDistance
@@ -79,9 +62,8 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
                 feature=2048, normalize=True)
         else:
             self.front_fid = None
-        # Grids depend only on calibration and sizes, never on pixels, and a
-        # clip's frames all share one rig, so this turns 32 grid builds per
-        # clip into one -- the difference between minutes and an hour per arm.
+        # Grids depend only on calibration and sizes, never on pixels, and all
+        # frames of a clip share one rig, so they are cached per rig.
         self._grid_cache = {}
         self._source_axes = None
         self._source_shape = None
@@ -93,9 +75,7 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
         Args:
             views: `(batch, sequence, 6, channels, height, width)` in [0, 1],
                 camera-major in ``CAM_ORDER``.  All six share one height and
-                width on purpose -- per-camera output sizes would reintroduce
-                the per-camera horizontal squeeze that makes the parent
-                metric's per-camera values incomparable across cameras.
+                width so that no per-camera horizontal squeeze is introduced.
             real: whether these are reference or generated views.
             valid: optional `(6, height, width)` or
                 `(batch, sequence, 6, height, width)` bool mask from the
@@ -129,11 +109,9 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
                 raise ValueError(
                     "valid must be (6, H, W) or (B, T, 6, H, W), got shape "
                     "{}".format(tuple(valid.shape)))
-            # Check the shape rather than letting broadcasting decide: a mask
-            # whose height/width or camera count is wrong would otherwise
-            # either raise a bare RuntimeError deep in the multiply, or -- far
-            # worse -- broadcast silently against a size-1 axis and mask the
-            # wrong pixels.
+            # Check the shape explicitly: a wrong mask could otherwise
+            # broadcast silently against a size-1 axis and mask the wrong
+            # pixels.
             if tuple(valid.shape) != expected:
                 raise ValueError(
                     "valid has shape {} but views require {}".format(
@@ -153,9 +131,8 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
     def _calibration_key(camera_to_ego, intrinsics, image_size):
         """Rounded fingerprint of one rig.
 
-        nuScenes has a handful of distinct rigs, and their entries differ far
-        above 1e-4, so rounding cannot merge two real rigs while it does keep
-        float noise from exploding the cache.
+        The distinct rigs differ far above 1e-4, so rounding cannot merge two
+        real rigs but keeps float noise from growing the cache.
         """
         return (
             tuple(np.round(np.asarray(camera_to_ego, dtype=np.float64),
@@ -187,12 +164,11 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
         return self._grid_cache[key]
 
     def update_from_canvas(self, canvas, batch, start, real=True):
-        """Bridge a batch of V=1 canvases and accumulate them.
+        """Bridge a batch of stitched canvases and accumulate them.
 
         Args:
-            canvas: ``[B, T, C, H, W]`` stitched V=1 panoramas in [0, 1] --
-                exactly what the FVD block in ``evaluate_pipeline`` already
-                built, so both metrics score the same pixels.
+            canvas: ``[B, T, C, H, W]`` stitched panoramas in [0, 1], the same
+                pixels the pano FVD in ``evaluate_pipeline`` scores.
             batch: the dataloader batch, for ``pano_camera_transforms`` /
                 ``pano_camera_intrinsics`` / ``pano_camera_image_size``.  Note
                 those keys hold the **real six-camera** calibration; the
@@ -218,7 +194,7 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
         if self._source_shape is None:
             self._source_shape = source_shape
             # Half width is the canvas width plus the dropped overlap, split
-            # in two -- the inverse of how the pipeline concatenates halves.
+            # in two (the inverse of how the pipeline concatenates halves).
             half_width = (source_shape[1] + PANO_CANVAS_OVERLAP_COLUMNS) // 2
             self._source_axes = canvas_source_axes(
                 half_size=(source_shape[0], half_width))
@@ -277,10 +253,8 @@ class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):
         if self.front_fid is None:
             return fvd
         return {
-            # The parent metric pools all six camera feature populations.
-            # CAM_FRONT FVD is reported by compute_per_camera(); labelling
-            # this pooled value as front_fvd makes a single-front comparison
-            # silently use the wrong number.
+            # The parent metric pools all six cameras; the CAM_FRONT FVD is
+            # reported by compute_per_camera().
             "pooled_fvd": fvd,
             "front_fid": self.front_fid.compute(),
         }

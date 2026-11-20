@@ -6,6 +6,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=04:00:00
 #SBATCH --output=%x_%j.log
+# Evaluate a 4D GS decoder checkpoint on validation clips.
 # CHECKPOINT=<raw decoder state dict>; NAME=<report name>; CLIPS (default 50).
 set -euo pipefail
 source $HOME/pandwm_code/gaussian/gs4d/scripts/common_env.sh

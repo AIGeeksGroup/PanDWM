@@ -1,12 +1,10 @@
-"""tests_analyze.py for six-camera band features (cam_band_feats.py, inc [n, 32, 6, 2048]) .
+"""tests_analyze.py for six-camera band features (cam_band_feats.py, inc [n, 32, 6, 2048]).
 
 tests_analyze.py expects one Inception row per frame (inc [n, 32, 2048]). Here every frame has six camera images, so
-FID pools all 6 cameras x 32 frames of a clip (FID-1 / FID-2: 6 x 16 of window 1 / 2), every image row tagged with its
-clip's scene so the delete-one-scene jackknife, the scene bootstrap and the half-split floor drop all six cameras of a
-scene together. i3d [n, 2, 6, 400] already has tests_analyze.py's shape (6 camera samples per window). Everything else
-(point values, seed means, jackknife intervals, pairs, half-n floor) is tests_analyze.main unchanged (the module is
-imported and its two functions replaced at run time; tests_analyze.py itself is not modified). Panorama features
-(3-dim inc) are refused, so the two instruments cannot be mixed in one report.
+FID pools all 6 cameras x 32 frames of a clip (FID-1 / FID-2: 6 x 16 of window 1 / 2), and every image row is tagged
+with its clip's scene so the jackknife, bootstrap and half-split floor drop all six cameras of a scene together. i3d
+[n, 2, 6, 400] already has tests_analyze.py's shape. Everything else is tests_analyze.main unchanged (the module is
+imported and two of its functions are replaced at run time). Panorama features (3-dim inc) are refused.
   python3 cam_band_analyze.py --real feats_rec448.npz --arm ours=a.npz,b.npz,c.npz --arm uni=u.npz --pair ours:uni \
       --boot 1000 --out analysis.json
 """

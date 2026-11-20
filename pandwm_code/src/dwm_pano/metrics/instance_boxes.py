@@ -1,15 +1,9 @@
 """Project GT 3D boxes to 2D boxes on the V=1 stitched panorama.
 
-Motivation: `gt_box_ids` in the interp pkl are persistent nuScenes instance
-tokens, but nothing downstream uses them -- `render_bboxes_via_stitch` colours
-wireframes by *class*, so the model is never told which box is which object.
-To measure whether the same object keeps its appearance across frames we first
-need, per frame, that object's pixel region on the same V=1 canvas the FVD
-metric already scores.
-
-The V=1 geometry mirrors `fvd_pano.PanoPatchFrechetVideoDistance`:
-9600-wide pano -> two 2304-wide halves -> stitched to 4114 by dropping the
-494-px overlap.
+`gt_box_ids` in the interp pkl are persistent instance tokens.  This module gives, per frame, the pixel
+region of each instance on the stitched single-view canvas that the FVD metric scores.  The geometry
+mirrors `fvd_pano.PanoPatchFrechetVideoDistance`: 9600-wide pano, two 2304-wide halves, stitched to 4114
+by dropping the 494-px overlap.
 """
 import numpy as np
 from pyquaternion import Quaternion
@@ -23,7 +17,7 @@ _HALF_SRC_W = 5376.0
 _HALF_PX_W = 2304.0
 _RIGHT_START = 4224.0
 _OVERLAP = 494.0
-_SCALE = _HALF_PX_W / _HALF_SRC_W          # 9600-axis -> half-pixel axis
+_SCALE = _HALF_PX_W / _HALF_SRC_W          # 9600 axis to half-pixel axis
 
 
 def pano_column_to_v1(tx):

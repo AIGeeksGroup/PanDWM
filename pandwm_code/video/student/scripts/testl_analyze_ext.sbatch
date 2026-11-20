@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# copy of testl_analyze.sbatch with LIST overridable and one node excluded (Test-L over 83 scenes).
-# Test-L analysis: long_feats.py
-# features of every listed arm (71 test scenes, windows 1-12 from the scene start), then long_analyze2.py with the
-# Test-L buckets (windows 1-2 are the Dev-149 clip and are reported for reference only) and the split-half reference.
+# Same as testl_analyze.sbatch, but the scene list can be overridden with LIST and one node is excluded.
+# Long-video analysis: long_feats.py features of every listed arm (windows 1-12 from the scene start), then
+# long_analyze2.py with window buckets (windows 1-2 are the standard evaluation clip and are reported for
+# reference only) and the split-half reference.
 #   ARMS="v84i4250" SEEDS="42" OUTNAME=testl_v84_s42 sbatch scripts/testl_analyze.sbatch
 # Feature files are per (arm, seed set): $FD/feats_<arm>.npz under FD=$LV/feats_s<seeds joined by _>.
 #SBATCH --job-name=pandwm_tlan

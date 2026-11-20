@@ -7,6 +7,7 @@
 #SBATCH --mem=96G
 #SBATCH --time=04:00:00
 #SBATCH --output=%x_%j.log
+# Export the OmniNWM outputs of the three seeds as metric dumps and compute front-camera FID/FVD.
 set -euo pipefail
 
 H=/path/to/pandwm_root

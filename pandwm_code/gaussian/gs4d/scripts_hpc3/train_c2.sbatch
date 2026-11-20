@@ -9,9 +9,9 @@
 #SBATCH --mem=240G
 #SBATCH --time=14:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-# C2: the 4D decoder retrained with Depth Anything 3 pseudo-depth on every batch,
-# configs/gs4dd_hpc3_C2.json (make_c2_config.py), for STEPS (default 5000) steps into $RUNS/${TAG:-formal_C2},
-# checkpoints every CKPT_STEPS (default 1000), all kept.  Smoke: STEPS=40 CKPT_STEPS=40 TAG=smoke_C2.
+# Train the 4D decoder with Depth Anything 3 pseudo-depth on every batch (config from make_c2_config.py)
+# for STEPS (default 5000) steps into $RUNS/${TAG:-formal_C2}; checkpoints every CKPT_STEPS (default 1000), all kept.
+# Smoke test: STEPS=40 CKPT_STEPS=40 TAG=smoke_C2.
 set -uo pipefail
 STEPS=${STEPS:-5000}
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh

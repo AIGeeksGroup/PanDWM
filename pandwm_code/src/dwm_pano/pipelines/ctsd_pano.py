@@ -30,14 +30,11 @@ import transformers
 _FID_DUMP_CHECKED_DIRS = set()
 
 def _check_dump_dir(dump_dir: str, global_step: int, rank: int):
-    """Refuse to append to a directory another run already wrote.
+    """Refuse to append to a dump directory that another run already wrote.
 
-    The manifest is opened in append mode, so pointing two evals at one
-    dump directory concatenates their records. Nothing downstream can undo
-    that: filenames carry the step, so no file collides and no duplicate
-    check fires -- the two checkpoints simply get pooled into one
-    distribution and scored against the real frames counted twice. Checked
-    once per process per directory.
+    The manifest is opened in append mode, so two evaluations sharing one
+    directory would be pooled into a single distribution. Checked once per
+    process per directory.
     """
     if dump_dir in _FID_DUMP_CHECKED_DIRS:
         return
@@ -62,37 +59,18 @@ def dump_stitched_panos(
     dump_dir: str, global_step: int, batch_index: int, rank: int,
     real_stitched: torch.Tensor, fake_stitched: torch.Tensor
 ):
-    """Persist exactly the pixels the FID metric consumed.
+    """Save the images that the FID metric consumed, so another evaluator can score the same pixels.
 
-    Metric standardization needs an external ADM/TensorFlow evaluator to
-    score the same images torchmetrics scored, otherwise the two numbers
-    differ for two reasons at once (feature extractor AND pixels) and no
-    conversion can be pinned. torchmetrics 1.6.0 casts with
-    ``(imgs * 255).byte()`` -- truncation, not rounding -- so reproduce that
-    cast here rather than the more natural ``round()``. Note this is a
-    deliberate deviation from the metric definition, which specifies
-    ``round(clamp(x, 0, 1) * 255)``: parity with the metric we actually run
-    beats parity with the written spec, but the ADM numbers therefore carry
-    a systematic -0.5/255 bias relative to that spec.
-
-    Load-bearing assumption: the VAE runs in fp32, so ``x * 255`` is one
-    exactly-rounded multiply and the dump is bit-identical to what
-    torchmetrics scored. Under a bf16 VAE the products would land on
-    integer-spaced values above 128 and the dump would diverge by +/-1 over
-    most pixels.
+    Images are converted to uint8 with ``(x * 255).byte()`` (truncation), the
+    cast used by torchmetrics, rather than rounding. This assumes the VAE runs
+    in fp32 so the dump matches what torchmetrics scored.
 
     Writes ``<dump_dir>/{real,fake}/<name>.png`` plus a per-rank JSONL
-    manifest. The manifest exists because ADM's own folder reader drops the
-    tail batch (``run_iter = int(len(files) / self.batch_size)`` in
-    references/NiT/projects/evaluate/adm_evaluator.py:147); reading from a
-    manifest is what guarantees every sample is scored.
+    manifest, which lets a reader score every sample, including a partial
+    last batch.
 
-    This is a diagnostic side channel, so it never aborts the eval: a batch
-    it cannot represent faithfully is skipped with a loud message rather
-    than raised. Killing a 20-hour evaluation -- after the fid/fvd metrics
-    have already consumed the batch -- because a side channel disliked a
-    pixel would be a far worse outcome than an incomplete dump, which the
-    consumers detect anyway via their clip-count checks.
+    This is a diagnostic side channel and never aborts the evaluation: a batch
+    that cannot be represented faithfully is skipped with a message.
     """
     real_dir = os.path.join(dump_dir, "real")
     fake_dir = os.path.join(dump_dir, "fake")
@@ -108,21 +86,13 @@ def dump_stitched_panos(
                 tuple(fake_stitched.shape)), flush=True)
         return
 
-    # (B, T, V, C, H, W) -> (B*T*V, C, H, W): the exact flatten the FID
-    # update call uses, so the dumped order matches the scored order.
-    # The (b, t, v) decomposition is recorded per sample rather than left
-    # implicit in the flat position. At the current eval config B is 1 and V
-    # is 1 (halves are already stitched), so the flat index happens to equal
-    # the frame index -- but only by coincidence. Raise the dataloader batch
-    # size and a reader that groups by batch index alone would weld several
-    # clips into one long "sequence" and hand that to FVD, with nothing in
-    # the output to show it happened.
+    # (B, T, V, C, H, W) is flattened to (B*T*V, C, H, W) as in the FID
+    # update call, so the dumped order matches the scored order. The (b, t, v)
+    # index of each sample is recorded in the manifest.
     batch_dim, time_dim, view_dim = real_stitched.shape[:3]
 
-    # The byte() cast wraps instead of saturating, so a value above 1.0
-    # would silently become a near-black pixel in BOTH evaluators. Inputs
-    # are expected in [0, 1]; check before casting, and skip rather than
-    # corrupt.
+    # The byte() cast wraps instead of saturating, so inputs must lie in
+    # [0, 1]; otherwise skip the batch.
     for label, tensor in (("real", real_stitched), ("fake", fake_stitched)):
         low = float(tensor.min())
         high = float(tensor.max())
@@ -133,9 +103,7 @@ def dump_stitched_panos(
                     batch_index, label, low, high), flush=True)
             return
 
-    # Cast on the device, then move. Moving float32 first would stage two
-    # 404 MB host tensors per batch at the current geometry, four times
-    # what the uint8 form costs.
+    # Cast to uint8 on the device before moving to the CPU.
     real_flat = (real_stitched.flatten(0, 2).detach().float() * 255)\
         .to(torch.uint8).cpu()
     fake_flat = (fake_stitched.flatten(0, 2).detach().float() * 255)\
@@ -1265,10 +1233,8 @@ class CrossviewTemporalSD():
         for i in self.metrics.values():
             i.to(self.device)
 
-        # dtype audit (rank 0 only) — diagnoses fp16/bf16/fp32 master + autocast +
-        # grad_scaler combo before training starts. Critical because train_step
-        # NaNs are otherwise opaque (esp. under FSDP where param dtype is what
-        # FSDP shows post-wrap, not what optimizer sees during step).
+        # dtype audit (rank 0 only): reports the parameter, autocast and
+        # grad-scaler dtype combination before training starts.
         _is_rank0 = (
             not torch.distributed.is_initialized()
             or torch.distributed.get_rank() == 0)
@@ -1316,14 +1282,12 @@ class CrossviewTemporalSD():
 
     def save_checkpoint(self, output_path: str, steps: int, upload: bool = True,
                         keep_last_n: int = 0):
-        """Save model + optimizer to local disk, sync-upload to HF, then keep
+        """Save model + optimizer to local disk, upload to the HF hub, then keep
         only `steps` locally (older steps are pruned only after every upload
-        succeeds, so a failed upload leaves the previous state intact for
-        resume).
+        succeeds, so a failed upload leaves the previous state intact).
 
         Subclasses that write extra files (e.g. EMA) should pass `upload=False`
-        and call `_upload_and_prune` themselves after their extra writes so the
-        extra files are included in the upload+prune cycle.
+        and call `_upload_and_prune` themselves after those writes.
 
         Layout:
             <output_path>/checkpoints/<steps>.pth        full model state (rank0)
@@ -1348,13 +1312,9 @@ class CrossviewTemporalSD():
         if self.should_save:
             torch.save(model_state_dict, ckpt_path)
 
-        # Optimizer state exists only so a run can be resumed. A one-shot
-        # fine-tune never is, and it is the largest single allocation in this
-        # function: AdamW m+v over 3.4 B fp32 parameters is ~27 GiB
-        # materialised on top of an already CPU-offloaded model. On a cluster
-        # that caps host RAM per GPU (HPC3: 240 GB) that is the difference
-        # between saving and an OOM kill. Opt in to skipping it; the default
-        # path is unchanged.
+        # The optimizer state is only needed to resume a run and is the
+        # largest allocation in this function. Set DWM_SKIP_OPTIMIZER_STATE=1
+        # to skip saving it.
         if os.environ.get("DWM_SKIP_OPTIMIZER_STATE") == "1":
             if self.should_save:
                 print(
@@ -1370,11 +1330,8 @@ class CrossviewTemporalSD():
 
     def _upload_and_prune(self, output_path: str, steps: int,
                           keep_last_n: int = 0):
-        """rank 0: run the upload + prune in a background daemon thread so the
-        training loop returns immediately to the FSDP collectives. A blocking
-        upload here stalls rank 0 while the other ranks hit their next
-        all-gather, whose NCCL watchdog (10 min on FSDP subgroups) then tears
-        the job down."""
+        """rank 0: run the upload and prune in a background daemon thread, so
+        that a slow upload does not stall rank 0 in the FSDP collectives."""
         threading.Thread(
             target=self._upload_and_prune_worker,
             args=(output_path, steps, keep_last_n), daemon=True).start()
@@ -1390,9 +1347,8 @@ class CrossviewTemporalSD():
         the previous step stays available for recovery."""
         import subprocess
         run_name = os.path.basename(os.path.normpath(output_path))
-        # Match DMD save_checkpoint: `CKPT_OUT_DIR` redirects ckpt I/O to
-        # compute-node `/local` to bypass shared-FS quota. Upload from there;
-        # prune there too. optim_root stays on shared FS (DMD skips optim).
+        # `CKPT_OUT_DIR` redirects checkpoint I/O (upload and prune included)
+        # to another directory; the optimizer directory stays under output_path.
         ckpt_dir = os.environ.get("CKPT_OUT_DIR") \
             or os.path.join(output_path, "checkpoints")
         optim_root = os.path.join(output_path, "optimizer")
@@ -1477,9 +1433,7 @@ class CrossviewTemporalSD():
 
     def log(self, global_step: int, log_steps: int):
         if self.should_save:
-            # Try direct wandb logging — official quickstart pattern from
-            # https://docs.wandb.ai/quickstart/. More reliable than relying on
-            # sync_tensorboard auto-detection of SummaryWriter writes.
+            # Log to wandb directly if it is available.
             _wandb_run = None
             try:
                 import wandb
@@ -1687,10 +1641,10 @@ class CrossviewTemporalSD():
                     self.training_config, self.common_config,
                     generator=self.generator,
                     reference_latent_count=reference_latent_count)
-            # Offline Stage-1 SRR pilot: only replace the visible reference
-            # frames.  The future target remains the GT latent encoded above;
-            # its flow-matching noise and timestep are unchanged.  Clean
-            # control batches never carry this key and follow the old path.
+            # Optional generated history ("_srr_generated_history"): only the
+            # visible reference frames are replaced. The future target remains
+            # the ground-truth latent encoded above, with unchanged noise and
+            # timestep.
             generated_history = batch.get("_srr_generated_history")
             if generated_history is not None:
                 n_reference = generated_history.shape[1]
@@ -1707,10 +1661,8 @@ class CrossviewTemporalSD():
                     raise ValueError("SRR reference timesteps must be zero")
                 generated_history = generated_history.to(
                     device=noisy_latents.device, dtype=noisy_latents.dtype)
-                # Optional training-only junction ablation.  It softens the
-                # last historical frame with its same-timestamp GT latent;
-                # it never changes future GT targets.  A deployed rollout
-                # cannot use this GT blend, so report it separately.
+                # Optional training-only blend of the last historical frame
+                # with its ground-truth latent; future targets are unchanged.
                 end_blend = float(batch.get("_srr_history_end_blend", 0.0))
                 if not 0 <= end_blend <= 1:
                     raise ValueError("SRR history-end blend must be in [0,1]")
@@ -1720,15 +1672,12 @@ class CrossviewTemporalSD():
                         (1 - end_blend) * generated_history[:, -1] +
                         end_blend * latents_for_prediction[:, n_reference - 1])
                 noisy_latents[:, :n_reference] = generated_history
-            # teacher v3: noise augmentation of the visible
-            # history with noise-level conditioning (GameNGen / Diffusion
-            # Forcing style).  With probability `prob` a sample's visible
-            # reference frames become x_s = (1 - s) x + s eps, s ~ U(0,
-            # sigma_max), and their timesteps become 1000 s, so the model
-            # knows how much to trust them.  The draws come from a generator
-            # seeded by (seed, step, rank): the model RNG stream, the data
-            # order and the target noise stay identical to an arm without it.
-            # Off unless training_config["history_noise"] is set.
+            # Noise augmentation of the visible history with noise-level
+            # conditioning. With probability `prob`, a sample's reference
+            # frames become x_s = (1 - s) * x + s * eps with s ~ U(0, sigma_max)
+            # and their timesteps become 1000 * s. The draws use a generator
+            # seeded by (seed, step, rank), so the model RNG stream is
+            # unaffected. Off unless training_config["history_noise"] is set.
             history_noise = self.training_config.get("history_noise")
             if history_noise:
                 from dwm_pano.history_noise import \
@@ -1747,15 +1696,11 @@ class CrossviewTemporalSD():
             if getattr(self.model_wrapper, "mask_module", None) is not None:
                 model_conditions["noise"] = noise
 
-            # Train-time causal AR retrofit. The mask shape depends on
+            # Causal temporal attention mask for training. Its form depends on
             # the model's `temporal_attention_type`:
-            #   - "pointwise": dense (T, T) -inf upper-triangular (per spatial
-            #     position attention is over T tokens only).
-            #   - "rowwise" / "full": LongLive-style block-causal `BlockMask`
-            #     constructed via FlexAttention (sparse, GPU-efficient).
-            # The model's temporal block uses a custom AttnProcessor that
-            # dispatches to flex_attention when a BlockMask is passed; see
-            # `dwm_pano/models/flex_block_causal.py`.
+            #   - "pointwise": dense (T, T) upper-triangular -inf mask.
+            #   - "rowwise" / "full": block-causal `BlockMask` built with
+            #     FlexAttention (see `dwm_pano/models/flex_block_causal.py`).
             _tam_setting = self.training_config.get("temporal_attention_mask")
             if _tam_setting == "causal":
                 _T_seq = latents.shape[1]
@@ -1807,11 +1752,9 @@ class CrossviewTemporalSD():
                 sd_pred_latent = sd_pred_latent*(reference_frame_loss_mask)
                 target = target*(reference_frame_loss_mask)
 
-            # teacher v3b: optional per-frame loss weights (T,)
-            # from the batch, e.g. a ramp over the first target frames of a
-            # recovery sample so the model is not forced to jump from the
-            # generated history to the GT content.  Same mean as before
-            # (weights scale the squared error; the denominator is unchanged).
+            # Optional per-frame loss weights (T,) from the batch, e.g. a ramp
+            # over the first target frames. The weights scale the squared
+            # error; the denominator is unchanged.
             frame_weights = batch.get("_loss_frame_weights")
             if frame_weights is None:
                 loss_dict["sd_loss"] = torch.nn.functional.mse_loss(
@@ -1855,8 +1798,8 @@ class CrossviewTemporalSD():
 
         self.loss_report_list.append(loss_report)
 
-        # post-loss audit — first N steps print finite/dtype info so we don't
-        # discover NaN-on-step-10 in tfevents an hour later. Opt-in via env var.
+        # Post-loss audit: the first DWM_AUDIT_STEPS steps print finite/dtype
+        # information.
         _audit_n = int(os.environ.get("DWM_AUDIT_STEPS", "0"))
         _is_rank0 = (
             not torch.distributed.is_initialized()
@@ -1871,8 +1814,8 @@ class CrossviewTemporalSD():
                 f"grad_scaler={self.training_config.get('enable_grad_scaler', False)}",
                 flush=True)
 
-        # GPU memory probe at the SPECIFIED step (DWM_MEM_PROBE_STEP, default 10).
-        # Prints torch.cuda allocated/reserved per-rank. Single-shot, fires once.
+        # GPU memory probe: prints allocated/reserved CUDA memory per rank
+        # once, at step DWM_MEM_PROBE_STEP (default 10).
         _mem_probe_step = int(os.environ.get("DWM_MEM_PROBE_STEP", "10"))
         if global_step == _mem_probe_step:
             _rank = (torch.distributed.get_rank()
@@ -1931,9 +1874,9 @@ class CrossviewTemporalSD():
         reference_frame_count: int = 0, start_timestep: int = 0,
         stop_timestep=None, take_time: int = 0, reference_timestep=0
     ):
-        # reference_timestep (teacher v3): the timestep given to the
-        # injected reference frames; 0 (the default) is the original clean
-        # history.  The caller noises image_latents to match it.
+        # reference_timestep: the timestep given to the injected reference
+        # frames; 0 (default) means clean history. The caller noises
+        # image_latents to match it.
         self.model_wrapper.eval()
 
         diffusion_forcing_mode = (
@@ -1981,13 +1924,13 @@ class CrossviewTemporalSD():
             do_classifier_free_guidance=do_classifier_free_guidance,
             latents_shape=latents.shape)
 
-        # Causal AR retrofit (mirrors train_step). Mask shape depends on
-        # the model's `temporal_attention_type`:
-        #   - "pointwise": dense (T, T) -inf upper-triangular.
-        #   - "rowwise" / "full": LongLive-style block-causal `BlockMask` via
-        #     FlexAttention (see `dwm_pano/models/flex_block_causal.py`).
+        # Causal temporal attention mask (as in train_step). Its form depends
+        # on the model's `temporal_attention_type`:
+        #   - "pointwise": dense (T, T) upper-triangular -inf mask.
+        #   - "rowwise" / "full": block-causal `BlockMask` via FlexAttention
+        #     (see `dwm_pano/models/flex_block_causal.py`).
         # CFG cond+uncond batches share the same mask (B=H=None for BlockMask;
-        # 2D dense mask is broadcast by the model's _expand_temporal_mask).
+        # a dense 2D mask is broadcast by the model's _expand_temporal_mask).
         _tam_setting = self.inference_config.get("temporal_attention_mask")
         if _tam_setting == "causal":
             _T_seq = latent_shape[1]
@@ -2198,12 +2141,8 @@ class CrossviewTemporalSD():
             self.common_config["frame_prediction_style"] == "diffusion_forcing"
         )
         if diffusion_forcing_mode:
-            # Relaxed from `>` to `>=` to support single-iteration AR
-            # (total_frame_count == sl_per_iter, e.g. our 16-frame clip with
-            # sl_per_iter=16 + reference_frame_count=15: 1 iteration generating
-            # frame 15 given frames 0-14 as reference). The AR loop body
-            # `range(0, total-sl_per_iter+1, sl_per_iter-ref_frame_count)`
-            # = `range(0, 1, 1)` = [0] handles this correctly.
+            # `>=` allows a single autoregressive iteration
+            # (total_frame_count == sequence_length_per_iteration).
             assert total_frame_count >= \
                 self.inference_config["sequence_length_per_iteration"]
             clear_reference_frame_count = self.inference_config.get(
@@ -2451,11 +2390,8 @@ class CrossviewTemporalSD():
         iteration_count = \
             self.inference_config["evaluation_item_count"] // world_size \
             if "evaluation_item_count" in self.inference_config else None
-        # Manual per-batch print for eval progress (rank 0 only). tqdm in
-        # non-tty mode (SLURM log redirect) silently buffers — even with
-        # mininterval, updates only flush at iteration boundaries which
-        # require very long inference time (193s/clip), so tqdm output
-        # lags hard. Plain print(flush=True) works reliably.
+        # Progress is printed per batch (rank 0 only) instead of using tqdm,
+        # which buffers when output is not a tty.
         _eval_total = (
             iteration_count if iteration_count is not None
             else len(validation_dataloader))
@@ -2544,15 +2480,10 @@ class CrossviewTemporalSD():
                         _fake_stitched, "b t v c h w -> (b v) t c h w"),
                     real=False)
 
-                # Instance appearance consistency reuses the panoramas the
-                # FVD block just stitched. Unlike FVD it needs to know *which*
-                # object sits where, so it also takes the frame timestamps and
-                # looks the GT boxes up itself -- no dataset schema change.
-                # Dispatch by type, not by the literal key "iac": several
-                # arms of this metric (one per descriptor) run side by side in
-                # one evaluation and must each carry a distinct config key.
-                # Name-keyed dispatch silently fed none of them and every arm
-                # reported nan with pairs=0.
+                # Instance appearance consistency reuses the panoramas stitched
+                # for FVD. It also needs the frame timestamps, to look up the
+                # ground-truth boxes. Metrics are found by type rather than by
+                # config key, since several instances can run side by side.
                 from dwm_pano.metrics.instance_consistency import (
                     InstanceAppearanceConsistency)
                 _iac = [m for m in self.metrics.values()
@@ -2569,9 +2500,8 @@ class CrossviewTemporalSD():
                         _metric.update(
                             _fake_stitched[:, :, 0], _ts, real=False)
 
-                # Seam profile and temporal smoothness both score exactly the
-                # panoramas the FVD block stitched, so a run that carries them
-                # reports numbers about the same pixels FVD saw.
+                # Seam profile and temporal smoothness score the same stitched
+                # panoramas as FVD.
                 if "seam" in self.metrics:
                     _real_halves = batch["vae_images"][:, start:stop]\
                         .to(self.device)
@@ -2590,30 +2520,23 @@ class CrossviewTemporalSD():
                     self.metrics["smooth"].update(
                         _fake_stitched[:, :, 0], real=False)
 
-                # Paired, so it takes both arms in one call.
+                # Paired metric: takes the generated and real panoramas in one call.
                 if "frameprof" in self.metrics:
                     self.metrics["frameprof"].update(
                         _fake_stitched[:, :, 0], _real_stitched[:, :, 0])
 
-                # Protocol bridge: resample the very panoramas FVD just
-                # scored into the six REAL nuScenes cameras, so this arm can
-                # be stated in the space published numbers live in. Needs the
-                # batch because the calibration is per sample -- and it must
-                # be the `pano_camera_*` keys, which hold the real rig; the
-                # `camera_*` keys are the virtual pano camera. Band limited by
-                # construction (the pano is a +-16.67 deg band), so its output
-                # is never comparable to a published full-frame number.
+                # Resample the panoramas scored by FVD into the six real
+                # cameras. Needs the batch because the calibration is per
+                # sample; the `pano_camera_*` keys hold the real rig, while
+                # the `camera_*` keys describe the virtual panorama camera.
                 if "n6bridge" in self.metrics:
                     self.metrics["n6bridge"].update_from_canvas(
                         _real_stitched[:, :, 0], batch, start, real=True)
                     self.metrics["n6bridge"].update_from_canvas(
                         _fake_stitched[:, :, 0], batch, start, real=False)
 
-            # ``n6bridge`` is also a complete standalone FVD instrument.  It
-            # must not silently depend on enabling the legacy panorama
-            # metric merely because both need the same stitched canvas.  The
-            # branch above reuses the panorama FVD tensors when available;
-            # this branch constructs them only for a bridge-only run.
+            # ``n6bridge`` can also run without the panorama FVD metric; in
+            # that case the stitched canvases are built here.
             if "n6bridge" in self.metrics and "fvd" not in self.metrics:
                 fake_images = pipeline_output["images"]\
                     .unflatten(0, (batch_size, -1, view_count))
@@ -2632,11 +2555,9 @@ class CrossviewTemporalSD():
                 self.metrics["n6bridge"].update_from_canvas(
                     _fake_stitched[:, :, 0], batch, start, real=False)
 
-            # Metric-standardization hook. Off unless PANDWM_FID_DUMP_DIR is
-            # set, so the frozen eval protocol is untouched by default. When
-            # on, it persists the same stitched panoramas the fid/fvd blocks
-            # above just scored, letting an ADM/TensorFlow evaluator score
-            # identical pixels and pin a torchmetrics <-> ADM conversion.
+            # If PANDWM_FID_DUMP_DIR is set, save the stitched panoramas scored
+            # by the fid/fvd metrics above so another evaluator can score the
+            # same pixels.
             _fid_dump_dir = os.environ.get("PANDWM_FID_DUMP_DIR")
             if _fid_dump_dir:
                 fake_images = pipeline_output["images"]\
@@ -2671,9 +2592,7 @@ class CrossviewTemporalSD():
                 for preds, target in preds_target_generator:
                     self.metrics["rmse"].update(preds, target)
 
-            # Per-batch eval progress (rank 0). Each iteration of this loop
-            # processes one clip batch (~193s at 256x2304 high res). Print
-            # after each batch so log shows live progress without tqdm magic.
+            # Per-batch evaluation progress (rank 0).
             if self.should_save:
                 _elapsed = time.time() - _eval_t0
                 _per_batch = _elapsed / (i + 1)
@@ -2704,21 +2623,16 @@ class CrossviewTemporalSD():
                 try:
                     per_camera = metric.compute_per_camera()
                 except RuntimeError as e:
-                    # Too few samples per camera is not worth losing an
-                    # otherwise finished evaluation over.
+                    # Too few samples per camera: skip rather than abort.
                     print("[per-camera {}] skipped: {}".format(k, e))
             metric.reset()
 
-            # Some metrics report a family of related numbers (e.g. `iac`
-            # returns its ratio alongside the raw drifts and the separation
-            # sanity companion, which must be read together).
+            # Some metrics return a dict of related numbers.
             items = list(value.items()) if isinstance(value, dict) \
                 else [(k, value)]
             for label, number in items:
-                # A metric may report a non-numeric field (a mode name, a
-                # backbone id). Formatting it with `{:.3f}` used to raise at
-                # the very end of an evaluation, throwing away every generated
-                # sample; print it and skip the scalar logging instead.
+                # A metric may report a non-numeric field (e.g. a mode name);
+                # print it without scalar logging.
                 if isinstance(number, (bool, str)):
                     text += " {}: {}".format(label, number)
                     continue
@@ -2729,8 +2643,8 @@ class CrossviewTemporalSD():
                     _wandb_eval_dict[f"evaluation/{label}"] = float(number)
 
             if per_camera is not None and self.should_save:
-                # Reported on its own line so the existing
-                # "Step N, fid: .. fvd: .." format stays parseable.
+                # Reported on its own line, separate from the
+                # "Step N, fid: .. fvd: .." summary line.
                 per_camera_lines.append(
                     "Step {}, per-camera {}: {}".format(
                         global_step, k, " ".join(
@@ -2750,18 +2664,13 @@ class CrossviewTemporalSD():
 
 
 class PanoCrossviewTemporalSD(CrossviewTemporalSD):
-    """2-pano fork of CrossviewTemporalSD.
+    """Two-half panorama variant of CrossviewTemporalSD.
 
-    Renamed from `StreamingCrossviewTemporalSD` (the old name was
-    misleading because the class supports BOTH full-clip and streaming
-    inference via `inference_config["sequence_length_per_iteration"]`, and
-    BOTH bidirectional and causal training/inference via
-    `training_config["temporal_attention_mask"]` /
-    `inference_config["temporal_attention_mask"]`).
-
-    Backward-compat alias `StreamingCrossviewTemporalSD` is kept below so
-    legacy configs loading by class-name string
-    still resolve. New configs should use `PanoCrossviewTemporalSD`.
+    Supports full-clip and streaming inference
+    (`inference_config["sequence_length_per_iteration"]`) and bidirectional or
+    causal training/inference (`training_config["temporal_attention_mask"]`,
+    `inference_config["temporal_attention_mask"]`). The alias
+    `StreamingCrossviewTemporalSD` below keeps older configs working.
     """
 
     def reset_streaming(self, latent_shape, output_type):
@@ -2787,15 +2696,9 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
         self, latent_shape, start_timestep: int = 0, stop_timestep=None,
         take_time: int = 0
     ):
-        # Renamed from `inference_pipeline` (which shadowed the parent
-        # CrossviewTemporalSD.inference_pipeline at line 1544 with a different
-        # signature). Parent's autoregressive_inference_pipeline /
-        # evaluate_pipeline / preview_pipeline (else branch) call
-        # self.inference_pipeline(reference_frame_count=N), which TypeError'd
-        # when our streaming override was dispatched. After rename, parent paths
-        # see the parent's signature, while fifo_inference_pipeline (streaming
-        # AR helper, dead path in our use but kept for backward compat) calls
-        # self._fifo_step explicitly.
+        # Single streaming denoising step, separate from the parent's
+        # `inference_pipeline` (which has a different signature); used by
+        # `fifo_inference_pipeline`.
         self.model_wrapper.eval()
 
         assert self.inference_config["inference_steps"] % latent_shape[1] == 0
@@ -3055,9 +2958,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
         latent_width = batch["vae_images"].shape[-1] // \
             (2 ** (len(self.vae.config.down_block_types) - 1))
         assert "sequence_length_per_iteration" in self.inference_config
-        # Use VAE-aware sequence_length (matches official ctsd.py:1847-1850
-        # `get_latent_sequence_length()`). For SD3.5 2D VAE (vae_stride=1,
-        # vae_pre=0) this is identity but kept for protocol parity.
+        # Latent sequence length from the VAE (identity for the 2D VAE).
         latent_shape = (
             batch_size,
             self.get_latent_sequence_length(
@@ -3066,21 +2967,18 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
             latent_width
         )
 
-        # Per-slot deterministic preview seed: same dataset_index → same noise
-        # at every training step. Visual diff across cycles = pure model weight
-        # evolution, NOT generator-state drift. Critical for a clean
-        # scaling evaluation. Save+restore generator state so training
-        # stochasticity is preserved post-preview.
-        # Opt-in via inference_config.preview_seed_base (None = legacy behavior).
+        # Optional deterministic preview seed per dataset index
+        # (inference_config.preview_seed_base; None disables it), so previews
+        # at different training steps use the same noise. The generator state
+        # is restored after the preview.
         _preview_seed_base = self.inference_config.get("preview_seed_base")
         _gen_saved_state = None
         _preview_slot_seed = None
         if _preview_seed_base is not None and "dataset_index" in batch:
             _gen_saved_state = self.generator.get_state()
             _slot = int(batch["dataset_index"][0].item())
-            # collision-proof seed: base + split_offset + dataset_index
-            # split_offset = 0 for train pkl, 10_000_000 for val pkl
-            # ensures train pkl idx 500 and val pkl idx 500 don't share a seed
+            # seed = base + split_offset + dataset_index, with a split offset
+            # of 0 for train and 10_000_000 for val so the splits do not share seeds
             _split_str = (
                 batch["split"][0]
                 if "split" in batch and len(batch["split"]) > 0
@@ -3089,11 +2987,7 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
             _preview_slot_seed = int(_preview_seed_base) + _split_offset + _slot
             self.generator.manual_seed(_preview_slot_seed)
         try:
-            # Switched from `fifo_inference_pipeline` (streaming, asserts
-            # total_frame_count > sequence_length_per_iteration which fails for
-            # full-clip preview where total == sl_per_iter == 16) to
-            # `autoregressive_inference_pipeline` — same path the official
-            # CrossviewTemporalSD.preview_pipeline takes (ctsd.py:1852).
+            # Same autoregressive path as CrossviewTemporalSD.preview_pipeline.
             pipeline_output = self.autoregressive_inference_pipeline(
                 latent_shape, batch, "pt")
         finally:
@@ -3105,10 +2999,9 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
             self.inference_config.get("all_rank_preview", False)
         ):
             os.makedirs(os.path.join(output_path, "preview"), exist_ok=True)
-            # Append a row to preview_debug.csv so the user can decode
-            # {global_step}.mp4 → which clip without guessing DDP truncation /
-            # cycle order. dataset_index is the ORIGINAL base-dataset index
-            # (Subset wrapping is transparent — see nuscenes_pano.__getitem__).
+            # Append a row to preview_debug.csv recording which clip each
+            # {global_step}.mp4 shows. dataset_index is the index in the base
+            # dataset (Subset wrapping is transparent).
             try:
                 _csv_path = os.path.join(output_path, "preview", "preview_debug.csv")
                 _write_header = not os.path.exists(_csv_path)
@@ -3149,22 +3042,19 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
                 if self.inference_config.get("all_rank_preview", False)
                 else str(global_step)
             )
-            # Pano dedup: stitch left + right halves (drop right's overlap)
-            # before make_ctsd_preview_tensor. Stitched frame becomes single
-            # 360° panorama (V=1). preview_image_size is overridden so the
-            # internal interpolate preserves panorama aspect ratio.
+            # Stitch the left and right halves (dropping the right overlap)
+            # into a single panorama (V=1) before make_ctsd_preview_tensor;
+            # preview_image_size is overridden to keep the panorama aspect ratio.
             _PANO_OVERLAP_W = PANO_OVERLAP_W
             _output_unflat = pipeline_output["images"].unflatten(
                 0, (batch_size, -1, view_count))
             _output_stitched = stitch_pano_halves(_output_unflat)
             _output_stitched_flat = _output_stitched.flatten(0, 2)
 
-            # When `generate_frames_for_reference=False` (CD / DMD), the AR
-            # pipeline strips the first `reference_frame_count` ref frames
-            # from its output (autoregressive_inference_pipeline:2049-2051),
-            # so generated[i] aligns with GT[i + ref_count]. Pre-offset GT
-            # by ref_count to display synchronized frame-by-frame; otherwise
-            # the generated row looks `ref_count` frames "ahead" of GT.
+            # With `generate_frames_for_reference=False`, the autoregressive
+            # pipeline drops the first `reference_frame_count` frames from its
+            # output, so generated[i] corresponds to GT[i + ref_count]. Offset
+            # the ground truth by ref_count to display them aligned.
             _output_seq_len = _output_unflat.shape[1]
             _ref_offset = (
                 0 if self.inference_config.get(
@@ -3211,7 +3101,6 @@ class PanoCrossviewTemporalSD(CrossviewTemporalSD):
                   f"{time.time() - _t_preview:.1f}s", flush=True)
 
 
-# Backward-compat alias — preserves loading of legacy configs that reference
-# `dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD`.
-# New configs should use `PanoCrossviewTemporalSD`.
+# Alias so that configs referencing
+# `dwm_pano.pipelines.ctsd_pano.StreamingCrossviewTemporalSD` still load.
 StreamingCrossviewTemporalSD = PanoCrossviewTemporalSD

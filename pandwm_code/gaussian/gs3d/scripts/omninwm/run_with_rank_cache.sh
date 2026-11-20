@@ -1,6 +1,5 @@
 #!/bin/bash
-# Give every torchrun worker an independent Triton/DeepSpeed cache.  The
-# official OmniNWM entry point is then executed unchanged via "$@".
+# Give every torchrun worker its own Triton/DeepSpeed cache, then run the given command.
 set -euo pipefail
 
 : "${LOCAL_RANK:?torchrun did not export LOCAL_RANK}"

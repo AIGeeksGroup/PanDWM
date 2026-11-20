@@ -1,4 +1,4 @@
-"""Verify that PanDWM and canonical dumps score the same 16 GT frames."""
+"""Check that the PanDWM and canonical real dumps contain the same 16 target frames (within a small uint8 tolerance)."""
 from __future__ import annotations
 
 import argparse

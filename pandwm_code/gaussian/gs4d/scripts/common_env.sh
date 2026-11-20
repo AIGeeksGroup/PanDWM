@@ -1,4 +1,4 @@
-# Shared runtime for the 4D GS jobs on HPC2 (sourced by the sbatch files).
+# Shared runtime for the 4D GS jobs (sourced by the sbatch files).
 source $HOME/pandwm_env.sh
 H=$HOME
 GS4D=$H/pandwm_code/gaussian/gs4d

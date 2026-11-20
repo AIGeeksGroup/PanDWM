@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Losslessly export official GEM arrays into the frozen common149 metric dump."""
+"""Export GEM output arrays (first 17 frames) and the matching real frames as uint8 tensors for the common-clip metric dump."""
 
 from __future__ import annotations
 

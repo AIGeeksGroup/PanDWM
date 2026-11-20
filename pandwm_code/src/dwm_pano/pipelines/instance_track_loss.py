@@ -1,11 +1,10 @@
-"""MV-TAP-inspired relational loss over persistent nuScenes 3D-box tracks.
+"""Relational loss over persistent 3D-box tracks, inspired by MV-TAP.
 
-The loss compares small ROI descriptors in the student's predicted clean
-latent with the same relationships in the real VAE latent.  It therefore does
-not demand pixel identity across viewpoints: real pose, lighting and occlusion
-changes define how much variation is legitimate.  Positive relations cover
-time and overlapping pano views; same-frame different-ID relations prevent a
-collapsed descriptor from satisfying every positive pair.
+Small ROI descriptors in the predicted clean latent are compared with the same
+pairwise relations measured in the real VAE latent, so pixel identity across
+viewpoints is not required. Positive relations link the same track across time
+and across overlapping panorama views; different-ID pairs in the same frame
+act as negatives.
 """
 from __future__ import annotations
 
@@ -52,9 +51,8 @@ def sample_track_descriptors(
         (width, height, width, height),
         device=features.device, dtype=torch.float32)
     rois = torch.cat((image_index[:, None].float(), roi * scale), dim=1)
-    # roi_align indexes one shared B*T*V feature tensor.  Repeating a complete
-    # C*H*W feature map once per ROI would consume ~1 GB at the production
-    # track count, which is unsafe beside a 3.35B model on an 80 GB H100.
+    # roi_align indexes one shared B*T*V feature tensor, which avoids
+    # copying a full feature map per ROI.
     from torchvision.ops import roi_align
     pooled = roi_align(
         features.reshape(-1, features.shape[3], height, width).float(),
@@ -151,7 +149,7 @@ def box_track_relational_loss(
     negative_weight=0.25,
     max_negative_pairs=2048,
 ):
-    """Return a real-change-calibrated track loss and scalar diagnostics."""
+    """Return the track relational loss and a dict of scalar diagnostics."""
     pred_desc, metadata = sample_track_descriptors(
         predicted, boxes, valid, pool_size=pool_size,
         min_latent_size=min_latent_size)

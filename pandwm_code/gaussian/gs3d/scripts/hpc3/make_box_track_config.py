@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a paired HPC3 config for the 3D-box track consistency ablation."""
+"""Build the control or track config for the 3D-box track consistency fine-tune."""
 from __future__ import annotations
 
 import argparse
@@ -38,8 +38,7 @@ def build_config(
         "split": "train",
         "sequence_length": 19,
         "fps_stride_tuples": [[10, 0.1]],
-        # Keep data loading identical across paired arms.  The control emits
-        # the same small tensors but applies zero track-loss weight.
+        # Both arms load the same data; the control arm uses zero track-loss weight.
         "emit_instance_tracks": True,
         "max_instance_tracks": int(max_tracks),
         "instance_track_min_pixels": 4,
@@ -54,13 +53,12 @@ def build_config(
         "generator_ckpt": student,
         "consistency_ema_checkpoint_path": student,
         "consistency_teacher_checkpoint_path": teacher,
-        # A short fine-tune must update its EMA from the first step; otherwise
-        # an early checkpoint can remain byte-identical to the warm start.
+        # Start the EMA at step 0 so early checkpoints differ from the warm start.
         "ema_start_step": 0,
     })
     training = pipeline["training_config"]
     training.update({
-        # Match the deployment task: 3 clean history -> 16 future frames.
+        # 3 clean context frames, 16 future frames.
         "reference_frame_count": 3,
         "generation_task_ratio": 0.0,
         "image_generation_ratio": 0.0,

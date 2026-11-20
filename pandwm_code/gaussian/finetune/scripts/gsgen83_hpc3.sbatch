@@ -9,10 +9,10 @@
 #SBATCH --mem=110G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%j.log
-# tab:gs_gen on its 83 Test-S clips.
-#   MODE=g3b   G3b only-Gaussians row with depth: eval_gs_shift (the tab5_ft3_hpc3.sbatch FT3_G3b command line) on the 12
-#              new clips, then merges of the 6 old FT3_G3b states (repro71 check) and of old + new (ext83)
-#   MODE=merge TAG=<refiner tag>   d2v2_eval merge of eval_test/<TAG> (71) + eval_testext/<TAG> (12) -> eval_test83/<TAG>
+# Evaluation of the Gaussian row on 83 generated test clips.
+#   MODE=g3b   eval_gs_shift (with depth) on the 12 extension clips, then merges of the existing 6 states and of
+#              existing + new states
+#   MODE=merge TAG=<refiner tag>   d2v2_eval merge of eval_test/<TAG> (71) + eval_testext/<TAG> (12) into eval_test83/<TAG>
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

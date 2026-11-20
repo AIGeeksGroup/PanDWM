@@ -1,14 +1,14 @@
 """Build the Test-S manifest.
 
-Test-S = the 71 test scenes (review149_test71_long12.json, the same scenes as Test-L and as
-dev149_nontest_split.json "test_scene_tokens"), 3 clips per scene starting 5, 10 and 15 s after the scene
-start: 3 recorded frames + 32 frames, 10 Hz, 35 frames, exactly the Dev-149 protocol at later start times.
+Test-S = the 71 test scenes (review149_test71_long12.json, the same scenes as Test-L and as the "test_scene_tokens" of
+dev149_nontest_split.json), 3 clips per scene starting 5, 10 and 15 s after the scene start: 3 recorded frames + 32
+frames at 10 Hz (35 frames), the Dev-149 protocol at later start times.
 
-The clips are the dataset's own clips: the frozen eval dataset (cd_eval_frozen149_hpc3.json) with
-fps_stride_tuples [[10, 5]] instead of [[10, 20]], so the anchor walks 0, 5, 10, 15 s and each clip is re-based at its
-own first frame like a Dev-149 clip.  Offset 0 is the Dev-149 clip and is not part of Test-S.
+The clips are the dataset's own clips: the frozen eval dataset with fps_stride_tuples [[10, 5]] instead of [[10, 20]],
+so the anchor walks 0, 5, 10, 15 s and each clip is re-based at its own first frame. Offset 0 is the Dev-149 clip and
+is not part of Test-S.
 
-  python3 build_tests_manifest.py --base-config cd_eval_frozen149_hpc3.json \
+  python3 build_tests_manifest.py --base-config <frozen eval config.json> \
       --scenes review149_test71_long12.json --split dev149_nontest_split.json \
       --output tests213_manifest.json
 """

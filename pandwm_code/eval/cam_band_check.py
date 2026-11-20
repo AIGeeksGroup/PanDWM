@@ -1,16 +1,16 @@
-"""Validation of the 256x448 six-camera band protocol (cam_band_feats.py) before any arm is scored .
+"""Validation of the 256x448 six-camera band protocol (cam_band_feats.py) before any arm is scored.
 
-(a) pixel check: the RECORDED canvas through the bridge vs the RECORDED 256x448 views (rec448 run: OpenDWM adapter of
-    the raw nuScenes images), inside the band mask, per camera: MAE (0..255) and PSNR, split into pixels whose canvas
-    column is owned by the camera itself and pixels in a neighbour-owned column (expected parallax residue). A shift
-    search (integer dx, dy at 256x448, own-column pixels) and an isotropic zoom search about the principal point tell
-    a geometric misalignment from appearance differences.
-(b) mask coverage over all 150 clips: pixel fraction, fraction of rows with any covered pixel, central-column row
-    fraction (the memory note's 53.8% CAM_BACK / ~84% others), neighbour-owned fraction (by sampled canvas column and
-    by the bridge's 50 m probe), first covered row (MagicDrive-V2's 26/450 padded top rows must be outside the mask).
-(c) preview of one clip and frame: rows = cameras (CAM_ORDER), columns = recorded views | recorded canvas -> bridge |
-    ours P s42 -> bridge | UniMLVG P s42, all masked; red = mask edge, yellow = own / neighbour column boundary.
-  python3 cam_band_check.py --base-config cd_eval_frozen149_hpc3.json --rec448 RUN --unimlvg RUN --ours R1+R2 --out D
+(a) Pixel check: the recorded canvas through the bridge vs the recorded 256x448 views (OpenDWM adapter of the raw
+    images), inside the band mask, per camera: MAE (0..255) and PSNR, split into pixels whose canvas column is owned
+    by the camera itself and pixels in a neighbour-owned column (expected parallax residue). A shift search (integer
+    dx, dy at 256x448, own-column pixels) and an isotropic zoom search about the principal point distinguish a
+    geometric misalignment from appearance differences.
+(b) Mask coverage over all clips: pixel fraction, fraction of rows with any covered pixel, central-column row
+    fraction, neighbour-owned fraction (by sampled canvas column and by the bridge's 50 m probe), first covered row.
+(c) Preview of one clip and frame: rows = cameras (CAM_ORDER), columns = recorded views | recorded canvas via bridge |
+    ours via bridge | UniMLVG, all masked; red = mask edge, yellow = own / neighbour column boundary.
+
+  python3 cam_band_check.py --base-config <eval config json> --rec448 RUN --unimlvg RUN --ours R1+R2 --out D
 """
 import argparse
 import json

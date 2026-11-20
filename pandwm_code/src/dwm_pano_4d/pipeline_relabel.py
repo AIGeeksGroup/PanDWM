@@ -1,29 +1,21 @@
 """4D GS decoder trained on the geometry it is rendered with at test time.
 
-Why: at test time every frame's Gaussians are slid along their rays to DA3 ranges (gs_scene_v3 da3_mode "scale",
-da3_depth.rescale_gaussians), but C2 / R1 learned opacity, size and colour on the decoder's own ranges.  The
-three-geometry LOO diagnostic showed the swap costs +7-8 % own-view error and LOO sharpness
-(0.93 -> 0.86-0.90), while the clip-consistent DA3 geometry lowers LOO error 12 % (mid range 20 %).  Here the same
-slide is applied inside training, to the DA3 ranges the parent already reconstructs jointly for the step's frames
-(pipeline_da3), so the appearance is learned for the geometry it is rendered with.  Every loss (own, composite, LOO,
-box ownership) sees the slid Gaussians; the decoder's depth terms still act on its own predicted range.
+At test time every frame's Gaussians are slid along their rays to DA3 ranges (da3_depth.rescale_gaussians). Here the
+same slide is applied inside training, to the DA3 ranges the parent (pipeline_da3) reconstructs jointly for the step's
+frames, so appearance is learned for the geometry it is rendered with. Every loss (own, composite, LOO, box ownership)
+sees the slid Gaussians; the decoder's depth terms still act on its own predicted range.
 
-gs4d_relabel:
-* bound: 0 = the DA3 range itself (exactly the test-time "scale" relabel); > 0 = da3_depth.bounded_range, the decoder
-  may move a Gaussian at most a factor exp(+-bound) off DA3 (gs_scene_v3 da3_mode "bounded" at test time);
-* pixels slid: content rays whose DA3 label is valid with min_range_m < DA3 < far_cut_m (sky and far pixels hold
-  sky_fill_m >= far_cut_m in the labels), as the test-time valid mask (0.5 < r < 99, not sky); the others keep the
-  decoder's range;
-* no_offset: every centre is put back on its pixel ray, origin + direction * range, before the slide (the decoder's
-  free xyz offset is dropped; gs_scene_v3 SceneOptions.no_offset at test time).  InfiniSplat v2 (2610.20341) found
-  free offsets on fixed depth hurt novel views (they compensate attribute errors);
-* plane_offset_px > 0 (needs no_offset false): keep only the offset's component across the
-  ray, softly bounded to that many decoder pixels (da3_depth.plane_offsets), so sub-pixel alignment survives while
-  the depth stays on the ray; G1 / G2 (no offset) lost 0 m FID against G0 (free offset);
-* loo_perceptual: weight of an LPIPS term on the leave-one-out render (the parent's LOO is L1 only, which rewards
-  blur under misregistration), same mask as the LOO L1.
-The step report gains relabel_fraction, relabel_abs_log (mean |log decoder / DA3| on slid pixels), offset_norm (mean
-|xyz offset| in metres before it is dropped / scaled) and loo_perceptual.
+gs4d_relabel options:
+* bound: 0 uses the DA3 range itself; > 0 uses da3_depth.bounded_range, so the decoder may move a Gaussian at most a
+  factor exp(+-bound) off DA3;
+* min_range_m, far_cut_m: only content rays whose DA3 label is valid with min_range_m < range < far_cut_m are slid
+  (sky and far pixels hold sky_fill_m in the labels); the others keep the decoder's range;
+* no_offset: put every centre back on its pixel ray (origin + direction * range) before the slide, dropping the
+  decoder's free xyz offset;
+* plane_offset_px > 0 (needs no_offset false): keep only the offset component across the ray, softly bounded to that
+  many decoder pixels (da3_depth.plane_offsets);
+* loo_perceptual: weight of an LPIPS term on the leave-one-out render, using the same mask as the LOO L1.
+The step report gains relabel_fraction, relabel_abs_log, offset_norm and loo_perceptual.
 """
 
 from __future__ import annotations

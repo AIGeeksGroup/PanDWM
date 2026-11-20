@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# copy of tests_feats.sbatch with one node excluded (Test-S over 249 clips).
-# clip_feats.py features of clip runs (and the recorded frames of the manifest), then optionally
+# Same as tests_feats.sbatch, with one node excluded.
+# Runs clip_feats.py on clip runs (and on the recorded frames of the manifest), then optionally
 # tests_analyze.py.  Features are written once per run directory: $FD/feats_<name>.npz; existing files are kept.
-#   ROOTS="v84i4250_s42=$OUT/v84i4250_s42 ..." sbatch scripts/tests_feats.sbatch               (Test-S, + real)
+#   ROOTS="v84i4250_s42=$OUT/v84i4250_s42 ..." sbatch scripts/tests_feats.sbatch               (also computes real features)
 #   ROOTS=... ANALYZE="--arm ours=FD/feats_a.npz,FD/feats_b.npz --pair ours:b0" NAME=main sbatch ...
-#   MANIFEST=dev149_manifest.json STRIDE=20 FD=<dir> ROOTS=... (Dev sets)
+#   MANIFEST=dev149_manifest.json STRIDE=20 FD=<dir> ROOTS=... (other manifests)
 #SBATCH --job-name=pandwm_tfeat
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

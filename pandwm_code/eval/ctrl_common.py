@@ -1,8 +1,7 @@
-"""Shared constants and helpers of the controllability evaluation .
+"""Shared constants and helpers of the controllability evaluation.
 
-Protocol (frozen):
-Images: the six cameras at 256x448 (cam_band_feats grid), mask = onebev_inverse_own with native rows 0..51 removed
-(the paper's camera-space protocol, feats_val150_cam_onebev_inverse_own_top52). Camera axis = cam_band_feats.CAM_ORDER.
+Images: the six cameras at 256x448 (cam_band_feats grid); the mask is onebev_inverse_own with native rows 0..51
+removed (camera-space protocol). Camera axis = cam_band_feats.CAM_ORDER.
 Box coordinates: 256x448 edge coordinates (pixel j covers [j, j + 1)), as torchvision boxes.
 """
 import numpy as np
@@ -11,7 +10,7 @@ H, W = 256, 448                 # camera view size of the protocol
 NW, NH = 1600, 900              # native nuScenes camera size
 FIRST, LAST = 3, 34             # scored clip frames
 NFR = LAST - FIRST + 1          # 32
-TOPROWS = 52                    # MagicDrive-V2 padding rows (native), masked for every arm
+TOPROWS = 52  # padding rows (native), masked for every arm
 NEAR = 0.5                      # m: camera-depth plane for "in front of the camera" and hull clipping
 MIN_H = 16.0                    # px at 256 rows: GT height rule and the detection size range
 VEH_RANGE, PED_RANGE = 50.0, 40.0
@@ -19,7 +18,7 @@ VIS_MIN = 3                     # nuScenes visibility token >= 3 (more than 60% 
 VMASK_MIN = 0.5
 OCC_MAX = 0.5
 ROAD_RANGE = 50.0               # m, horizontal distance from the camera of the ground hit
-NEAR_ROAD = 20.0                # m, near / far split of Road IoU (supplement)
+NEAR_ROAD = 20.0                # m, near / far split of Road IoU
 HULL_RANGE = 60.0               # m, boxes whose projected hull is removed from the road region
 RASTER_RES = 0.05               # m, drivable-area raster
 RASTER_MARGIN = 60.0            # m, around the clip's camera positions
@@ -48,7 +47,7 @@ def ped_ignore_name(n):
 
 
 # cuboid edges and corner template of dwm_pano.datasets.pano_via_stitch (mmdet3d corner order); the pkl stores
-# (w, l, h) with a counter-clockwise yaw (checked yaw - velocity heading = +-90 deg for moving cars)
+# (w, l, h) with a counter-clockwise yaw
 EDGES = ((0, 3), (3, 7), (7, 4), (4, 0), (1, 2), (2, 6), (6, 5), (5, 1), (0, 1), (3, 2), (7, 6), (4, 5))
 TEMPLATE = np.array([[-0.5, -0.5, -0.5], [-0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [-0.5, 0.5, -0.5],
                      [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, -0.5]])

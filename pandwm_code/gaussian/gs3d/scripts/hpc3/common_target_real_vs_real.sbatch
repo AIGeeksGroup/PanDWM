@@ -6,6 +6,7 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# Real-vs-real FID/FVD reference for the 10-context / 16-frame common-clip protocol.
 set -euo pipefail
 
 H=/path/to/pandwm_root

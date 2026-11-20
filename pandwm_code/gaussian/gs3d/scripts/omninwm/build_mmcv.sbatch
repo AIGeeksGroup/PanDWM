@@ -7,6 +7,7 @@
 #SBATCH --mem=96G
 #SBATCH --time=01:30:00
 #SBATCH --output=%x_%j.log
+# Build mmcv with CUDA ops from source into the OmniNWM environment and run a smoke test.
 set -euo pipefail
 
 H=/path/to/pandwm_root

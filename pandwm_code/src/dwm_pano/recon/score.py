@@ -1,24 +1,20 @@
-"""Scores of tab:gs_recon, the same for every method.
+"""Reconstruction scores, computed the same way for every method.
 
 Inputs: targets.json, the masks of masks.py, and a method's renders <renders>/<H>x<W>/sample_<NNN>.pt
 ({"targets", "rgb" (n, 6, 3, H, W) uint8, "alpha" (n, 6, H, W) uint8, "depth" (n, 6, H, W) fp16}; a method without
-opacity gives alpha 255; rgb is premultiplied, i.e. rendered over black).  Every render is first composited over
-a 0.5 gray background, rgb + (1 - alpha) * 0.5, as a renderer with a gray background would give.  Per image
-(sample x target x camera), with mask M = band & (sky probability < 0.3) and covered C = alpha >= 0.5:
-  psnr_cov        PSNR over M & C;
-  psnr_fill       PSNR over M (uncovered pixels show the gray background);
-  ssim_cov / ssim_fill   mean of the SSIM map (11 x 11 Gaussian window, sigma 1.5, on the composited render) over
-                  M & C / over M;
-  lpips_vgg_cov / _fill, lpips_alex_cov / _fill   the same for the spatial LPIPS maps (lpips 0.1, spatial=True);
-  coverage        |M & C| / |M|.
-Depth per image: LiDAR points of the target (0 < z <= 80 m, projected with the scaled K, pixel inside M, rendered
-pixel covered): abs_rel, rmse, delta1 on metres, abs_rel_med after scaling by median(z) / median(d); "_static" drops
-points inside the dynamic 3D boxes (0.3 m margin).  The sweep is targets[...]["lidar_sync"] when present (the LIDAR_TOP
-sample_data nearest in time to the target, moved with its own ego pose, lidar_sync.py; the 12 Hz pkl's own sweep can
-be 250 ms older than the cameras), else the pkl's; points enter the box test through lidar_to_box, the boxes being
-read as the pkl stores them, mmdet3d v0.x (x, y, z, w, l, h, -yaw - pi/2).
-The GT image is the raw 1600x900 frame resized with PIL BICUBIC (antialiased).  Summary: mean over images (per target
-type and overall); depth pooled per image then averaged over images with points.
+opacity gives alpha 255; rgb is premultiplied, i.e. rendered over black). Every render is composited over a 0.5 gray
+background, rgb + (1 - alpha) * 0.5. Per image (sample x target x camera), with mask M = band and sky probability
+below 0.3, and covered C = alpha >= 0.5:
+  psnr_cov, psnr_fill               PSNR over M & C, and over M (uncovered pixels show the gray background)
+  ssim_cov / ssim_fill              mean SSIM map (11x11 Gaussian window, sigma 1.5) over M & C / over M
+  lpips_{vgg,alex}_{cov,fill}       the same with spatial LPIPS maps
+  coverage                          |M & C| / |M|
+Depth per image uses the LiDAR points of the target (0 < z <= 80 m, projected with the scaled K, inside M, rendered
+pixel covered): abs_rel, rmse, delta1 in metres, and abs_rel_med after scaling by median(z) / median(d). The "_static"
+variants drop points inside dynamic 3D boxes (0.3 m margin, boxes in mmdet3d v0.x convention, applied through
+lidar_to_box). The sweep is targets[...]["lidar_sync"] when present (see lidar_sync.py), else the pkl's own sweep.
+The GT image is the raw 1600x900 frame resized with PIL bicubic (antialiased). Summaries are means over images, per
+target type and overall; depth is pooled per image, then averaged over images that have points.
 
     python -m dwm_pano.recon.score --targets targets.json --masks masks --renders renders/ours/4d --res 224x400
         --out score_ours4d_224x400.json

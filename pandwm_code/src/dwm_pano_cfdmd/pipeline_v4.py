@@ -1,20 +1,10 @@
-"""Lower-memory critic step for the GAN variant, v4 (pipeline.py / _v2 are untouched).
+"""Lower-memory critic step for the GAN variant of Context-Forced DMD.
 
-History: v1 (original) OOM'd in the critic backward, and a variant with two backward passes (discriminator forwards
-touching the fake-score output) OOM'd in the second one because `0 * output` makes the backward walk all 24 blocks for both
-the real and the fake discriminator forward.
-
-Observation: the discriminator's forward on the *generated* sample is the same call as the flow-matching
-forward of the critic step (same noisy latents, same timesteps, same causal mask).  v4 therefore takes the
-block-12 features for the fake logit from that one forward:
-
-  backward 1: critic_loss + w * softplus(fake_logit).mean()      (one fake-score graph; its output is in the
-                                                                   graph, so FSDP's pre-backward hook fires)
-  backward 2: w * softplus(-real_logit).mean()                   (real window; needs the v2 `0 * output`
-                                                                   term, but the first graph is already freed)
-
-The sum of the two backward passes equals the gradient of critic_loss + w * disc_loss, i.e. the update is
-the same as in the original step.  Peak memory = max(one full graph) instead of three graphs at once.
+The discriminator forward on the generated sample is the same call as the flow-matching forward of the critic
+step (same noisy latents, timesteps and causal mask), so the fake logit is taken from block features of that
+single forward. Two backward passes are used: (1) critic loss plus the fake-sample discriminator term, (2) the
+real-window discriminator term. Their summed gradient equals that of the combined loss, while peak memory is
+one graph instead of several.
 """
 import torch
 import torch.nn.functional as F
@@ -73,7 +63,7 @@ class PanoContextForcedDMDv4(PanoContextForcedDMDv2):
             loss1.backward()
         del out, err, critic_loss, loss1, h_fake, fake_logit
 
-        # Real window behind its ground-truth history; the v2 switch keeps FSDP's backward hooks firing.
+        # Real window behind its ground-truth history; the touch switch keeps FSDP's backward hooks firing.
         real_noisy, real_ts, _, _ = self._noised_with_clean_history(gt_window, gt_window[:, :CONTEXT])
         self._touch_fake_output = True
         try:

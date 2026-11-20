@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare official OmniNWM model/VAE checkpoint headers with source models."""
+"""Compare the official OmniNWM DiT and VAE checkpoint keys and shapes with the model definitions."""
 
 from __future__ import annotations
 

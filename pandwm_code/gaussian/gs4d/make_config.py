@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Build a 4D Gaussian-decoder training config from the G2 anti-aliased config.
+"""Build a 4D Gaussian-decoder training config from the anti-aliased G2 decoder config.
 
-  python3 make_config.py --base <gs-aa-ft>/configs/ctsd/pandwm/hpc3/gs_decoder_g2_aa_eps0to0p1_250.json \
-      --data-root /path/to/pandwm_root --out configs/gs4d_hpc2.json [--depth] [--smoke]
+  python3 make_config.py --base <base config>.json --data-root /path/to/pandwm_root --out <out config>.json \
+      [--depth] [--smoke]
 
-Only paths, the pipeline / dataset classes and the 4D options change; every
-G2 rendering and loss setting is inherited, and the decoder warm-starts from
-the G2-AA checkpoint (the decoder used for every current Gaussian demo).
+Only paths, the pipeline / dataset classes and the 4D options change; every G2 rendering and loss setting is
+inherited, and the decoder warm-starts from the G2-AA checkpoint.
 """
 
 import argparse
@@ -37,11 +36,11 @@ def main():
     parser.add_argument("--depth", action="store_true",
                         help="keep G2 depth losses (needs <data-root>/pandwm_data/train/depth)")
     parser.add_argument("--motion", type=float, default=0.0,
-                        help="weight of the box-motion dynamic loss (phase 2)")
+                        help="weight of the box-motion dynamic loss")
     parser.add_argument("--frames-per-step", type=int, default=3)
     parser.add_argument("--lr", type=float, default=2e-5)
     parser.add_argument("--random-background", action="store_true",
-                        help="composite training renders over a random colour (fixes night collapse)")
+                        help="composite training renders over a random colour")
     parser.add_argument("--random-background-prob", type=float, default=1.0,
                         help="fraction of steps with a random background (rest black)")
     parser.add_argument("--coverage-weight", type=float, default=0.0,
@@ -74,7 +73,7 @@ def main():
     tc["weight_cross_alpha_coverage"] = 0.0
     tc["range_dir"] = f"{root}/pandwm_data/train/depth"
     if not args.depth:
-        # No depth mirror on HPC2: geometry is constrained by the multi-frame
+        # Without depth labels, geometry is constrained by the multi-frame
         # composite / leave-one-out photometric losses instead.
         tc["weight_render_depth"] = 0.0
         tc["weight_range_l1"] = 0.0
@@ -108,7 +107,7 @@ def main():
     })
     args.out.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(config, indent=2)
-    # Every remaining base-config path is rooted at the HPC3 data root.
+    # Re-root the remaining base-config paths at the given data root.
     text = text.replace("/path/to/pandwm_root", root)
     args.out.write_text(text + "\n")
     print(f"wrote {args.out}")

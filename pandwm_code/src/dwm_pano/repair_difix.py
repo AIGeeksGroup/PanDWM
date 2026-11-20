@@ -1,21 +1,17 @@
-"""Zero-shot generative repair of shifted-view renders with NVIDIA difix_ref.
+"""Zero-shot generative repair of shifted-view renders with difix_ref (NVIDIA Difix3D, SD-Turbo based).
 
-Model: huggingface.co/nvidia/difix_ref @ d4830559 (NVIDIA License, research / non-commercial use; SD-Turbo base,
-Stability AI Community License), code github.com/nv-tlabs/Difix3D @ c76edc59 (src/pipeline_difix.py), run in a separate
-worker process with the versions Difix3D pins (repair_difix_server.py).  One step at timestep 199, prompt "remove
-degradation", one reference image; the pipeline stacks input and reference along the batch axis, so each camera is
-one call.
+The model runs in a separate worker process with the library versions Difix3D pins (repair_difix_server.py): one step
+at timestep 199, prompt "remove degradation", one reference image, one call per camera.
 
-Per shifted frame: the six real cameras are rendered (current over 4D fill, as eval_gs_shift does for the stitched
-pano), each camera's holes (alpha < 0.5) are push-pull filled, difix repairs it with that camera's 0 m render as the
-reference, and two outputs are stitched with the pipeline's own hard seam:
+Per shifted frame: the six real cameras are rendered (current over 4D fill), each camera's holes (alpha < 0.5) are
+push-pull filled, difix repairs it with that camera's 0 m render as the reference, and the outputs are stitched with
+the pipeline's own hard seam:
 * "fixm" (masked): the repair replaces only the holes, dilated by `dilate` px and feathered over `feather` px;
-  covered pixels stay the render (protects colour / fidelity, as ExtraGS / ArtiFixer / DriveX do);
-* "fixg" (magnification-aware mask): holes plus pixels whose content comes
-  from Gaussians magnified > mag_thr x against their source view (mag_cull.angular_size, rendered as a colour
-  channel), i.e. the low-resolution near content that stretches into smears; same dilation and feather;
+  covered pixels stay the render;
+* "fixg" (magnification-aware mask): holes plus pixels whose content comes from Gaussians magnified more than
+  mag_thr against their source view (mag_cull.angular_size, rendered as a colour channel); same dilation and feather;
 * "fixf" (full): the repaired camera image everywhere.
-Pixels outside the band (stitch_valid False) are push-pull filled afterwards exactly like the unrepaired pano.
+Pixels outside the band (stitch_valid False) are push-pull filled afterwards like the unrepaired pano.
 Renders are 640x360 per camera; difix runs at `res` (default 1024x576) and the result is area-resized back.
 """
 

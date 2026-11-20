@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit official GEM checkpoint coverage without changing upstream loading."""
+"""Compare the official GEM checkpoint keys and shapes with the instantiated model and report differences."""
 
 from __future__ import annotations
 

@@ -1,23 +1,17 @@
-"""Lateral-shift FID / FVD of the GS renders of the 149 review clips.
+"""Lateral-shift FID / FVD of the Gaussian-splat renders of the review clips.
 
-The FreeVS / WorldSplat / DiST-4D novel-trajectory protocol on our panorama: every frame's Gaussians (the v2 review
-scene, or a v3 variant of gs_scene_v3.SceneOptions) are rendered at the six real nuScenes cameras with the ego
-shifted sideways by dy and stitched with the pipeline's own hard seam into the 4114 x 256 V=1 pano the video
-metrics use.  Holes (alpha < 0.5) are filled with export_gs_v2_clips.pushpull_fill, as in the v2 review videos.
-Unpaired metrics against the real frames of the original trajectory, with the frozen video instruments of
-compute_eval149_metrics.py: FID-torchmetrics-stitched-pano over the 32 generated frames and FVD-I3D-sector-6-16 over
-generated frames 0-15 (window 1).  Arms "<mode>_<d>": mode 3d = frame t only, 4d = + nearby-frame static fill;
-d > 0 pools the +d and -d trajectories (both renders count as fakes, the real frames are added once per side).
-Also per arm: coverage = mean fraction of stitch-valid pixels with alpha > 0.5 before the fill.
+Novel-trajectory protocol on our panorama: every frame's Gaussians (see gs_scene_v3.SceneOptions) are rendered at
+the six real nuScenes cameras with the ego shifted sideways by dy and stitched with the pipeline's hard seam into the
+4114 x 256 pano used by the video metrics.  Holes (alpha < 0.5) are filled with export_gs_v2_clips.pushpull_fill.
+Metrics are unpaired against the real frames of the original trajectory, with the frozen instruments of
+compute_eval149_metrics.py (FID over the 32 generated frames, FVD-I3D over frames 0-15).  Arms are "<mode>_<d>":
+3d = frame t only, 4d = plus nearby-frame static fill; d > 0 pools the +d and -d trajectories.  Coverage is the
+mean fraction of stitch-valid pixels with alpha > 0.5 before the fill.  Metric states are saved after every clip
+(--state), so a run can be split over array tasks and merged (--merge).
 
-Metric states are saved after every clip (--state) so a run can be split over array tasks and merged (--merge).
-
-(Table 5, generated Test-S scenes): --fps-stride 10,5 enumerates the Test-S clips (tests213 manifest),
---expected-clips sets the clip count of the final report, --box-reading / --camera-time-poses select the fixed 4D
-scene, and --depth-pack adds AbsRel / RMSE / delta1 of the 0 m 4D render against the recorded LiDAR
-(recon/gen_depth_pack.py): the six real cameras of each pack frame are rendered at --depth-res, the expected depth is
-read at every LiDAR point inside the band with alpha >= 0.5 (nearest pixel), per image all / static points.  The
-defaults keep the earlier behaviour.
+--fps-stride, --expected-clips, --box-reading and --camera-time-poses select the clips and the 4D scene for
+generated clips; --depth-pack adds AbsRel / RMSE / delta1 of the 0 m 4D render against the recorded LiDAR
+(recon/gen_depth_pack.py), evaluated at LiDAR points inside the band with alpha >= 0.5.
 """
 
 from __future__ import annotations
@@ -61,7 +55,7 @@ def parse_args():
     p.add_argument("--time-budget-s", type=float, default=0.0)
     p.add_argument("--sample-clips", default="", help="clip indices whose renders are saved as videos")
     p.add_argument("--sample-dir", type=Path, default=None)
-    # scene options (defaults = the v2 review scene)
+    # scene options
     p.add_argument("--edge-rel-h", type=float, default=0.1)
     p.add_argument("--edge-rel-v", type=float, default=0.3)
     p.add_argument("--window", default="-20,-15,-10,-5,5,10")
@@ -70,16 +64,16 @@ def parse_args():
     p.add_argument("--da3-relabel", action="store_true")
     p.add_argument("--sky-layer", action="store_true")
     p.add_argument("--da3-mode", choices=["ray", "scale", "global", "blend", "lowfreq", "bounded"], default="ray",
-                   help="scale = C1b; global / blend / lowfreq = clip-level ratios; "
-                        "bounded =")
+                   help="ray (default), scale, global / blend / lowfreq (clip-level ratios) or "
+                        "bounded (see --da3-bound)")
     p.add_argument("--da3-bound", type=float, default=0.0, help="da3-mode bounded: the residual bound c")
     p.add_argument("--no-offset", action="store_true", help="drop the decoder xyz offset")
     p.add_argument("--plane-offset-px", type=float, default=0.0, help="across-ray offset bound in decoder pixels")
-    # (mag_cull.py): drop Gaussians magnified > K x at the shifted view
+    # mag_cull.py: drop Gaussians magnified more than K times at the shifted view
     p.add_argument("--mag-cull", type=float, default=0.0, help="magnification threshold K, 0 = off")
     p.add_argument("--mag-min-px", type=float, default=4.0, help="only cull if larger than this many render pixels")
-    # (repair_difix.py): zero-shot difix_ref repair of the shifted
-    # 4D renders, reported as extra arms 4dfixm_<d> (holes only, dilated + feathered) and 4dfixf_<d> (full image)
+    # repair_difix.py: zero-shot difix_ref repair of the shifted 4D renders, reported as extra arms
+    # 4dfixm_<d> (holes only, dilated + feathered), 4dfixg_<d> (magnification mask) and 4dfixf_<d> (full image)
     p.add_argument("--mag-debug", default="", help="dir: per-clip magnification maps of the first frame at +4 m")
     p.add_argument("--repair", choices=["none", "difix_ref"], default="none")
     p.add_argument("--repair-model", default="")
@@ -93,21 +87,21 @@ def parse_args():
     p.add_argument("--lf-sigma-px", type=float, default=32.0)
     p.add_argument("--lf-radius-px", type=int, default=32)
     p.add_argument("--lf-eps", type=float, default=0.01)
-    # frame t's Gaussians from an external feed-forward model on the
-    # decoded panorama's six pinhole crops instead of our decoder (dwm_pano/external_gs.py); 3d mode only
+    # Gaussians of frame t from an external feed-forward model on the decoded panorama's six pinhole crops
+    # instead of our decoder (dwm_pano/external_gs.py); 3d mode only
     p.add_argument("--external", choices=["none", "infinisplat", "da3gs"], default="none")
     p.add_argument("--ext-weights", default="")
-    p.add_argument("--ext-da3-src", default="", help="DA3 repo src for da3gs (the GIANT config's gs head)")
+    p.add_argument("--ext-da3-src", default="", help="depth model repo src for da3gs (GIANT config's gs head)")
     p.add_argument("--ext-cache", default="", help="clip_da3_cache.py output (metric scale)")
     p.add_argument("--ext-long-side", type=int, default=504)
     p.add_argument("--ext-is-mode", choices=["provided", "panorama"], default="provided")
     p.add_argument("--ext-scale-mode", choices=["frame", "camera"], default="frame")
-    p.add_argument("--fill-mode", choices=["pushpull", "bgrow"], default="pushpull", help="bgrow = B3")
-    p.add_argument("--drop-bottom-rows", type=int, default=0, help="C2's band-edge line")
+    p.add_argument("--fill-mode", choices=["pushpull", "bgrow"], default="pushpull", help="bgrow = background row fill instead of push-pull")
+    p.add_argument("--drop-bottom-rows", type=int, default=0, help="number of lowest decoder rows (the band's lower edge) to drop")
     p.add_argument("--da3-src", default="")
     p.add_argument("--da3-anyview", default="")
     p.add_argument("--da3-metric", default="")
-    p.add_argument("--fps-stride", default="10,20", help="dataset fps,stride (Test-S: 10,5)")
+    p.add_argument("--fps-stride", default="10,20", help="dataset fps,stride")
     p.add_argument("--expected-clips", type=int, default=149)
     p.add_argument("--clip-list", default="", help="explicit clip indices (overrides --start/--end)")
     p.add_argument("--box-reading", choices=["legacy", "mmdet3d_v0x"], default="legacy")
@@ -117,7 +111,7 @@ def parse_args():
     p.add_argument("--da3-window", choices=["frame", "clip"], default="frame",
                    help="clip = one DA3 pass per clip")
     p.add_argument("--da3-chunk", type=int, default=0, help="clip mode: chunk length in frames, 0 = one pass")
-    p.add_argument("--da3-fuse", action="store_true", help="clip mode: static depth fusion (V2)")
+    p.add_argument("--da3-fuse", action="store_true", help="clip mode: static depth fusion")
     return p.parse_args()
 
 
@@ -146,8 +140,8 @@ def load_into(metrics, state, device):
 
 
 def grad_energy(img, mask):
-    """: mean |dY/dx| + |dY/dy| of the luminance of img (3, H, W) over mask
-    (H, W), a blur measure; the report's "sharpness" is its ratio render / real frame, averaged over frames."""
+    """Mean |dY/dx| + |dY/dy| of the luminance of img (3, H, W) over mask (H, W), a blur measure.
+    The reported "sharpness" is its ratio render / real frame, averaged over frames."""
     y = 0.299 * img[0] + 0.587 * img[1] + 0.114 * img[2]
     g = (y[:-1, 1:] - y[:-1, :-1]).abs() + (y[1:, :-1] - y[:-1, :-1]).abs()
     m = mask[:-1, :-1] & mask[:-1, 1:] & mask[1:, :-1]
@@ -187,8 +181,8 @@ def report(args, arms, metrics, coverage, extra, done):
 
 @torch.no_grad()
 def mag_debug(args, pipe, scene, current, fill, cam2ego, index):
-    """diagnostic: magnification of every Gaussian at +4 m, as quantiles and
-    as a render whose colour channels carry (magnification / 10, target size px / 20, source size px / 5)."""
+    """Diagnostic: magnification of every Gaussian at +4 m, as quantiles and as a render whose colour channels
+    carry (magnification / 10, target size px / 20, source size px / 5)."""
     from pathlib import Path
     import numpy as np
     from PIL import Image
@@ -290,7 +284,7 @@ def main():
     modes = [m for m in args.modes.split(",") if m]
     arms = [f"{m}_{s:g}" for m in modes for s in shifts]
     rep_shifts = [float(x) for x in args.repair_shifts.split(",") if x.strip()] if args.repair != "none" else []
-    if rep_shifts:                                       # step 2: repaired arms after the plain ones
+    if rep_shifts:                                       # repaired arms after the plain ones
         if "4d" not in modes or any(d not in shifts or d <= 0 for d in rep_shifts):
             raise ValueError("--repair needs --modes with 4d and positive --repair-shifts among --shifts")
         arms += [f"4dfix{k}_{d:g}" for d in rep_shifts for k in ("m", "g", "f")]
@@ -307,7 +301,7 @@ def main():
     scene_desc = {k: getattr(opts, k) for k in ("edge_rel_h", "edge_rel_v", "window", "ownership",
                                                  "own_include_current", "da3_relabel", "sky_layer", "da3_mode",
                                                  "drop_bottom_rows", "box_reading")}
-    if args.da3_window != "frame":                  # recorded only when used (old reports unchanged)
+    if args.da3_window != "frame":                  # recorded only when used
         scene_desc.update({k: getattr(opts, k) for k in ("da3_window", "da3_chunk", "da3_fuse", "fuse_offsets",
                                                           "fuse_tol_rel")})
     if args.da3_mode == "bounded":                  # recorded only when used
@@ -475,7 +469,7 @@ def main():
                         shifted = cam2ego.clone()
                         shifted[:, 1, 3] += sign * float(dist)
                         cur_r, fill_r = current, fill
-                        if args.mag_cull > 0 and float(dist) > 0:                          # step 1
+                        if args.mag_cull > 0 and float(dist) > 0:                          # cull before rendering
                             tgt = rig_t + rig_t.new_tensor([0.0, sign * float(dist), 0.0])
                             kc, _ = magnification_keep(current, rig_t, tgt, args.mag_cull, px_rad)
                             cur_r = current[kc]
@@ -495,7 +489,7 @@ def main():
                         alpha = torch.where(valid[None], alpha, torch.zeros_like(alpha))
                         coverage[arm].append(float((alpha[0][valid] > 0.5).float().mean()))
                         rgb0, alpha0 = rgb[0].clamp(0, 1), alpha[0]
-                        if args.fill_mode == "bgrow":                                    # B3
+                        if args.fill_mode == "bgrow":                                    # background row fill
                             rgb0, alpha0 = background_row_fill(rgb0, alpha0, depth[0])
                         out = pushpull_fill(rgb0, alpha0).clamp(0, 1)
                         fakes[arm][sign].append(out)
@@ -504,7 +498,7 @@ def main():
                                                                      (float(dist) == 4.0 and sign > 0))) or
                                                  (mode == "3d" and float(dist) == 2.0 and sign > 0)):
                             row.append(out)
-                        if mode == "4d" and float(dist) in rep_shifts:           # step 2
+                        if mode == "4d" and float(dist) in rep_shifts:           # repaired arms
                             tgt_rig = rig_t + rig_t.new_tensor([0.0, sign * float(dist), 0.0])
                             panos, rstats = repaired_panos(
                                 pipe, fixer, cur_r, fill_r, shifted, ref_rgb, args.repair_dilate, args.repair_feather,

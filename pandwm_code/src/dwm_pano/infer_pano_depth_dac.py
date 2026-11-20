@@ -1,23 +1,11 @@
 """Metric range estimation for a full 9600x600 pano via Depth-Any-Camera (DAC).
 
-The pano is resampled once to square-angular pixels at the DAC canonical ERP
-density, split into overlapping longitude tiles, run through the DAC model,
-blended with Hann windows, and upsampled back to the native pano grid. The
-output npz key "range_m" holds Euclidean meters along each unit pano ray
-(600x9600).
-
-One-time setup:
-    HF_HUB_DISABLE_XET=1 hf download yuliangguo/depth-any-camera \
-        dac_swinl_outdoor.pt dac_swinl_outdoor.json \
-        --local-dir <dac_root>/checkpoints
-    cd <dac_root>/dac/models/ops && TORCH_CUDA_ARCH_LIST=9.0 \
-        python setup.py build install
-Run (GPU node):
-    PYTHONPATH=src python src/dwm_pano/infer_pano_depth_dac.py \
-        --pano-path data/val_rgb/<timestamp>.jpg --dac-root <dac_root> \
-        --config-file <dac_root>/checkpoints/dac_swinl_outdoor.json \
-        --model-file <dac_root>/checkpoints/dac_swinl_outdoor.pt \
-        --out-dir <dir>
+The pano is resampled once to square-angular pixels at the DAC canonical ERP density, split into overlapping
+longitude tiles, run through the DAC model, blended with Hann windows, and upsampled back to the native pano grid. The
+output npz key "range_m" holds Euclidean meters along each unit pano ray (600x9600). Needs the DAC repository
+(compiled ops) and a DAC checkpoint.
+    PYTHONPATH=src python src/dwm_pano/infer_pano_depth_dac.py --pano-path <pano>.jpg --dac-root <dac_root> \
+        --config-file <ckpt>.json --model-file <ckpt>.pt --out-dir <dir>
 """
 import argparse
 import json

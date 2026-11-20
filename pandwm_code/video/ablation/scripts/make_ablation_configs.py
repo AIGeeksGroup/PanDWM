@@ -1,27 +1,18 @@
 """Write the ablation configs from the final run's config and print every key that differs.
 
-Source: video/student/configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json (identical to
-pandwm_runs/cfdmd_I/gan/log/config_used_job_<id>.json, the run that produced the locked v84i4250 EMA).
+Variants (all share A_ctrl's re-anchored schedules, see CONTROL below):
+  A_ctrl    full recipe: the temporal-head and motion-match schedules start at step 0 with no ramp.
+  B_noadv   A without the adversarial term (gan weights 0).
+  C_rechist A with PanoContextForcedDMDv8_4R (src/dwm_pano_cfdmd_abl/pipeline_v8_4r.py) and recorded_history true.
+  D_notemp  A with disc_temporal false (spatial heads only).
 
-  A_ctrl    full recipe from the consistency-distilled student: the I config with the two schedules that were anchored
-            to the staged run's history (temporal heads from step 1300, ramp 150; motion match from step 1600,
-            ramp 100) re-anchored at step 0 with no ramp, so both terms are at the strength they had in the final stage
-            from the start.  Everything else is the I config as is (gan_warmup [100, 200] and ema_start_step 200 are
-            anchored at step 0 of the chain, i.e. at the start from the student, and are kept).
-  B_noadv   A + gan_generator_weight 0, gan_discriminator_weight 0 (use_gan False: no heads, no head training, no
-            adversarial term; the critic step is flow matching only, as in A).
-  C_rechist A + pipeline class PanoContextForcedDMDv8_4R (src/dwm_pano_cfdmd_abl/pipeline_v8_4r.py, = v8.4 with the
-            knob off) + recorded_history true.
-            The earlier option (a) (context_forcing_prob 0) is not a single switch and was not used.
-  D_notemp  A + disc_temporal false (spatial heads only).
-
-  python3 make_ablation_configs.py <I config> <out dir>
+  python3 make_ablation_configs.py <final run config> <out dir>
 """
 import json
 import sys
 from pathlib import Path
 
-NEW_KEYS = ("recorded_history",)          # knob of the C subclass; absent from the I config
+NEW_KEYS = ("recorded_history",)          # knob of the C subclass; absent from the base config
 CONTROL = {"temporal_adv_from": 0, "temporal_adv_ramp": 0, "motion_match_from": 0, "motion_match_ramp": 0}
 VARIANTS = {
     "A_ctrl": {},

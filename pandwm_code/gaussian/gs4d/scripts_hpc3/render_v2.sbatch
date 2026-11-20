@@ -9,9 +9,9 @@
 #SBATCH --mem=120G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-#: GS renders v2 of the review clips with export_gs_v2_clips.py.
+# Render the review clips with export_gs_v2_clips.py.
 #   TAG=<out dir name> [CKPT=<decoder>] [START=0 END=149] [MAX_FRAMES=n] [EXTRA="--edge-rel-h 0.1 ..."]
-# Clip latents default to the locked model's Dev-149 outputs (v84i4250).
+# CLIPS_ROOT selects the clip latents.
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 CK=${CKPT:-$RUNS/init/gs4d_cov_3000.pth}

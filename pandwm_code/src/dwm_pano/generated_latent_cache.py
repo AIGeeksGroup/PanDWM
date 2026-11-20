@@ -1,9 +1,8 @@
-"""Utilities for an offline Stage-2 latent cache used by GS adaptation.
+"""Utilities for an offline latent cache used by GS adaptation.
 
-The cache stores only the frame latents selected by the GS training sampler.
-Keeping Stage-2 generation offline avoids co-locating the 13 GiB diffusion
-checkpoint with the Gaussian decoder while still exposing the decoder to the
-actual four-step student distribution.
+The cache stores only the frame latents selected by the GS training sampler. Generating the latents offline avoids
+co-locating the diffusion checkpoint with the Gaussian decoder while still exposing the decoder to the actual
+four-step student distribution.
 """
 
 from __future__ import annotations

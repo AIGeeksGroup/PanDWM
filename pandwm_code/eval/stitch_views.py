@@ -1,9 +1,9 @@
-"""Stitch six generated camera views into the 256x4114 panorama canvas of the paper's instrument .
+"""Stitch six generated camera views into the 256x4114 panorama canvas of the paper's instrument.
 
-Baselines generate six real cameras; the paper scores every method in the panoramic band, so their views go through
-the OneBEV hard-seam mapping that made the recorded panoramas (dwm_pano.calibrated_stitch, projection model
-"onebev_legacy", legacy offsets at native 900x1600, fixed Voronoi owners) onto exactly the canvas axes the model and
-the recorded canvas use (half_canvas_pano_axes(half_size=(256, 2304), right_trim_px=494)).
+Baselines generate six real cameras, so their views go through the OneBEV hard-seam mapping that made the recorded
+panoramas (dwm_pano.calibrated_stitch, projection model "onebev_legacy", legacy offsets at native 900x1600, fixed
+Voronoi owners) onto the canvas axes the model and the recorded canvas use
+(half_canvas_pano_axes(half_size=(256, 2304), right_trim_px=494)).
   stitch_six(views, calib) -> (uint8 [T, 3, 256, 4114], bool [256, 4114] valid)
 views: uint8 [T, 6, 3, h, w] in OpenDWM camera order (FL, F, FR, BR, B, BL); calib: per-camera sensor-to-ego 4x4
 (OpenCV camera axes), raw OpenCV intrinsics at image_size (W, H), in the same order.

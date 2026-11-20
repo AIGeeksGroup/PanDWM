@@ -1,20 +1,8 @@
-"""GAN fix for Context-Forced DMD (pipeline.py is untouched).
+"""Context-Forced DMD with a GAN loss: keeps the fake-score output in the generator graph.
 
-Failure (a job, step 0): ValueError "expected to be in states
-[FORWARD_BACKWARD] but current state is IDLE" in FSDP's _post_backward_hook.
-Cause: _disc_logits takes an intermediate block feature of the FSDP-wrapped fake
-score through a forward hook and the generator loss never touches the module
-OUTPUT.  FSDP registers its pre-backward hook on the module output, so that hook
-never fires, the training state stays IDLE (set by post-forward) and the
-post-backward hook of the root unit's parameters asserts.
-Reproduced on a tiny FSDP model (a job): fails without the output term,
-passes with it, for root-only and block-wrapped FSDP.
-
-Fix: in the GENERATOR step only, add 0 * (module output) to the discriminator
-logit.  Values and gradients are unchanged (the extra term is exactly zero); the
-output is just part of the graph so the pre-backward hook fires.  The critic step
-already has the output in its graph (flow-matching loss), so it is left alone to
-avoid retaining two extra full activation graphs.
+The discriminator reads an intermediate block feature of the FSDP-wrapped fake score through a forward hook.
+FSDP registers its pre-backward hook on the module output, so the output must be part of the graph; in the
+generator step a zero-weighted output term is added to the discriminator logit (values and gradients unchanged).
 """
 from dwm_pano_cfdmd.pipeline import CONTEXT, PanoContextForcedDMD
 

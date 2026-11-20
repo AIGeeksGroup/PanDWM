@@ -1,33 +1,14 @@
 """Calibrated nuScenes camera geometry and differentiable hard-seam stitch.
 
-The RGB panoramas used by :mod:`dwm_pano.datasets.nuscenes_pano` are not
-central-camera equirectangular images.  They were made from the six nuScenes
-cameras and a fixed, per-column hard seam.  Consequently a Gaussian scene
-rendered from the six real cameras must be put through the same 2-D stitch
-before it can be compared to the panorama RGB target.
-
-This module deliberately keeps two projection models separate:
-
-``"onebev_legacy"``
-    Reproduces the geometric mapping in public OneBEV
-    ``nuscenes_stitch.py``: relative Euler angles, a 110 degree CAM_BACK FOV /
-    70 degree other-camera FOV, and its calibration-dependent ``r_offset``
-    heuristic.  This is the model to use when supervising against the
-    existing OneBEV-derived panoramas.  PyTorch's continuous bilinear sampler
-    is not bit-identical to OpenCV's table-quantized two-pass remap, but the
-    source coordinates and fixed owner cuts match.
-
-``"calibrated"``
-    Projects the panorama's ego-frame spherical ray through each camera's
-    real sensor-to-ego rotation and intrinsic matrix.  This is physically
-    cleaner and useful for geometry diagnostics or newly generated data, but
-    it is intentionally *not* presented as pixel-identical to legacy RGB.
-
-Both paths use the fixed Voronoi owner boundaries from
-``datasets/pano_projection.py`` and ``torch.nn.functional.grid_sample``.  The
-stitch is differentiable with respect to the six input images.  The hard
-owner choice and optional seam erosion are fixed masks and do not need a
-gradient.
+The RGB panoramas are built from the six cameras with a fixed per-column hard
+seam, so Gaussian renders from the six cameras must go through the same stitch
+before comparison with the panorama target. Two projection models are kept
+separate: "onebev_legacy" reproduces the mapping of the public OneBEV
+`nuscenes_stitch.py` (relative Euler angles, 110 degree CAM_BACK / 70 degree
+other-camera FOV, `r_offset` heuristic); "calibrated" projects the ego-frame
+spherical ray through each camera's real extrinsics and intrinsics. Both use
+the Voronoi owner boundaries of `datasets/pano_projection.py` and
+`grid_sample`, and are differentiable with respect to the six input images.
 """
 from __future__ import annotations
 
@@ -60,9 +41,8 @@ SUPPORTED_PROJECTION_MODELS = ("onebev_legacy", "calibrated")
 def quaternion_wxyz_to_matrix(quaternion: Sequence[float]) -> np.ndarray:
     """Convert a nuScenes ``(w, x, y, z)`` quaternion to a 3x3 matrix.
 
-    The implementation is local so dataset construction does not depend on
-    SciPy and demo/training code can share exactly the same convention.
-    Non-unit quaternions are normalized defensively.
+    Local implementation (no SciPy dependency). Non-unit quaternions are
+    normalized.
     """
     values = np.asarray(quaternion, dtype=np.float64)
     if values.shape != (4,):
@@ -94,11 +74,9 @@ def camera_records_to_arrays(
 
     Returns:
         ``(camera_to_ego, intrinsics, image_sizes)`` with shapes
-        ``[6,4,4]``, ``[6,3,3]`` and ``[6,2]``.  Image sizes are ``(W,H)`` to
-        match the dataset's existing ``image_size`` convention.  Public
-        interpolated info pkls do not carry width/height, so 1600x900 is used
-        unless a record explicitly supplies both fields.  The returned K is
-        the raw nuScenes/OpenCV pixel-index matrix; call
+        ``[6,4,4]``, ``[6,3,3]`` and ``[6,2]``.  Image sizes are ``(W,H)``;
+        1600x900 is used unless a record supplies both fields.  The returned K
+        is the raw nuScenes/OpenCV pixel-index matrix; call
         :func:`prepare_gsplat_intrinsics` before a gsplat render.
     """
     if len(camera_order) != NUSCENES_CAMERA_COUNT:
@@ -167,18 +145,17 @@ def resize_intrinsics(
         target_height / float(source_height),
         1.0,
     ])
-    # Left multiplication scales complete image-coordinate rows, including a
-    # non-zero skew term, while keeping the homogeneous row unchanged.
+    # Left multiplication scales whole image-coordinate rows (including skew)
+    # and keeps the homogeneous row unchanged.
     return intrinsics * scale[..., :, None]
 
 
 def opencv_intrinsics_to_gsplat(intrinsics: torch.Tensor) -> torch.Tensor:
     """Convert OpenCV/nuScenes pixel-index K to gsplat edge-coordinate K.
 
-    nuScenes projects with OpenCV coordinates, where integer ``(u,v)`` is the
-    center of array element ``image[v,u]``.  gsplat evaluates raster pixels at
-    ``(u+0.5,v+0.5)``.  Adding 0.5 to the principal point preserves the same
-    physical camera ray under that change of coordinate origin.
+    OpenCV treats integer ``(u,v)`` as the center of ``image[v,u]``, while
+    gsplat evaluates raster pixels at ``(u+0.5,v+0.5)``, so 0.5 is added to the
+    principal point.
     """
     if intrinsics.shape[-2:] != (3, 3):
         raise ValueError(
@@ -196,9 +173,8 @@ def prepare_gsplat_intrinsics(
 ) -> torch.Tensor:
     """Convert native OpenCV K and resize it for a gsplat render.
 
-    Conversion happens before resize, yielding
-    ``cx_gs=(cx_cv+0.5)*sx`` and ``cy_gs=(cy_cv+0.5)*sy``.  Directly scaling
-    raw nuScenes ``cx/cy`` misses ``0.5*s`` output pixels.
+    The conversion happens before the resize:
+    ``cx_gs=(cx_cv+0.5)*sx`` and ``cy_gs=(cy_cv+0.5)*sy``.
     """
     return resize_intrinsics(
         opencv_intrinsics_to_gsplat(opencv_intrinsics),
@@ -210,11 +186,7 @@ def scale_camera_intrinsics(
     source_size: tuple[int, int],
     target_size: tuple[int, int],
 ) -> torch.Tensor:
-    """Backward-compatible name for :func:`prepare_gsplat_intrinsics`.
-
-    Inputs are raw nuScenes/OpenCV intrinsics; outputs are gsplat intrinsics.
-    New code should prefer the explicit function name.
-    """
+    """Backward-compatible name for :func:`prepare_gsplat_intrinsics`."""
     return prepare_gsplat_intrinsics(intrinsics, source_size, target_size)
 
 
@@ -229,9 +201,9 @@ def hard_seam_owner_map(
 
     Args:
         output_size: ``(height, width)`` of the requested output.
-        column_range: half-open coordinates in the canonical 9600-wide pano.
-            This directly supports the dataset's left ``(0,5376)`` and right
-            ``(4224,9600)`` halves as well as a full panorama.
+        column_range: half-open coordinates in the canonical 9600-wide pano,
+            e.g. the dataset's left ``(0,5376)`` and right ``(4224,9600)``
+            halves or a full panorama.
         seam_erosion_px: remove this many *output* pixels on both sides of
             each of the six internal hard seams.  The horizontal wrap is not
             removed because both tails are owned by CAM_BACK.
@@ -270,11 +242,9 @@ def hard_seam_owners_from_columns(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Owner/valid vectors for an explicit canonical-pano column axis.
 
-    ``pano_columns`` may be non-uniform.  This is important for the training
-    canvas, which concatenates two independently resized 5376-pixel halves
-    after removing a rounded overlap and therefore is not a global 9600->4114
-    resize.  Seam erosion is performed in output-index space and remains exact
-    for such a non-uniform axis.
+    ``pano_columns`` may be non-uniform, e.g. the training canvas, which
+    concatenates two independently resized 5376-pixel halves after removing an
+    overlap.  Seam erosion is performed in output-index space.
     """
     if pano_columns.ndim != 1 or pano_columns.numel() == 0:
         raise ValueError("pano_columns must be a non-empty 1-D tensor")
@@ -317,8 +287,6 @@ def half_canvas_pano_axes(
     The dataset first resizes ``[0,5376)`` and ``[4224,9600)`` independently
     to ``half_size=(H,W)``.  The pipeline then keeps all of the left half and
     drops ``right_trim_px`` columns from the right half before concatenation.
-    This helper preserves those two resize maps and their rounded overlap; a
-    single global full-panorama resize does not.
 
     Returned row coordinates are in the 900-row *pre-crop* OneBEV canvas,
     while column coordinates are in the canonical 9600-wide canvas.
@@ -423,10 +391,9 @@ def _normalize_grid_coordinates(
     coordinate_convention: str,
 ) -> torch.Tensor:
     source_height, source_width = source_size
-    # align_corners=False maps normalized -1/+1 to the outer image edges.
-    # gsplat/K projections already use that edge-coordinate convention
-    # (raster pixels are x+0.5/y+0.5). OpenCV remap instead takes zero-based
-    # pixel-index coordinates, which need +0.5 before normalization.
+    # align_corners=False maps normalized -1/+1 to the outer image edges, the
+    # same edge-coordinate convention as gsplat K (pixels at x+0.5/y+0.5).
+    # OpenCV remap takes zero-based pixel indices, which need +0.5 first.
     if coordinate_convention == "edge":
         offset = 0.0
     elif coordinate_convention == "opencv_index":
@@ -493,9 +460,9 @@ def _onebev_angles(camera_to_ego: torch.Tensor) -> torch.Tensor:
     yaw = reference[:, None, 2] - euler[..., 2]
     yaw = torch.remainder(yaw + math.pi, 2.0 * math.pi) - math.pi
     pitch = euler[..., 1] - reference[:, None, 1]
-    # Public OneBEV later passes this radian-valued number to an OpenCV API
-    # expecting degrees.  _onebev_legacy_grid_for_camera intentionally
-    # preserves that historical behavior for target compatibility.
+    # Public OneBEV passes this radian-valued number to an OpenCV API that
+    # expects degrees; _onebev_legacy_grid_for_camera preserves that behavior
+    # for target compatibility.
     roll_value_passed_as_degrees = euler[..., 0] - reference[:, None, 0]
     return torch.stack([yaw, pitch, roll_value_passed_as_degrees], dim=-1)
 
@@ -597,8 +564,8 @@ def _onebev_legacy_grid_for_camera(
     destination_y = pixel_y - min_y[:, None, None] + 1.0
 
     # cv2.getRotationMatrix2D receives the radian-valued legacy roll as if it
-    # were degrees.  Invert that source->destination matrix because
-    # grid_sample, like cv2.remap, needs destination->source coordinates.
+    # were degrees.  Invert its source->destination matrix because grid_sample,
+    # like cv2.remap, needs destination->source coordinates.
     roll_radians_used_by_opencv = (
         legacy_roll_degrees * (math.pi / 180.0))[:, None, None]
     cosine = torch.cos(roll_radians_used_by_opencv)
@@ -722,12 +689,10 @@ def build_owned_pano_sampling_grid(
     ``valid`` is ``[...,H,W]`` after camera-FOV and seam checks.  The explicit
     axes make this suitable for :func:`half_canvas_pano_axes`.
 
-    ``legacy_mapping_size`` defaults to native nuScenes 900x1600.  This is
-    important even when ``source_size`` is a cheaper 360x640 Gaussian render:
-    public OneBEV computed its ``(W+1)/2`` and ``+1`` remap offsets at native
-    resolution.  The resulting normalized grid can sample a proportionally
-    resized render exactly.  Set it to ``None`` only to run the legacy formula
-    natively at ``source_size`` (mainly useful for synthetic tests).
+    ``legacy_mapping_size`` defaults to native nuScenes 900x1600: the OneBEV
+    remap offsets are defined at native resolution, and the resulting
+    normalized grid can sample a proportionally resized render.  Set it to
+    ``None`` to evaluate the legacy formula at ``source_size`` instead.
     """
     if projection_model not in SUPPORTED_PROJECTION_MODELS:
         raise ValueError(
@@ -798,14 +763,13 @@ def sampling_grid_to_ego_rays(
     *,
     source_size: tuple[int, int],
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Recover exact content rays represented by an owned sampling grid.
+    """Recover the content rays represented by an owned sampling grid.
 
-    This converts the sampled source pixel through its real gsplat-convention
-    ``K`` and ``R``;
-    it therefore exposes the ray actually contributing RGB even when the
-    legacy OneBEV warp differs from an ideal sphere.  Returns ego-frame
-    ``(origins, unit_directions, source_camera_z_cosine)``.  For a stitched
-    z-depth target, Euclidean ray range is ``depth_z / z_cosine``.
+    The sampled source pixel is converted through its real gsplat-convention
+    ``K`` and ``R``, so this gives the ray that actually contributes RGB even
+    when the legacy OneBEV warp differs from an ideal sphere.  Returns
+    ego-frame ``(origins, unit_directions, source_camera_z_cosine)``.  For a
+    stitched z-depth target, Euclidean ray range is ``depth_z / z_cosine``.
     """
     source_height, source_width = [int(value) for value in source_size]
     if sampling_grid.shape[-1] != 2 or sampling_grid.ndim < 3:
@@ -829,8 +793,7 @@ def sampling_grid_to_ego_rays(
             "grid/calibration leading shapes do not broadcast: {} and {}"
             .format(leading_shape, calibration_leading)) from error
     if tuple(broadcast_leading) != tuple(calibration_leading):
-        # Re-run against the fully broadcast shape.  This is uncommon (a
-        # shared calibration with a batched grid) but keeps the pure API sane.
+        # Re-run against the fully broadcast shape.
         camera_to_ego = torch.broadcast_to(
             camera_to_ego, broadcast_leading + (6, 4, 4))
         intrinsics = torch.broadcast_to(
@@ -842,9 +805,9 @@ def sampling_grid_to_ego_rays(
         sampling_grid, broadcast_leading + (height, width, 2)).reshape(
             -1, height, width, 2)
     batch_count = grid.shape[0]
-    # K and gsplat use image-edge coordinates; raster pixel (i,j) is sampled
-    # at (i+0.5,j+0.5).  A legacy OpenCV-index grid was normalized with that
-    # same +0.5, so this single inverse is correct for both projection modes.
+    # K and gsplat use image-edge coordinates (raster pixel (i,j) is sampled
+    # at (i+0.5,j+0.5)); the legacy grid was normalized with the same +0.5, so
+    # one inverse is correct for both projection modes.
     pixel_x = (grid[..., 0] + 1.0) * (source_width / 2.0)
     pixel_y = (grid[..., 1] + 1.0) * (source_height / 2.0)
     homogeneous = torch.stack([
@@ -890,10 +853,9 @@ def stitch_camera_views_from_owned_grid(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Apply a reusable owned grid to six views with differentiable sampling.
 
-    This is the fast training-loop entry point when calibration is constant:
-    precompute :func:`build_owned_pano_sampling_grid` once, then call this
-    function for each set of six Gaussian renders.  Only the images need a
-    gradient.
+    Fast training-loop entry point for constant calibration: precompute
+    :func:`build_owned_pano_sampling_grid` once, then call this for each set of
+    six renders.  Only the images need a gradient.
     """
     if camera_images.ndim < 4 or camera_images.shape[-4] != 6:
         raise ValueError(
@@ -917,8 +879,8 @@ def stitch_camera_views_from_owned_grid(
         raise ValueError(
             "image/grid/valid leading shapes do not broadcast: {}, {}, {}"
             .format(leading_shape, grid_leading, valid_leading)) from error
-    # The output follows camera_images' leading shape.  Requiring the other
-    # operands to broadcast *to* it avoids silently introducing an extra dim.
+    # The output follows camera_images' leading shape; the other operands must
+    # broadcast to it.
     images = camera_images.reshape(-1, *camera_images.shape[-4:])
     batch_count = images.shape[0]
     try:
@@ -987,23 +949,20 @@ def differentiable_hard_seam_stitch(
             :func:`prepare_gsplat_intrinsics` on raw dataset K.
         pano_rows, pano_columns: optional explicit 1-D pre-crop/canonical axes.
             Pass the result of :func:`half_canvas_pano_axes` to reproduce the
-            non-uniform 4114-wide training canvas exactly.  When omitted,
-            axes are generated from ``output_size``/ranges.
-        projection_model: mandatory ``"onebev_legacy"`` or ``"calibrated"``.
-            It is intentionally not defaulted because choosing the wrong one
-            silently recreates the geometry/target mismatch this module fixes.
-        legacy_mapping_size: native resolution at which the old OneBEV warp
-            constants were evaluated.  Its normalized grid is then applied
-            to ``camera_images`` at any proportional render resolution.
+            non-uniform 4114-wide training canvas.  When omitted, axes are
+            generated from ``output_size``/ranges.
+        projection_model: required, ``"onebev_legacy"`` or ``"calibrated"``.
+        legacy_mapping_size: native resolution at which the OneBEV warp
+            constants are evaluated; its normalized grid is applied to
+            ``camera_images`` at any proportional render resolution.
 
     Returns:
         ``(panorama, valid_mask)`` with shapes ``[...,C,Hout,Wout]`` and
         ``[...,1,Hout,Wout]``.  Invalid camera-FOV and eroded-seam pixels are
         zero in the panorama and false in the mask.
 
-    The implementation samples only contiguous owner runs rather than all six
-    cameras over the complete panorama.  This keeps the differentiable grid
-    at O(HW), not O(6HW), which matters for a 9600-wide target.
+    Only contiguous owner runs are sampled, rather than all six cameras over
+    the complete panorama.
     """
     if projection_model not in SUPPORTED_PROJECTION_MODELS:
         raise ValueError(

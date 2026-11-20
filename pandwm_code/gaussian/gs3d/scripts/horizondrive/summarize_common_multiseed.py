@@ -1,4 +1,4 @@
-"""Build a paper-ready common-protocol table from completed seed runs."""
+"""Aggregate HorizonDrive and PanDWM common-clip results over seeds into a JSON summary and a Markdown table."""
 from __future__ import annotations
 
 import argparse

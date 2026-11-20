@@ -1,8 +1,7 @@
 """Stitching the two panorama halves into one 360-degree canvas.
 
-Split out of the pipeline so it carries no diffusers/transformers import: it
-is a pure tensor operation on the frozen evaluation path and wants tests that
-run anywhere.
+Split out of the pipeline so that it carries no diffusers/transformers import:
+it is a pure tensor operation that can be tested anywhere.
 """
 import math
 import os
@@ -19,10 +18,9 @@ PANO_OVERLAP_W = 494
 def _pano_blend_width():
     """Columns of raised-cosine cross-fade to apply inside the overlap.
 
-    0 keeps the historical hard butt-joint, so every frozen number stays
-    bit-reproducible unless this is set on purpose. Capped at the overlap
-    width because there is no redundancy outside it -- the wrap joint has
-    none at all, which is why only the left/right seam can be blended.
+    0 gives a hard butt-joint.  Capped at the overlap width because there is
+    no redundancy outside it; the wrap joint has none, so only the left/right
+    seam can be blended.
     """
     try:
         width = int(os.environ.get("PANDWM_PANO_BLEND_W", "0"))
@@ -43,11 +41,10 @@ def stitch_pano_halves(x: torch.Tensor, blend_width: int = None):
     so FVD patch boundaries, instance box projection and the seam profile all
     stay comparable across arms.
 
-    With ``blend_width = 0`` this is the historical hard cut: the right
-    half's first 494 columns are discarded outright even though they image
-    the same 43.2 degrees the left half's last 494 columns do. That thrown
-    away redundancy is what the cross-fade spends: the joint is spread over
-    ``blend_width`` columns instead of landing on one.
+    With ``blend_width = 0`` this is a hard cut: the right half's first 494
+    columns are discarded even though they image the same 43.2 degrees as the
+    left half's last 494 columns.  The cross-fade uses this redundancy to
+    spread the joint over ``blend_width`` columns.
     """
     if blend_width is None:
         blend_width = _pano_blend_width()

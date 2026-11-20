@@ -1,48 +1,22 @@
-"""v2 of export_gs_4d_clips.py: the same 4D renders for the 149 eval clips plus two
-render-side fixes and a 3D-only near-rig view.  With the new options off (default) the 4D videos are those of
-export_gs_4d_clips.py.
-  * --edge-rel-h / --edge-rel-v > 0: drop the Gaussians of pixels at depth discontinuities of the decoder's range image
-    (relative jump to a horizontal / vertical neighbour above the threshold), dilated by --edge-dilate pixels.  These
-    pixels sit between foreground and background and show up as curtains / streaks away from the rig.  Applied to
-    frame t and to the nearby-frame static fill.  The vertical threshold is separate because the far road changes
-    range fast from row to row near the horizon.
-  * --bg-fill: pixels still uncovered after the fill get a background: above the horizon row the mean colour of the
-    frame's top panorama rows (sky), below it the mean of its bottom rows (ground), blended over 8 rows.  Cosmetic.
-  * --views-3d: also write 3d_views.mp4 = frame t's own Gaussians only (no fill), same near-rig views.
-  * --smooth-k KH,KW (v2b): component-wise KH x KW median, over the decoder's pixel grid, of every Gaussian's offset
-    from its ray origin; scales follow the change of distance and the edge filter then reads the smoothed distances.
-    Removes the row-to-row depth jitter that makes trunks, poles and fences wavy away from the rig.
-  * --inpaint-all (v2b): inpaint every uncovered pixel (alpha < 0.5, cv2 Telea), not only the thin cracks of
-    --fill-width.  Cosmetic, like --bg-fill.
-  * --fill-mode pushpull (v2c): with --inpaint-all, fill the holes with a multiscale average of the covered pixels
-    (push-pull, bilinear between levels) instead of cv2 Telea, which drags bright lamps and lane marks into long
-    streaks across large holes (night clips).
-  * --dac-weights: place every frame's Gaussians at the range DAC estimates on
-    the VAE-decoded frame (dwm_pano_4d/dac_depth.py; needs --dac-root / --dac-config and dwm_pano_4d on the path):
-    means move along the decoder's exact rays, xyz offset dropped, scales follow the range ratio, pixels without a
-    DAC range below --dac-far-cut keep the decoder geometry.  The edge filter then reads the DAC range.
-  * --vae-roundtrip (v3): decode each frame's latents to RGB with the VAE and encode them again (posterior mean)
-    before the Gaussian decoder, i.e. give the decoder latents from the distribution it was trained on (VAE
-    encodings of real images) instead of the video model's raw latents.
-  * metadata v3 also records the decoder range image's roughness: median |log r(y+1) - log r(y)| (vertical) and
-    |log r(x+1) - log r(x)| (horizontal) over all pixels, mean over frames; --dump-range writes frame 0's range.
-  * --views-far (v2b): also write 3d_far_views.mp4 = frame t's own Gaussians from the two far cameras of
-    export_gs_batch149.py (gs_novel_views.mp4: chase 4 m behind / 2.5 m up | +/-2 m sweep, 1280x640, 90 deg), with
-    the same fixes.
-Original header follows.
+"""4D Gaussian demo (frame t plus a static fill from nearby frames) for the eval clips, with optional render-side fixes.
 
-4D Gaussian demo (frame t + static fill from nearby frames) for the 149 eval clips.
-
-Same rendering as ``export_gs_4d_clean.py`` (long demos; that file is untouched), with the clip
-loading of ``export_gs_clean_views.py --clips-root``: each clip is a 35-frame window whose latents
-live in ``<clips-root>/clipNNN/latents.pt``.  Writes, per clip, into a new directory:
-
-  <out-root>/clipNNN/4d_clean_compare.mp4   camera 3 m behind: per-frame 3D | 4D filled
-  <out-root>/clipNNN/4d_clean_views.mp4     4D filled, near-rig views (chase, sweep, pan)
-  <out-root>/clipNNN/clean4d_metadata.json
-
-Finished clips are skipped, so a job can be resubmitted; ``--time-budget-s`` stops before a clip
-that would not fit.
+Each clip is a 35-frame window whose latents live in <clips-root>/clipNNN/latents.pt (same rendering as
+export_gs_4d_clean.py, same clip loading as export_gs_clean_views.py --clips-root). Per clip it writes into
+<out-root>/clipNNN/: 4d_clean_compare.mp4 (camera 3 m behind, per-frame 3D | 4D filled), 4d_clean_views.mp4 (4D filled,
+near-rig views), clean4d_metadata.json. Finished clips are skipped; --time-budget-s stops before a clip that would
+not fit. Optional flags:
+  --edge-rel-h / --edge-rel-v   drop Gaussians at depth discontinuities of the decoder range image (relative jump to a
+                                horizontal / vertical neighbour above the threshold), dilated by --edge-dilate
+  --bg-fill                     sky / ground colour behind pixels that are still uncovered
+  --views-3d                    also write 3d_views.mp4 (frame t's own Gaussians, no fill)
+  --views-far                   also write 3d_far_views.mp4 from the two far cameras of export_gs_batch149.py
+  --smooth-k KH,KW              median filter of the Gaussian offsets from their ray origin over the pixel grid
+  --inpaint-all                 inpaint every uncovered pixel, not only thin cracks (--fill-width)
+  --fill-mode pushpull          with --inpaint-all, multiscale push-pull fill instead of cv2 Telea
+  --dac-weights                 place Gaussians at the range estimated by DAC on the VAE-decoded frame
+                                (needs --dac-root / --dac-config and dwm_pano_4d on the path)
+  --vae-roundtrip               decode and re-encode each frame's latents with the VAE before the Gaussian decoder
+  --dump-range                  write the decoder range image of frame 0
 """
 
 from __future__ import annotations
@@ -214,15 +188,15 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
 
     colours = {}
     smooth = tuple(int(k) for k in args.smooth_k.split(",")) if args.smooth_k else None
-    dac_cache = {}                                                      # v3: frame -> DAC range on the grid
-    rt_cache = {}                                                       # v3: frame -> round-tripped latents
-    roughness = {}                                                      # v3: frame -> (vertical, horizontal)
+    dac_cache = {}  # frame -> DAC range on the decoder grid
+    rt_cache = {}  # frame -> round-tripped latents
+    roughness = {}  # frame -> (vertical, horizontal) range roughness
 
     def decode(t):
         selector = torch.tensor([t], dtype=torch.long)
         lo, po = pipe._frame_ray_origins(batch, selector)
         lat_t = latents[t:t + 1].to(device, dtype=pipe.latent_directions.dtype)
-        if args.vae_roundtrip:                                          # v3
+        if args.vae_roundtrip:
             if t not in rt_cache:
                 rt_cache[t] = vae_roundtrip(pipe, lat_t)
             lat_t = rt_cache[t]
@@ -231,8 +205,8 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
             pipe.latent_directions.unsqueeze(0), pipe.pixel_directions.unsqueeze(0),
             None, previous_latents=None, temporal_context_mask=0.0,
             latent_origins=lo, pixel_origins=po, camera_origin_scale=1.0)
-        g, rng = out[0][0], out[1][0]                                   # v2: keep the range image
-        if t not in roughness:                                          # v3: on the decoder's own range
+        g, rng = out[0][0], out[1][0]  # keep the range image
+        if t not in roughness:
             roughness[t] = range_roughness(rng)
             if args.dump_range and t == 0:
                 import cv2
@@ -240,7 +214,7 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
                 img = cv2.applyColorMap((255 * (1 - np.concatenate(list(lr), axis=0))).astype(np.uint8),
                                         cv2.COLORMAP_TURBO)
                 cv2.imwrite(str(out_dir / "range_t0.png"), img)
-        if args.dac is not None:                                        # v3: DAC range on the decoded frame
+        if args.dac is not None:  # DAC range on the decoded frame
             from dwm_pano_4d.dac_depth import pano_from_halves, range_to_decoder_grid, relabel_gaussians
             if t not in dac_cache:
                 rgb_t = pipe.decode_half_latents(latents[t:t + 1].to(device, dtype=pipe.latent_directions.dtype))[0]
@@ -253,17 +227,17 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
             dirs = pipe.pixel_directions.reshape(-1, 3).float()
             origins = po.reshape(-1, 3).to(device, torch.float32) if po is not None else torch.zeros_like(dirs)
             g, rng = relabel_gaussians(g.float(), rng.float(), r_dac, valid, origins, dirs)
-        if args.bg_fill and t not in colours:                           # v2: sky / ground colours
+        if args.bg_fill and t not in colours:  # sky / ground colours
             rgb = g[:, 3:6].reshape(*rng.shape, 3)
             colours[t] = (rgb[:, :8].reshape(-1, 3).mean(0), rgb[:, -8:].reshape(-1, 3).mean(0))
-        if smooth:                                                      # v2b: median-smoothed geometry
+        if smooth:  # median-smoothed geometry
             origins = po.reshape(-1, 3).to(g.device, torch.float32) if po is not None else \
                 torch.zeros(g.shape[0], 3, device=g.device)
             g, rng = smooth_means(g, origins, tuple(rng.shape), *smooth)
         keep = torch.ones(g.shape[0], dtype=torch.bool, device=g.device)
         if content is not None and content.numel() == g.shape[0]:
             keep &= content.reshape(-1).to(g.device)
-        if args.edge_rel_h > 0 or args.edge_rel_v > 0:                  # v2: depth-edge filter
+        if args.edge_rel_h > 0 or args.edge_rel_v > 0:  # depth-edge filter
             keep &= ~edge_mask(rng, args.edge_rel_h, args.edge_rel_v, args.edge_dilate).to(g.device)
         g = g[keep]
         return g[g[:, 11:14].amax(dim=-1) <= args.max_scale]
@@ -292,13 +266,13 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
         return rgb.clamp(0, 1), alpha
 
     def finish(rgb, alpha, t=None, K=None):
-        if args.bg_fill and t in colours and K is not None:             # v2: background under the holes
+        if args.bg_fill and t in colours and K is not None:  # background under the holes
             sky, ground = colours[t]
             rgb = torch.stack([x + (1.0 - a.clamp(0, 1))[None] * background(
                 x.shape[1], x.shape[2], float(k[1, 2]), sky, ground, x.device)
                 for x, a, k in zip(rgb, alpha, K)])
         out = rgb.cpu()
-        if args.inpaint_all:                                            # v2b: every hole, not only cracks
+        if args.inpaint_all:  # every hole, not only cracks
             fill = pushpull_fill if args.fill_mode == "pushpull" else inpaint_holes
             out = torch.stack([fill(x, a) for x, a in zip(out, alpha.cpu())])
         elif args.fill_width:
@@ -327,9 +301,9 @@ def render_clip(pipe, batch, infos, latents, args, device, out_dir):
         compare_rows.append(torch.cat([finish(rgb_c, a_c, t, Kc)[0], finish(rgb4, a4, t, Kc)[0]], dim=-1))
         rgb3, a3, rgbv, av = composite([VIEWS[v][1](t) for v in views], Kv, h_view)
         view_rows.append(torch.cat(list(finish(rgbv, av, t, Kv)), dim=-1))
-        if args.views_3d:                                               # v2: frame t only, no fill
+        if args.views_3d:  # frame t only, no fill
             view3d_rows.append(torch.cat(list(finish(rgb3, a3, t, Kv)), dim=-1))
-        if args.views_far:                                              # v2b: batch149's far cameras, frame t
+        if args.views_far:  # far cameras of export_gs_batch149.py, frame t
             c2w = torch.tensor(far_cameras(t), device=device, dtype=torch.float32)
             rgbf, _, af = pipe.render_targets(current.float(), target_c2w=c2w, target_intrinsics=K_far,
                                               width=1280, height=640)
@@ -356,7 +330,7 @@ def main():
     torch.cuda.set_device(0)
     device = torch.device("cuda", 0)
     args.dac = None
-    if args.dac_weights:                                                # v3
+    if args.dac_weights:
         from dwm_pano_4d.dac_depth import DacRanger
         args.dac = DacRanger(args.dac_root, args.dac_config, args.dac_weights, device)
         print(f"[gs-4d-clips] DAC loaded ({args.dac.config['model_name']})", flush=True)

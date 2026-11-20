@@ -1,38 +1,19 @@
-"""v8.4 = v8.3 trained on deep self-rollouts .
+"""Deep self-rollout training on top of the v8.3 pipeline.
 
-Why: v8.3 step 4000 is the best short-clip model (Dev-149 FVD sum
-102.0), but its 20 s videos go blurry and static after ~10 s in some scenes (8 dev scenes, windows 7-12: sharpness /
-GT 0.85, frame change / GT 0.90; step 2000: 0.99 / 1.00).  The collapse grows with training steps (onset ~2250-2500)
-while every step rolls out only `context_windows: 2` windows; inference chains 11.  anchor_sink at inference made it
-worse and the history latents' std does not drop, so the fix has to come from training.
-
-What changes (everything else is v8.3):
-  1. Rollout depth.  Every step draws k uniformly from [context_windows_min, context_windows_max] (2..10) with a
-     generator seeded by (rollout_depth_seed, global_step): every rank (FSDP needs the same forwards) and every resume
-     draw the same k without communication, and the global torch RNG (per-rank seeds) is untouched.
-     self.context_windows = k for the whole step, so the rollout loop, the trained window's start, the truncated D
-     conditions and the mm3 real window all follow it.  The clip must hold 3 + 16 * (k_max + 1) frames (179 for
-     k_max 10); this is checked on every step, so a short dataset fails on the first step, not when a large k is drawn.
-  2. Sharpness floor on the trained window, when the student's main pass exited at the final step (its x0 is the
-     deployed sample, as for mm3's rollout term):
-         r_e = HF energy (student) / HF energy (real window)      (latent residual of an mm3_pool average, 16 frames)
-         loss = sharp_floor_weight * relu(log sharp_floor - log r_e)^2           zero for r_e >= sharp_floor (0.9)
-     Nothing in v8.3 penalises blur: the mm3 HF part only limits relative change (flicker).  The gradient this term
-     sends to the student output is capped at motion_match_cap x DMD (its own CapGrad).
-  3. Monitors (v84_monitors).  Every step and every rollout window: HF energy ratio and low-pass change ratio against
-     the window's real frames, averaged over ranks; the report carries the deepest window, rank 0 prints a V84 line
-     with all windows.  On student steps the teacher direction on the trained window, from the copied
-     _kl_grad_with_history:
-         tdir_proj   = <HF(real_x0 - fake_x0), HF(x0)> / <HF(x0), HF(x0)>   (> 0: the DMD target adds the student's
-                       own detail = sharper; < 0: removes it = blurrier)
-         tdir_eratio = HF energy (real_x0) / HF energy (fake_x0)
-     HorizonDrive (arXiv 2605.11596) reports that a standard teacher's supervision is contaminated by drifted
-     histories; these monitors show whether ours is.
-  4. Contingency knob, off by default: for k >= deep_dmd_from_k the DMD gradient is multiplied by deep_dmd_scale; the
-     GAN, mm3 and floor caps keep using the unscaled DMD norm, so D and the floors carry the deep windows (APT2 trains
-     long videos with a discriminator only).
+- Rollout depth: every step draws k uniformly from [context_windows_min, context_windows_max] with a generator
+  seeded by (rollout_depth_seed, global_step), so all ranks and every resume draw the same k without
+  communication and the global RNG is untouched. self.context_windows = k for the whole step. Clips must hold
+  3 + 16 * (k_max + 1) frames; this is checked every step.
+- Sharpness floor on the trained window when the main pass exited at the final step:
+  r_e = HF energy (student) / HF energy (real window), loss = sharp_floor_weight * relu(log sharp_floor - log r_e)^2.
+  Its gradient to the student output is capped at motion_match_cap times the DMD gradient.
+- Monitors (v84_monitors): per rollout window, HF energy ratio and low-pass change ratio against the real
+  frames; on student steps also the direction of the teacher update relative to the student's own detail
+  (tdir_proj, tdir_eratio).
+- Optional: for k >= deep_dmd_from_k the DMD gradient is multiplied by deep_dmd_scale; the GAN, motion and
+  floor caps keep using the unscaled DMD norm.
 Report keys added: rollout_k, hf_ratio_deep, motion_ratio_deep, sf_ratio, sf_loss, sf_dmd_ratio, sf_cap_frac,
-tdir_proj, tdir_eratio (student-step values are carried between student steps).
+tdir_proj, tdir_eratio.
 """
 import math
 
@@ -122,7 +103,7 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
 
     # ------------------------------------------------------------------ sharpness floor
     def _sharp_floor(self, x_gen, real_target, cap):
-        """Weight-free floor term.  x_gen: student target frames [B, 16, ...] (gradient capped); real_target: the real
+        """Sharpness floor term without the weight.  x_gen: student target frames [B, 16, ...] (gradient capped); real_target: the real
         window's target frames."""
         stats = {}
         x = CapGrad.apply(x_gen, cap, stats)
@@ -156,8 +137,8 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
             mot[w] = float((lf_f / lf_r.clamp(min=_EPS)).mean())
         return hf, mot
 
-    # A copy of PanoContextForcedDMD._kl_grad_with_history (pipeline.py) that also records the teacher direction
-    # ("v8.4"); the returned gradient is unchanged.
+    # Copy of PanoContextForcedDMD._kl_grad_with_history that also records the teacher direction; the returned
+    # gradient is unchanged.
     def _kl_grad_with_history(self, noisy, ts, sigmas_b, x0_det, cond, cond_cfg, target_mask):
         cond_fake = dict(cond)
         if self.fake_score_causal:
@@ -177,7 +158,7 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
         real_x0_cfg = noisy_cfg.float() + (-sigmas_cfg).float() * real_out[0].float()
         real_uncond, real_cond = real_x0_cfg.chunk(2, dim=0)
         real_x0 = real_cond + (real_cond - real_uncond) * self.real_guidance_scale
-        if self.v84_monitors:                                                        # v8.4
+        if self.v84_monitors:
             with torch.no_grad():
                 proj, e_ratio = teacher_direction(real_x0, fake_x0, x0_det, self.mm3_pool)
             self._v84_last.update(tdir_proj=float(proj.mean()), tdir_eratio=float(e_ratio.mean()), tdir_fresh=1.0)
@@ -186,14 +167,14 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
         mask = target_mask.to(grad.dtype)
         while mask.ndim < grad.ndim:
             mask = mask.unsqueeze(-1)
-        # Per-sample DMD normaliser (eq. 8), over the target frames only.
+        # Per-sample DMD normaliser over the target frames only.
         p_real = (x0_det.float() - real_x0).abs() * mask
         normalizer = (p_real.flatten(1).sum(1) / mask.expand_as(p_real).flatten(1).sum(1).clamp(min=1.0))
         grad = grad / normalizer.clamp(min=1e-8).view(-1, *([1] * (grad.ndim - 1)))
         return torch.nan_to_num(grad).to(dtype=x0_det.dtype)
 
-    # A copy of PanoContextForcedDMDv8_3._generator_step_cf plus the sharpness floor, the deep DMD scaling and the
-    # recorded GAN cap ("v8.4"); the rest is unchanged.
+    # Copy of PanoContextForcedDMDv8_3._generator_step_cf plus the sharpness floor, the deep DMD scaling and the
+    # recorded GAN cap.
     def _generator_step_cf(self, latent_shape, cond, cond_cfg, history, target_mask):
         use_scaler = self.training_config.get("enable_grad_scaler", False)
         scale = float(self.grad_scaler.get_scale()) if use_scaler else 1.0
@@ -209,8 +190,8 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
             x0_det = x0_pred.detach()
             noisy, ts, sigmas_b, _ = self._noised_with_clean_history(x0_det, history)
             grad = self._kl_grad_with_history(noisy, ts, sigmas_b, x0_det, cond, cond_cfg, target_mask)
-        deep = self.deep_dmd_scale != 1.0 and self.context_windows >= self.deep_dmd_from_k             # v8.4
-        g_used = grad.double() * self.deep_dmd_scale if deep else grad.double()                       # v8.4
+        deep = self.deep_dmd_scale != 1.0 and self.context_windows >= self.deep_dmd_from_k
+        g_used = grad.double() * self.deep_dmd_scale if deep else grad.double()
         target = (x0_det.double() - g_used).detach()
         mask = target_mask.to(torch.float64)
         while mask.ndim < x0_pred.ndim:
@@ -218,10 +199,10 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
         diff = (x0_pred.double() - target) * mask
         count = mask.expand_as(diff).sum().clamp(min=1.0)
         loss = 0.5 * diff.square().sum() / count
-        dmd_norm = float((grad.double() * mask).norm() / count)        # unscaled: the caps below do not shrink
+        dmd_norm = float((grad.double() * mask).norm() / count)        # unscaled, so the caps below do not shrink
         cap = None if self.gan_ratio_cap is None else self.gan_ratio_cap * dmd_norm * scale
         cap_mm = None if self.motion_match_cap is None else self.motion_match_cap * dmd_norm * scale
-        self._v84_last["gan_cap"] = 0.0 if cap is None else float(cap)                                # v8.4
+        self._v84_last["gan_cap"] = 0.0 if cap is None else float(cap)
         adv = torch.zeros((), device=self.device)
         stats = {}
         if w_adv > 0 and "rollout" in adv_pairs:
@@ -242,7 +223,7 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
                 loss = loss + w_mm * roll.double()
                 self._last_mm3.update(mm3_roll_lf_ratio=float(r_lf.mean()), mm3_roll_hf_ratio=float(r_hf.mean()),
                                       mm3_roll_on=1.0)
-        sf_stats = None                                                                # v8.4: sharpness floor
+        sf_stats = None                                                                # sharpness floor
         self._v84_last["sf_on"] = 0.0
         if final_exit and "gt" in st and (self.sharp_floor_weight > 0 or self.v84_monitors):
             start = STRIDE * self.context_windows
@@ -259,7 +240,7 @@ class PanoContextForcedDMDv8_4(PanoContextForcedDMDv8_3):
                 self._v84_last.update(sf_ratio=float(r_e.mean()), sf_fresh=1.0)
         self._backward(loss)
         loss_value = float(loss.item())
-        if self._v84_last["sf_on"]:                                                    # v8.4: after backward
+        if self._v84_last["sf_on"]:
             if sf_stats:
                 self._v84_last.update(sf_dmd_ratio=sf_stats["norm"] / max(scale, 1e-30) / max(dmd_norm, 1e-30),
                                       sf_cap_frac=float(sf_stats["scale"] < 1.0))

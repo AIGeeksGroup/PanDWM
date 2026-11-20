@@ -1,11 +1,9 @@
-"""GS renders of the review clips at a laterally shifted rig, encoded into video-model latents (D1  step 1 of 2; step 2 = eval d1_sdedit.py on HPC3).
+"""GS renders of the review clips at a laterally shifted rig, encoded into video-model latents.
 
-For every frame of a clip the gs_scene_v3 scene (4D: frame t over the static fill of nearby frames) is rendered at the
-six nuScenes cameras with the ego shifted sideways by dy and stitched with the pipeline's own hard seam into the
-4114 x 256 canvas, exactly as eval_gs_shift.py renders its arms; holes (alpha < 0.5) are filled with pushpull_fill.
-The canvas is cut back into the two 2304-wide halves (_unpadded_stitch_canvas is left half | right half without its
-first 494 overlap columns, so left = canvas[..., :2304] and right = canvas[..., 1810:]) and encoded with the same
-encode_half_latents the GS decoder uses (SD3.5 VAE, posterior mean, the video model's scaling).
+For every frame of a clip the GS scene (frame t over the static fill of nearby frames) is rendered at the six cameras
+with the ego shifted sideways by dy and stitched with the pipeline's hard seam into the 4114 x 256 canvas, as in
+eval_gs_shift.py; holes (alpha < 0.5) are filled with pushpull_fill. The canvas is cut into the two 2304-wide halves
+(left = canvas[..., :2304], right = canvas[..., 1810:]) and encoded with the encode_half_latents the GS decoder uses.
 
   <out-root>/clipNNN/render_dy<d>.pt   {"latents": (35, 2, 16, 32, 288) fp16, "dy": d, "scene": {...}}
   <out-root>/clipNNN/render_dy<d>.mp4  the rendered canvases (for side-by-side review)

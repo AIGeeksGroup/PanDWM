@@ -1,12 +1,11 @@
-"""C2 config for HPC3: the 4D decoder retrained with Depth Anything 3 pseudo-depth.
+"""Build the 4D decoder config trained with Depth Anything 3 (DA3) pseudo-depth.
 
-Base: configs/gs4dd_hpc3_F1.json (coverage recipe + metre L1 0.002 / 0.002 + log-depth L1 0.1 / 0.1, far cut 99 m).
-Changes, nothing else:
-  * class dwm_pano_4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline: the depth labels of every batch come from DA3
-    run on the batch's own frames (ground scale), not from label files; gs4d_depth.depth_optional = false;
-  * warm start from the coverage run step 3000 (init/gs4d_cov_3000.pth), the decoder of review packages v2 / v3;
-  * training data = the 695-scene set only (full train minus the 5 held-out labelled scenes), no p2 copies.
-  python3 make_c2_config.py   -> configs/gs4dd_hpc3_C2.json
+Starts from the depth-supervised config written by make_formal_config.py and changes:
+  * pipeline class dwm_pano_4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline: the depth labels of every batch come from
+    DA3 run on the batch's own frames (ground scale) instead of label files; gs4d_depth.depth_optional = false;
+  * warm start from the coverage-run decoder (init/gs4d_cov_3000.pth);
+  * training data: the 695-scene set (full train minus the 5 held-out labelled scenes).
+Usage: python3 make_c2_config.py
 """
 import json
 from pathlib import Path

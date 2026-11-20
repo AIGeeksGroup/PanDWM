@@ -1,25 +1,15 @@
-"""Context-Forced DMD (+ optional GAN) for the PanDWM 4-step student.
+"""Context-Forced DMD (with an optional GAN term) for the 4-step student.
 
-Builds on the repo's Stage-3 ``PanoCrossviewTemporalDMD`` (unchanged; this is
-a subclass in a new package).  Following CausalDrive's Context-Forced DMD:
+Subclasses ``PanoCrossviewTemporalDMD``. Each step the student first rolls out ``context_windows`` 19-frame
+windows itself (4-step sampler, no gradient), starting from the clip's 3 real frames. The last 3 generated
+latents become the history of the trained window. The generator step, the DMD real/fake scores and the critic
+all condition on this history, fed clean (t = 0) in the 3 reference slots; only the 16 target frames are noised
+and losses never touch the reference slots. The real score is the causal autoregressive teacher with the
+block-causal mask. An optional discriminator head on an intermediate block of the fake score separates real
+clips from generated ones and adds a non-saturating adversarial term to the generator.
 
-* every train step the student first rolls out ``context_windows`` 19-frame
-  windows by itself (4-step sampler, no gradient), starting from the clip's 3
-  real frames; the last 3 generated latents become the *history* of the
-  trained window ("N-chunk self-rollout -> flawed memory context");
-* the generator step, the DMD real/fake scores and the critic all condition on
-  that student-made history: it is fed clean (t = 0) in the 3 reference slots
-  and only the 16 target frames are noised.  The real score is the *causal* AR
-  teacher (Stage-1) with the block-causal mask, so it answers "given this
-  flawed past, what should come next" -- the gradient that teaches the student
-  to recover from its own drift.  Losses never touch the reference slots;
-* optionally, a small discriminator head on an intermediate block of the fake
-  score separates real clips (ground-truth window + ground-truth history) from
-  generated ones; the generator receives a non-saturating adversarial term
-  (DMD2-style; CausalDrive attaches the discriminator to the fake score too).
-
-All ranks run the same number of forwards every step (rollout length is fixed,
-random choices are broadcast from rank 0), as FSDP requires.
+All ranks run the same number of forwards every step (fixed rollout length, random choices broadcast from
+rank 0), as FSDP requires.
 """
 
 from __future__ import annotations
@@ -167,7 +157,7 @@ class PanoContextForcedDMD(PanoCrossviewTemporalDMD):
         mask = target_mask.to(grad.dtype)
         while mask.ndim < grad.ndim:
             mask = mask.unsqueeze(-1)
-        # Per-sample DMD normaliser (eq. 8), over the target frames only.
+        # Per-sample DMD normaliser over the target frames only.
         p_real = (x0_det.float() - real_x0).abs() * mask
         normalizer = (p_real.flatten(1).sum(1) / mask.expand_as(p_real).flatten(1).sum(1).clamp(min=1.0))
         grad = grad / normalizer.clamp(min=1e-8).view(-1, *([1] * (grad.ndim - 1)))
@@ -263,8 +253,7 @@ class PanoContextForcedDMD(PanoCrossviewTemporalDMD):
         else:
             self.optimizer.step()
         self.optimizer.zero_grad()
-        # The adversarial term back-propagated through the fake score; those
-        # gradients belong to the generator update only.
+        # The adversarial term back-propagates through the fake score; discard those gradients.
         self.critic_optimizer.zero_grad()
         if self.use_gan:
             self.disc_optimizer.zero_grad()
@@ -326,8 +315,7 @@ class PanoContextForcedDMD(PanoCrossviewTemporalDMD):
 
     def _step_disc_head(self, loss_scale):
         params = [p for p in self.disc_head.parameters() if p.grad is not None]
-        # The head is outside the critic optimizer the shared scaler handles;
-        # undo the loss scale that was in force for this backward by hand.
+        # The head is outside the critic optimizer handled by the shared scaler: undo the loss scale by hand.
         for p in params:
             p.grad.div_(loss_scale)
         if torch.distributed.is_initialized():

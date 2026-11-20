@@ -1,13 +1,11 @@
-"""D2 refiner on the review clips.
+"""D2 refiner inference on the review clips.
 
-For every review clip and signed lateral offset dy, the render condition of gaussian/gs3d
-dwm_pano/d2_export_shift.py (<inputs>/clipNNN/render_dy<d>.pt) and the clip's own conditions from the frozen
-149-clip protocol (validation_dataset of cd_eval_frozen149_hpc3.json, rows of dev149_manifest.json: text
-and cameras of the ORIGINAL trajectory; 3D boxes and HD maps dropped because they are drawn for it) go through
-PanoD2RefinerSD.refine_window twice, as the recorded rollout runs:
-  window 1 = frames 0..18 without history, window 2 = frames 16..34 with window 1's refined frames 16..18 as the
-  clean 3-frame history.  The sampler generator is reseeded per (clip, dy) from seed * 1000 + clip.
-No ground-truth frame enters the conditioning path (vae_images is removed before slicing).
+For every review clip and signed lateral offset dy, the Gaussian render condition (<inputs>/clipNNN/render_dy<d>.pt)
+and the clip's own text and camera conditions from the frozen 149-clip protocol (rows of the manifest; 3D boxes and
+HD maps are dropped because they are drawn for the original trajectory) go through PanoD2RefinerSD.refine_window
+twice: window 1 = frames 0..18 without history, window 2 = frames 16..34 with window 1's refined frames 16..18 as
+the clean 3-frame history. The sampler generator is reseeded per (clip, dy) from seed * 1000 + clip. No ground-truth
+frame enters the conditioning path (vae_images is removed before slicing).
 
     <out-root>/clipNNN/d2_dy<d>.pt   {"latents": (35, 2, 16, 32, 288) fp16, "meta": {...}}
     <out-root>/clipNNN/d2_dy<d>.mp4  rows: GS render (VAE decode) | refined  (only for --video-clips)
@@ -60,7 +58,7 @@ def main():
     p.add_argument("--config", required=True, help="the D2 training config")
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--no-strict", action="store_true", help="smoke only: load a base (teacher) checkpoint")
-    p.add_argument("--eval-config", required=True, help="cd_eval_frozen149_hpc3.json")
+    p.add_argument("--eval-config", required=True, help="evaluation config (validation dataset and dataloader of the frozen 149-clip protocol)")
     p.add_argument("--manifest", required=True, help="dev149_manifest.json")
     p.add_argument("--inputs", required=True, type=Path)
     p.add_argument("--out-root", required=True, type=Path)
@@ -74,7 +72,7 @@ def main():
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--video-clips", default="")
     p.add_argument("--fps-stride", default="10,20",
-                   help="(D2V2_PLAN): the manifest's dataset fps,stride (Test-S tests213: 10,5)")
+                   help="the manifest's dataset fps,stride (default 10,20)")
     args = p.parse_args()
 
     d2cfg = json.loads(Path(args.config).read_text())

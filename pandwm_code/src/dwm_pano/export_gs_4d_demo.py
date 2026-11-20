@@ -1,23 +1,15 @@
-"""Training-free 4D Gaussian demo from a saved 195-frame closed-loop rollout.
+"""Training-free 4D Gaussian demo from a saved closed-loop rollout.
 
-WorldSplat-style composition at inference time, with no new training:
-
-1. every frame is decoded independently by the G2 Gaussian decoder (its own
-   ego frame) and moved into one world frame (the first frame's ego frame)
-   with the logged ego poses;
-2. Gaussians whose centre lies inside a (0.3 m padded) 3D box of that frame
-   are *dynamic*; Gaussians farther than ``--near-range`` (sky, far facades)
-   are a per-frame *far shell*; everything else is *static*;
-3. static Gaussians from every ``--static-stride``-th frame are pooled and
-   voxel-deduplicated into one persistent background map;
-4. frame t is rendered as  static map  +  frame t's dynamic + far layers.
-
-Outputs: chase-camera video (per-frame 3D | pooled 4D side by side), a fixed
-"drone" camera video over the whole trajectory, ``static_world.ply``, per-frame
-``dynamic/frameNNN.ply`` and ``trajectory.json`` for the interactive viewer.
-
-Depth comes from the decoder (about 5 m L1 against estimated depth), so the
-pooled map shows ghosting where frames disagree.  Qualitative demo only.
+WorldSplat-style composition at inference time:
+1. every frame is decoded independently by the Gaussian decoder and moved into the first frame's ego frame with the
+   logged ego poses;
+2. Gaussians inside a (0.3 m padded) 3D box are dynamic, those farther than ``--near-range`` (sky, far facades) form a
+   per-frame far shell, and the rest are static;
+3. static Gaussians from every ``--static-stride``-th frame are pooled and voxel-deduplicated into one background map;
+4. frame t is rendered as the static map plus frame t's dynamic and far layers.
+Outputs: chase-camera video (per-frame 3D | pooled 4D), a fixed "drone" camera video, ``static_world.ply``, per-frame
+``dynamic/frameNNN.ply`` and ``trajectory.json``. Depth comes from the decoder, so the pooled map shows ghosting where
+frames disagree; qualitative demo only.
 """
 
 from __future__ import annotations

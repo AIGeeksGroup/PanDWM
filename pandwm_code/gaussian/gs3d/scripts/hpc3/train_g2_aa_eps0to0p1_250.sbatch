@@ -9,7 +9,7 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=%x_%j.log
 
-# This job owns no file in the primary PanDWM checkout or its prior runs.
+# Antialiased Gaussian-head fine-tune (250 steps, eps2d ramped from 0 to 0.1 over 200 steps).
 set -euo pipefail
 
 H=/path/to/pandwm_root

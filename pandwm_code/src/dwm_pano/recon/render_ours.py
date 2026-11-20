@@ -1,19 +1,15 @@
-"""Our 3D / 4D Gaussian renders of the tab:gs_recon targets.
+"""Render our 3D / 4D Gaussian scenes at the reconstruction targets.
 
-Scene: the v4 settings (C2 decoder step 3000, DA3 scale relabel, the 2 bottom decoder rows dropped) on the RECORDED
-panoramas of the Test-S clip, VAE posterior-mean latents.  Only clip frames 0..20 enter (frame 20 = input), so no
-target frame and no later frame can leak; the scene canvases (DA3 input) are the recorded panoramas themselves.
-  3d     frame 20's Gaussians; DA3 sees frame 20 only (da3_gap 0).
-  4d     + the static Gaussians of the history frames 0, 5, 10, 15 (gs_scene_v3.static_world, moved into frame 20's
-         ego); DA3 windows of 4 frames back (gap 4, clipped at frame 20).  Frames are registered with their
-         camera-time ego poses (targets.camera_time_pose; the boxes follow through an adjusted lidar2ego) and the
-         dynamic boxes are read as mmdet3d v0.x (box_reading "mmdet3d_v0x").
-  4d_v4  the 4d scene exactly as v4 built it: the pkl's LiDAR-time ego poses for the registration and the DA3 windows,
-         the legacy box reading.
-A history frame that IS the target frame is left out for that target (targets.json in_history).  Every target is
-rendered at the six cameras of targets.json (c2w in frame 20's camera-time ego, K scaled to the output size with
-calibrated_stitch.prepare_gsplat_intrinsics) through pipe.render_targets (gsplat RGB+ED, antialiased, eps2d 0.1);
-the 4d modes composite current over fill (gs_scene_v3.composite / composite_depth).
+The scene is built from the recorded panoramas of a test clip (VAE posterior-mean latents). Only clip frames 0..20
+are used (frame 20 is the input), so no target or later frame can leak. Modes:
+  3d     Gaussians of frame 20 only (da3_gap 0).
+  4d     adds the static Gaussians of history frames 0, 5, 10, 15 (gs_scene_v3.static_world, moved into frame 20's ego),
+         with DA3 windows of 4 frames back. Frames are registered with camera-time ego poses
+         (targets.camera_time_pose) and dynamic boxes use the mmdet3d v0.x reading.
+  4d_v4  same as 4d but with the LiDAR-time ego poses of the pkl and the legacy box reading.
+A history frame equal to the target frame is left out for that target (targets.json in_history). Targets are rendered
+at the six cameras of targets.json (c2w in frame 20's camera-time ego, K scaled to the output size) with gsplat
+(RGB + expected depth, antialiased); the 4d modes composite the current scene over the history fill.
 
     <out-root>/<mode>/<H>x<W>/sample_<NNN>.pt  {"targets": [...], "rgb": (n, 6, 3, H, W) uint8,
                                                 "alpha": (n, 6, H, W) uint8, "depth": (n, 6, H, W) fp16, "meta": {}}

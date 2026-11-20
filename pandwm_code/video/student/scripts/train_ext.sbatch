@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# extend a finished branch from step 2000 to MAX_STEPS (default 3000).
-#   ARM=H: v8.3, campaign cfdmd_H, configs/cfdmd_Hx_gan_v8_3_hpc3_8gpu.json
-# The x configs equal the branch configs except pipeline.target_steps 3000 (with 2000 every later step would save).
-# Resumes in place from the branch's latest committed checkpoint with the same data offset, like train_v8_3.sbatch.
-# Before training past 2000 it hard-links the step-2000 state into seeds/<ARM>_2000 (scripts/seed_branch.py), which
-# no run prunes, so the rotation of the last 3 checkpoints cannot remove it.
-#   sbatch --job-name=pandwm_cfdmd_Hx --export=ALL,ARM=H --dependency=afterok:<1600->2000 job> scripts/train_ext.sbatch
+# Extends a finished run from step 2000 to MAX_STEPS (default 3000).  The extension config equals the original
+# one except pipeline.target_steps.  Resumes in place from the latest committed checkpoint with the same data
+# offset, like train_v8_3.sbatch.  Before training past 2000 it hard-links the step-2000 state into
+# seeds/<ARM>_2000 (scripts/seed_branch.py), which no run prunes, so checkpoint rotation cannot remove it.
+#   sbatch --job-name=pandwm_cfdmd_Hx --export=ALL,ARM=H --dependency=afterok:<previous job> scripts/train_ext.sbatch
 #SBATCH --job-name=pandwm_cfdmd_ext
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

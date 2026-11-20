@@ -7,6 +7,7 @@
 #SBATCH --mem=24G
 #SBATCH --time=00:30:00
 #SBATCH --output=%x_%j.log
+# Summarize the GEM results over seeds and render qualitative comparison figures.
 set -euo pipefail
 
 H=/path/to/pandwm_root

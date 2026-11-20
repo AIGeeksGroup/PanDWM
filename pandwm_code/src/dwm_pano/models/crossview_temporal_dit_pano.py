@@ -53,13 +53,12 @@ class RayEncoder(torch.nn.Module):
 
         Args:
             pos: either one origin per view ``[B, 3]`` (broadcast over the
-                grid -- the legacy behaviour) or a per-pixel field
-                ``[B, H, W, 3]``. The per-pixel form is what carries Plucker
-                moments; see `get_pano_plucker_moments`.
+                grid) or a per-pixel field ``[B, H, W, 3]``, which is used
+                for Plucker moments (see `get_pano_plucker_moments`).
             rays: unit directions ``[B, H, W, 3]``.
 
-        Channel count is identical either way (`pos_octaves` * 3 * 2), so
-        `self.proj` stays shape-compatible with existing checkpoints.
+        The channel count is the same in both cases, so `self.proj` is
+        unchanged.
         """
         batchsize, height, width, dims = rays.shape
         if pos.dim() == 4:
@@ -117,29 +116,13 @@ def get_rays(
     return rays_o, rays_d
 
 
-# -----------------------------------------------------------------------------
 # Analytic equirectangular rays for the stitched-pano halves.
 #
-# `get_rays` above assumes a pinhole camera (`inverse(K) @ [i, j, 1]`).  The
-# pano path feeds it `_make_virtual_pano_K`, whose own docstring states the
-# values are "not physically pinhole-correct" and were written for the
-# *implicit* conditioning branch (which only embeds them as an opaque
-# "pano-half signature").  Under `perspective_modeling_type == "explicit"`
-# those numbers are instead consumed as real geometry, which is unsound: a
-# pinhole model cannot represent a half's 201.6 deg of azimuth at all.
-# Measured consequences of the pinhole path (token grid 16x144):
-#   * horizontal span  89.8 deg  (should be 201.6)
-#   * vertical span     88.2 deg  (should be  33.3)
-#   * mean ray elevation +54.0 deg -- every ray points at the sky
-#   * the two halves disagree by 16.1 deg (L/R seam) and 12.7 deg (wrap seam)
-#     about the direction of the SAME physical azimuth
-#
-# The constants and the angle<->pixel algebra below are the exact inverse of
-# `dwm_pano.datasets.pano_projection.project_ego_point_to_pano`, which is the
-# authoritative forward projection used to *render* the panorama.  Keeping the
-# two mutually inverse is what makes the ray map agree with pixel content;
-# `test_pano_equirect_rays_invert_projection` pins that round trip.
-# -----------------------------------------------------------------------------
+# `get_rays` above assumes a pinhole camera, which cannot represent the
+# azimuth span of a pano half. The functions below compute the rays directly
+# from the panorama projection: the constants and the angle/pixel algebra are
+# the exact inverse of `dwm_pano.datasets.pano_projection.project_ego_point_to_pano`,
+# which is the forward projection used to render the panorama.
 _PANO_SRC_W = 9600
 _PANO_SRC_H = 600
 _PANO_H_PRE_CROP = 900
@@ -153,10 +136,10 @@ def get_pano_equirect_rays(
         target_size: tuple[int],
         device=None,
         dtype=torch.float32):
-    """Ray origins/directions for stitched-pano halves, in nuScenes ego frame.
+    """Ray origins/directions for stitched-pano halves, in the ego frame.
 
     Args:
-        view_count: number of pano halves (2 for this project's V=2 layout).
+        view_count: number of pano halves (2).
         target_size: ``(H, W)`` of the token grid the rays are consumed at.
 
     Returns:
@@ -164,7 +147,7 @@ def get_pano_equirect_rays(
         ``[view_count, H, W, 3]``, matching `get_rays`' contract.
 
     The panorama is rendered about the ego origin, so every half shares
-    ``rays_o = 0``; the directional field is what carries the geometry.
+    ``rays_o = 0``; the directional field carries the geometry.
     """
     if view_count != len(_PANO_HALF_RANGES):
         raise ValueError(
@@ -210,12 +193,9 @@ def get_pano_equirect_rays(
 def get_pano_column_camera_index(view_count: int, width: int):
     """Which of the six physical cameras each token column was stitched from.
 
-    Delegates the Voronoi ownership to
-    `dwm_pano.datasets.pano_projection.pano_column_camera_indices` -- the same
-    authoritative table the hard-seam stitcher used -- rather than restating
-    the boundaries here. Returned indices follow that module's ``CAM_ORDER``,
-    which is also the packing order of the dataset's
-    ``pano_camera_translations``.
+    Uses `dwm_pano.datasets.pano_projection.pano_column_camera_indices`.
+    Returned indices follow that module's ``CAM_ORDER``, which is also the
+    packing order of the dataset's ``pano_camera_translations``.
 
     Returns:
         LongTensor ``[view_count, width]``.
@@ -233,15 +213,11 @@ def get_pano_column_camera_index(view_count: int, width: int):
 def get_pano_plucker_moments(rays_d, camera_translations, column_camera_index):
     """Plucker moments ``m = o x d`` with a per-column ray origin.
 
-    Why per-column: a stitched pano half is assembled from three different
-    physical cameras mounted at different points on the vehicle, but the
-    virtual pano extrinsics place a single camera at the ego origin.  That
-    makes the usual single-origin Plucker moment identically zero (measured:
-    max |m| = 0.000e+00), i.e. three dead channels.  Feeding each column its
-    real source-camera origin is what makes the moment carry information --
-    and the information it carries ("this column was observed from a camera
-    over there") changes precisely at the seams, where the source camera
-    switches.
+    A stitched pano half is assembled from several physical cameras mounted at
+    different points on the vehicle, while the virtual pano extrinsics place a
+    single camera at the ego origin, which would make the usual single-origin
+    moment identically zero. Each column therefore uses the origin of its
+    source camera, so the moment encodes which camera observed it.
 
     Args:
         rays_d: ``[B*T*V, H, W, 3]`` unit directions.
@@ -322,13 +298,12 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
             inner_dim, True, 0)
 
         self.perspective_modeling_type = perspective_modeling_type
-        # Default False: the pinhole path stays bit-exact for every existing
-        # checkpoint. Enable only together with a finetune/eval that expects
-        # the corrected ray field (see get_pano_equirect_rays).
+        # Default False keeps the original pinhole ray path. Enable only for
+        # a model trained with the corrected ray field (see
+        # get_pano_equirect_rays).
         self.pano_equirect_rays = pano_equirect_rays
-        # Plucker moments are only meaningful on a correct direction field:
-        # m = o x d reuses d, so a wrong d yields a wrong m. Refuse the
-        # combination rather than silently producing garbage.
+        # Plucker moments reuse the ray directions (m = o x d), so they are
+        # only valid together with the equirectangular rays.
         if pano_plucker_rays and not pano_equirect_rays:
             raise ValueError(
                 "pano_plucker_rays requires pano_equirect_rays: the moment "
@@ -396,12 +371,10 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
                 for _ in range(len(temporal_block_layers))
             ])
 
-            # Causal AR retrofit: install a FlexAttention-aware
-            # processor on every temporal block so that callers can pass a
-            # `BlockMask` (block-causal pattern from LongLive) via the
-            # `temporal_attention_mask` argument. The processor is a strict
-            # superset of AttnProcessor2_0 — it falls back to SDPA when no
-            # BlockMask is passed, so it is safe even for non-causal training.
+            # Install a FlexAttention-aware processor on every temporal block
+            # so that callers can pass a `BlockMask` (block-causal pattern)
+            # via `temporal_attention_mask`. It falls back to SDPA when no
+            # BlockMask is passed, so non-causal use is unaffected.
             from dwm_pano.models.flex_block_causal import \
                 BlockCausalFlexAttnProcessor
             for _temporal_block in self.temporal_transformer_blocks:
@@ -530,7 +503,7 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
         # (T_seq, T_seq) where T_seq is the post-rearrange sequence length
         # (T for "pointwise", T*W for "rowwise", T*HW for "full"). We expand
         # it to (post_batch, T_seq, T_seq) here to match diffusers' Attention
-        # processor view expectation. 
+        # processor view expectation.
         temporal_hidden_states = hidden_states + sequence_emb
         if self.temporal_attention_type == "full":
             temporal_hidden_states = einops.rearrange(
@@ -621,13 +594,13 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
     ):
         """`temporal_attention_mask`: optional additive mask passed through to
         `forward_temporal_block_and_mix_result` -> `temporal_block.forward(...)`
-        -> diffusers Attention. Used for causal AR retrofit. Shape depends on `temporal_attention_type`:
-          - "pointwise" (default in our DFoT config): (T, T) lower-triangular
+        -> diffusers Attention, used for causal autoregressive inference. Shape
+        depends on `temporal_attention_type`:
+          - "pointwise": (T, T) lower-triangular
           - "rowwise": (T*W, T*W) block-causal
           - "full":    (T*HW, T*HW) block-causal
-        Caller is responsible for the right shape; pipeline construction logic
-        in `dwm_pano/pipelines/ctsd_pano.py` handles this. mask=None preserves
-        the original bidirectional behavior bit-exactly.
+        The caller is responsible for the right shape (see the pipelines in
+        `dwm_pano/pipelines`). mask=None keeps the bidirectional behavior.
         """
         should_add_dim = len(sample.shape) < 6
         if should_add_dim:
@@ -690,10 +663,9 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
 
             if self.pano_equirect_rays:
                 # Pano halves are equirectangular, not pinhole: derive the ray
-                # field analytically and ignore the pseudo K / virtual
-                # extrinsics entirely. Those virtual extrinsics are static per
-                # half (pure yaw, zero translation), so nothing time-varying is
-                # lost by bypassing them.
+                # field analytically and ignore the pseudo K and virtual
+                # extrinsics (static per half, so nothing time-varying is
+                # lost).
                 rays_o, rays_d = get_pano_equirect_rays(
                     view_count, (height, width),
                     device=hidden_states.device, dtype=hidden_states.dtype)
@@ -714,8 +686,8 @@ class DiTCrossviewTemporalConditionModel(diffusers.SD3Transformer2DModel):
                             (view_count, width):
                         self._pano_column_camera_index = \
                             get_pano_column_camera_index(view_count, width)
-                    # Per-pixel moments replace the (constant) origin encoding;
-                    # channel count is unchanged, so `proj` stays compatible.
+                    # Per-pixel moments replace the constant origin encoding;
+                    # the channel count is unchanged.
                     rays_o = get_pano_plucker_moments(
                         rays_d, pano_camera_translations,
                         self._pano_column_camera_index)

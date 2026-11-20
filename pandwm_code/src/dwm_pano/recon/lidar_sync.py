@@ -1,14 +1,11 @@
-"""Time-synchronised LiDAR for the tab:gs_recon depth metrics.
+"""Time-synchronised LiDAR for the depth metrics.
 
-The 12 Hz interpolated infos point most non-keyframe targets at a LiDAR sweep 10-250 ms older than the info, while
-targets.py moved the points with the info's own ego pose.  This picks, for every target, the LIDAR_TOP sample_data
-(keyframe or sweep, same log) closest in time to the info timestamp and moves its points with that sweep's own ego
-pose and calibration:
+Interpolated 12 Hz infos can point at a LiDAR sweep that is 10-250 ms older than the info. For every target this picks
+the LIDAR_TOP sample_data (keyframe or sweep, same log) closest in time to the info timestamp and moves its points
+with that sweep's own ego pose and calibration:
     lidar_to_cam[c] = inv(E_cam S_cam) @ E_sweep @ L2E_sweep            (camera at its own timestamp)
     lidar_to_box    = inv(E_info @ L2E_info) @ E_sweep @ L2E_sweep      (the info's LiDAR frame, where gt_boxes live)
-and writes them as targets[...]["lidar_sync"].  It also reports how far the info's LiDAR pose (E_info @ L2E_info,
-rebuilt from targets.json) is from the pkl sweep's and the nearest sweep's recorded poses, and how far the camera
-poses of targets.json are from the cameras' recorded ego poses.
+Both are written to targets[...]["lidar_sync"]. It also reports pose discrepancies between the info and the sweeps.
 
     python -m dwm_pano.recon.lidar_sync --targets targets.json --meta-dir <v1.0-trainval> --nusc-root <root>
         --out targets_sync.json

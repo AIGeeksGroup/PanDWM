@@ -1,17 +1,14 @@
-"""Render a manifest of 35-frame clips (3 frames of history + 2 closed-loop 16-frame windows), one model load.
-for Test-S and the setting-G check.
+"""Render a manifest of 35-frame clips (3 frames of history + 2 closed-loop 16-frame windows) with one model load.
 
-run_eval149_videos.py generalised in four ways, everything else is the same code path:
-  * clips come from a manifest (tests213_manifest.json): the frozen eval dataset with fps_stride_tuples
-    [[10, --dataset-stride]], clip = manifest["clips"][i]["dataset_index"], checked against its scene token and
-    anchor timestamp; the sampler generator is reseeded per clip from seed * 1000 + test_index;
-  * --engine teacher: the 50-step guided causal teacher (or --teacher-steps 4), as run_long_rollout_multi.py builds it;
-    --bidirectional drops the block-causal mask (Stage 0);
-  * --history none: setting G, window 1 generates all 19 frames from noise (no recorded frame enters), window 2
-    continues from the last 3 generated frames; the scored frames are 3..34 in both settings;
-  * --student-steps: the student step list (default = the training list [1000, 750, 500, 250], the paper setting).
-With a manifest whose test_index equals the Dev-149 clip index, --dataset-stride 20 and the defaults, the output equals
-run_eval149_videos.py's bit for bit.
+Same code path as run_eval149_videos.py, extended as follows:
+  * clips come from a manifest: the frozen eval dataset with fps_stride_tuples [[10, --dataset-stride]],
+    clip = manifest["clips"][i]["dataset_index"], checked against its scene token and anchor timestamp; the sampler
+    generator is reseeded per clip from seed * 1000 + test_index;
+  * --engine teacher: the 50-step guided causal teacher (or --teacher-steps 4), as built by run_long_rollout_multi.py;
+    --bidirectional drops the block-causal mask;
+  * --history none: window 1 generates all 19 frames from noise (no recorded frame enters), window 2 continues from
+    the last 3 generated frames; the scored frames are 3..34 in both settings;
+  * --student-steps: the student step list (default = the training list [1000, 750, 500, 250]).
 
 Per clip: <out>/clip<test_index:03d>/latents.pt (35 latent frames, fp16, frames 0-2 = encoded recorded history or,
 for --history none, generated), gt_vs_generated.mp4 and summary.json.
@@ -133,7 +130,7 @@ def main():
             break
         t0 = time.monotonic()
         pipeline.generator.manual_seed(args.seed * 1000 + position)
-        # Single-process load: re-creating a multi-worker DataLoader per clip hung after the first clip on HPC2.
+        # Single-process load: a multi-worker DataLoader re-created per clip hung after the first clip.
         batch = collate([dataset[index]])
         audit = dataset.base_dataset.clip_audit[index]
         if audit["scene_token"] != row["scene_token"] or \

@@ -1,9 +1,6 @@
-"""Fail-closed stubs for packages unused by GEM unconditional sampling.
+"""Stubs for optional packages (ultralytics, pycocotools) that GEM's sample.py imports but unconditional sampling never uses.
 
-The official sample.py imports its control-metric helper eagerly. That helper
-imports Ultralytics and COCO even in unconditional mode, while the official
-Dockerfile does not install them. Keep upstream untouched and raise if either
-optional evaluator is actually invoked.
+The stubs raise if they are actually called.
 """
 
 from __future__ import annotations

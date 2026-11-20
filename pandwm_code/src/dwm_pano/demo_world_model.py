@@ -1,51 +1,17 @@
 """End-to-end world model demo: generate the future, then look around in it.
 
-This is the join between the two halves that already existed separately:
+Three context frames go in, the 4-step autoregressive Stage-2 pipeline generates the future, the Gaussian
+decoder lifts each generated frame to 3D, and the result is rasterized from the chosen camera rig.
 
-- `evaluate_gs.py` runs the real Stage-2 4-step autoregressive pipeline and
-  hands the generated latents straight to the Gaussian decoder, but it only
-  ever renders the supervised camera rig and reports metrics.
-- `infer_pano_gs_decoder.py` renders novel viewpoints (lateral ego shifts)
-  through `build_virtual_camera`, but it feeds the decoder ground-truth VAE
-  latents, so nothing is ever generated.
-
-Running both in one command is what makes it a world model demo rather than
-two diagnostics: 3 context frames go in, Stage 2 imagines the future, the
-Gaussian decoder lifts each imagined frame to 3D, and the result is
-rasterized from viewpoints the model was never shown.
-
-Render targets
---------------
-``--render-target supervised`` uses the checkpoint's own training protocol.
-For G2 this means real six-camera rendering followed by the differentiable
-OneBEV-compatible hard seam; it is the only pixel-aligned choice for
-``--save-gt-views`` under G2.
-
-``--render-target virtual`` keeps the supervised rig: equi-spaced yaws from
-`target_yaws_deg`, optionally displaced sideways by ``--lateral-shifts-m``.
-It is a novel-view diagnostic rather than the G2 supervised rig.
-
-``--render-target nuscenes6`` rasterizes at the **real** nuScenes six-camera
-calibration instead -- per-camera intrinsics and `sensor2ego` pose read from
-the pkl and matched to each frame by timestamp. This is the render target an
-`FVD-I3D-camera-6-T` number needs, because that metric compares against the
-original camera images.
-
-  Caveat worth stating up front: the panorama the model generates is a 33
-  degree elevation band (+/- 16.67 deg), while a real nuScenes camera sees
-  far more vertically. A nuscenes6 render is therefore only partly
-  populated. That is the model's actual field of view, not a bug -- but any
-  metric computed against full camera frames is dominated by the missing
-  sky and road.
-
-  Do NOT "crop to a fixed row band" to fix that. The band is defined around
-  rays leaving the EGO ORIGIN (z = 0), while a real nuScenes camera sits
-  ~1.5 m above it, so the band's image of the world lands on a
-  range-dependent set of rows: for the upper edge, elevation -12.8 deg at
-  3 m, +8.1 deg at 10 m, +15.0 deg at 50 m. A fixed crop therefore both
-  includes empty regions and excludes populated ones. Deciding the right
-  comparison region is unfinished work, and is one of the reasons this mode
-  is not yet an `FVD-I3D-camera-6-T`.
+Render targets:
+  --render-target supervised  the checkpoint's own training protocol (real six-camera rendering followed by the
+                              OneBEV-compatible hard seam); required for --save-gt-views under that protocol.
+  --render-target virtual     the supervised rig (equi-spaced yaws from `target_yaws_deg`), optionally displaced
+                              sideways by --lateral-shifts-m; a novel-view diagnostic.
+  --render-target nuscenes6   the real six-camera calibration (per-camera intrinsics and `sensor2ego` pose from
+                              the pkl, matched to each frame by timestamp). The generated panorama covers only a
+                              33 degree elevation band around rays from the ego origin, so these renders are only
+                              partly populated, and a fixed row crop does not give a fair comparison region.
 
 Usage::
 
@@ -76,20 +42,15 @@ from dwm_pano.calibrated_stitch import (
 from dwm_pano.gs_geometry import build_virtual_camera
 
 
-# Same order `PanoPatchFrechetVideoDistance` emits its six Voronoi patches in
-# (see metrics/fvd_pano.py). Keeping the two identical means the panels of a
-# nuscenes6 render can be paired positionally with the FVD patch stack; a
-# different order here would silently pair CAM_FRONT with a CAM_FRONT_RIGHT
-# patch when someone slices the 6-panel row.
+# Same order in which `PanoPatchFrechetVideoDistance` emits its six patches (metrics/fvd_pano.py), so the
+# panels of a nuscenes6 render can be paired positionally with the FVD patch stack.
 NUSCENES_CAM_ORDER = [
     "CAM_BACK", "CAM_BACK_LEFT", "CAM_FRONT_LEFT",
     "CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_BACK_RIGHT",
 ]
 
-# Every nuScenes camera frame is 1600x900. This cannot be derived from the
-# intrinsics: the principal point is not the image center (CAM_FRONT sits at
-# 816.27, 491.51), so doubling it would give 1632x983 and silently shift
-# every projection.
+# Every nuScenes camera frame is 1600x900. This cannot be derived from the intrinsics because the principal
+# point is not the image center.
 NUSCENES_IMAGE_WIDTH = 1600
 NUSCENES_IMAGE_HEIGHT = 900
 
@@ -197,10 +158,9 @@ def load_calibration_index(pkl_path):
 def nuscenes_camera_stack(cams, device, target_size):
     """Real six-camera c2w and gsplat K at ``target_size=(H,W)``.
 
-    nuScenes camera axes are already x-right / y-down / z-forward, the same
-    convention `build_virtual_camera` emits, so `sensor2ego` drops straight
-    into the c2w rotation with no remap. Dataset K is OpenCV pixel-index K;
-    convert its principal point before resizing it for gsplat.
+    nuScenes camera axes are x-right / y-down / z-forward, the same convention as `build_virtual_camera`, so
+    `sensor2ego` is used directly as the c2w rotation. The dataset K is an OpenCV pixel-index K; its principal
+    point is converted before resizing for gsplat.
     """
     transforms, raw_intrinsics, image_sizes = camera_records_to_arrays(
         cams, camera_order=NUSCENES_CAM_ORDER)
@@ -214,13 +174,7 @@ def nuscenes_camera_stack(cams, device, target_size):
 
 
 def to_uint8_image(tensor):
-    """(C, H, W) float in [0, 1] -> (H, W, C) uint8, rounded.
-
-    Rounded, not truncated: `evaluate_gs.save_grid` uses
-    `.mul(255).round().byte()`, and a PSNR computed off a truncated PNG
-    carries a systematic -0.5 LSB offset against the in-tensor value, so the
-    two never reconcile.
-    """
+    """(C, H, W) float in [0, 1] to (H, W, C) uint8, rounded (as `evaluate_gs.save_grid` does)."""
     array = tensor.clamp(0.0, 1.0).permute(1, 2, 0).cpu().numpy()
     return np.rint(array * 255.0).astype(np.uint8)
 
@@ -276,8 +230,7 @@ def main():
 
     stage2_pipeline = None
     if args.latent_source == "stage2":
-        # The Stage-2 stack is built exactly as evaluate_gs.py builds it, so
-        # the demo and the G1 numbers come from the same inference path.
+        # The Stage-2 stack is built as in evaluate_gs.py, so both use the same inference path.
         ensure_single_rank_process_group(device)
         device = torch.device("cuda", 0)
         suffix = "_ema" if args.stage2_ema else ""
@@ -296,12 +249,8 @@ def main():
         raise FileNotFoundError(
             "GS checkpoint is missing: {}".format(checkpoint_path))
 
-    # The same two protocol guards evaluate_gs.py applies before making the
-    # identical decoder call. Without them a config with `use_range_prior`
-    # crashes minutes in (the demo passes `None` as the prior), and one with
-    # `latent_refinement.enabled` loads a whole frozen CD DiT onto the GPU
-    # that the demo never calls -- so the render silently omits the
-    # refinement the checkpoint expects, and wastes several GB doing it.
+    # The same two protocol guards as evaluate_gs.py: this demo passes no range prior and never calls the
+    # latent refinement.
     decoder_config = config["pipeline"]["decoder"]
     if decoder_config.get("use_range_prior") is not False:
         raise RuntimeError(
@@ -347,9 +296,7 @@ def main():
     clip_length = batch["vae_images"].shape[1]
     frame_count = clip_length if args.frame_count is None \
         else min(args.frame_count, clip_length)
-    # Read off the provider rather than keeping a second copy of the
-    # constant: the value that actually decides which frames are generated
-    # lives in make_stage2_latent_provider.
+    # Read from the provider, which decides which frames are generated.
     reference_frame_count = (
         getattr(latent_provider, "reference_frame_count", 3)
         if latent_provider is not None else 0)
@@ -372,11 +319,7 @@ def main():
     if latent_provider is not None:
         clip_latents = latent_provider(batch)
     else:
-        # One frame at a time. encode_half_latents flattens its leading dim
-        # into a single vae.encode with no chunking, so handing it the whole
-        # clip would put 19x2 = 38 halves through at once -- an ~11 GB
-        # activation at this geometry. Every other call site in the repo
-        # encodes per frame for exactly this reason.
+        # One frame at a time: encode_half_latents runs a single unchunked vae.encode over its leading dim.
         vae_images = batch["vae_images"]
         frame_latents = [
             # (B, 2, 3, H, W) -> (B, 2, C, h, w)
@@ -439,10 +382,8 @@ def main():
 
         gt_views_name = None
         if args.save_gt_views:
-            # Use the pipeline's active supervision protocol.  In G2 this is
-            # the 4114-wide stitched panorama; in legacy runs it is the six
-            # virtual views.  A decoded latent is not ground truth and must
-            # never be labelled as such in a presentation video.
+            # Use the pipeline's active supervision protocol: the 4114-wide stitched panorama, or the six
+            # virtual views in legacy runs.
             frame_images = batch["vae_images"][:, frame_index].to(device)
             gt_views = pipeline._target_rgb_for_supervision(frame_images)
             gt_views = pipeline.mask_supervision_for_display(gt_views)
@@ -456,12 +397,8 @@ def main():
         if args.save_panos:
             pano = decode_latents_to_images(
                 pipeline, clip_latents[:, frame_index:frame_index + 1])
-            # (B, T, V, C, H, W) -> the two 2304-wide halves stacked
-            # vertically. Named "halves", not "pano", because it is NOT the
-            # project's canonical panorama: that is the V=1, 4114-wide
-            # de-overlapped stitch that fvd_pano.py consumes. Feeding this
-            # file to PanoPatchFrechetVideoDistance would slice a 2304-wide
-            # double-decker at boundaries computed for 4114.
+            # (B, T, V, C, H, W) -> the two 2304-wide halves stacked vertically. This is not the canonical
+            # panorama (V=1, 4114-wide de-overlapped stitch) that fvd_pano.py consumes.
             halves = pano[0, 0]
             stacked = torch.cat(list(halves), dim=-2)
             Image.fromarray(to_uint8_image(stacked)).save(
@@ -525,9 +462,7 @@ def main():
                 "cam_order": NUSCENES_CAM_ORDER,
                 "width": width, "height": height, "file": name})
 
-        # Rewritten after every frame, not once at the end: an OOM at frame
-        # 15 would otherwise leave 15 valid PNGs with no manifest, after a
-        # multi-minute Stage-2 generation that cannot be resumed.
+        # Rewritten after every frame so a failure part-way still leaves a manifest for the saved renders.
         write_manifest(
             args.out_dir, args, reference_frame_count, frame_count, fps,
             horizon_s, checkpoint_path, manifest)

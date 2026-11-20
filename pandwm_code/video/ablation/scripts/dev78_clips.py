@@ -1,4 +1,4 @@
-"""Write the Dev-78 clip list (test_index = Dev-149 clip index, manifest order) as a JSON list for flicker_stats.py.
+"""Write the Dev-78 clip list (test_index = clip index, manifest order) as a JSON list for flicker_stats.py.
   python3 dev78_clips.py dev78_manifest.json out.json
 """
 import json

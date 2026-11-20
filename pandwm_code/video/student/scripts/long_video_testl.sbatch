@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Test-L, the long-video test set: the 71 test
-# scenes of eval/review149_test71_long12.json, 3 recorded frames + 12 windows x 16 (19.5 s)
-# from the scene start; windows 1-2 are the Dev-149 clip and are not scored.  Student, clean history,
-# stochastic 4-step sampler, blend 128, steps [1000, 750, 500, 250].
-# Array task i runs list indices [i*CHUNK, (i+1)*CHUNK) (the list's dev76_index field holds the Dev-149 clip index);
-# output <LVT>/<TAG>_scene<index>_seed<SEED>.  A time budget stops at a window boundary; resubmit to resume.
+# Long-video test set: for each scene of eval/review149_test71_long12.json, 3 recorded frames followed by
+# 12 windows of 16 frames (19.5 s) from the scene start; the first two windows are the standard evaluation
+# clip and are not scored.  Student, clean history, stochastic 4-step sampler, blend 128, steps [1000, 750, 500, 250].
+# Array task i runs list entries [i*CHUNK, (i+1)*CHUNK); output <LV>/<TAG>_scene<index>_seed<SEED>.
+# A time budget stops at a window boundary; resubmit to resume.
 #   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch
 #   TAG=teacher50 CKPT=<stage1> ENGINE=teacher CHUNK=2 sbatch --array=0-35%4 scripts/long_video_testl.sbatch
 #SBATCH --job-name=pandwm_lvtl
@@ -40,7 +39,7 @@ EXTRA=()
 mkdir -p "$LV"
 cd "$C" || exit 1
 TASK=${SLURM_ARRAY_TASK_ID:-0}
-# list POSITIONS [i*CHUNK, (i+1)*CHUNK) -> their dev76_index keys (Dev-149 clip indices)
+# dev76_index keys (scene indices) of the list entries [i*CHUNK, (i+1)*CHUNK) of this task
 IDX=$(python3 -c "
 import json
 rows = json.load(open('$LIST'))['scenes']

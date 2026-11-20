@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit OmniNWM common149 token alignment and front-view equivalence."""
+"""Check that the OmniNWM inputs line up with the common clips (target tokens, front-view condition frame)."""
 
 from __future__ import annotations
 

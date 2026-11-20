@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# six-camera band features at 256x448 (cam_band_feats.py) of Val-150 arms, one dataset pass for all ARMS.
+# Six-camera band features at 256x448 (cam_band_feats.py) of Val-150 arms, one dataset pass for all ARMS.
 #   ARMS="rec448=views:$B/rec448_val150 recband=recband unimlvg_P_s42=views:$B/unimlvg_P_s42" sbatch camspace_feats.sbatch
 #   ARMS="P_s42=latents:<root>+<root2> ..." REFS="P_s42=$FV/P_s42.npz" sbatch camspace_feats.sbatch
 # Output: $FD/feats_<name>.npz per geometry ({geometry} in FD; existing files are kept).
@@ -18,7 +18,7 @@ set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/eval
 PY=$DR/pandwm_venv/bin/python
-# (not ${FD:-...{geometry}}: with FD set, bash closes the expansion at the first brace and appends a stray one)
+# Not ${FD:-...{geometry}}: bash would close the expansion at the first brace.
 [[ -n ${FD:-} ]] || FD="$DR/pandwm_runs/tests/feats_val150_cam_{geometry}"
 GEOMETRY=${GEOMETRY:-bridge,onebev_inverse,onebev_inverse_own}
 export PYTHONPATH=$C:$DR/pandwm_code/src:$DR/pandwm_code/TATS_fvd

@@ -1,23 +1,20 @@
-"""flicker_diag.py restricted to a clip list , e.g. the Dev-78 selection set.
+"""flicker_diag.py restricted to a clip list.
 
-Copy of flicker_diag.py (md5 67d333e0); the only change is --clips <json> [key]: per-clip statistics, pooled ratios,
-motion tertiles (computed on the listed clips' GT) and the --pair numbers use the listed clips only.
+Same analysis as flicker_diag.py, with --clips <json> [key]: per-clip statistics, pooled ratios, motion tertiles
+(computed on the listed clips' GT) and the --pair numbers use the listed clips only.
   python3 flicker_diag_subset.py <root> <out.json> --clips dev149_nontest_split.json --pair <b> <a> <arm> ...
 
-Original description:
-Where does each arm's frame-to-frame change, softening and colour shift come from? (v8.2 analysis)
-
+Where does each arm's frame-to-frame change, softening and colour shift come from?
 Reads <root>/<arm>/clipNNN/gt_vs_generated.mp4 (32 generated frames = 2 windows x 16, GT top half, generated bottom
-half) for every arm and the 149 clips.  Per clip and arm, for the generated and the GT frames:
-  * within-window steps (window 1: steps ending at frames 1..15, window 2: 17..31) and the window-boundary step 15 -> 16,
-    each as mean absolute grey-level change, split into a low-pass part (Gaussian blur, sigma 4 px) and the
+half) for every arm and the 149 clips. Per clip and arm, for the generated and the GT frames:
+  * within-window steps (window 1: steps ending at frames 1..15, window 2: 17..31) and the window-boundary step 15 to
+    16, each as mean absolute grey-level change, split into a low-pass part (Gaussian blur, sigma 4 px) and the
     high-frequency residual, plus the whole-frame mean brightness change;
   * Laplacian sharpness and HSV saturation on frames 3, 7, ..., 31.
 Reports ratios over GT (pooled means), per-clip distributions of the within-window change ratio (how many clips are
 too static < 0.85 or flickery > 1.2), the ratio by GT motion tertile, the boundary step's low/high-frequency and
 brightness make-up, and the per-clip link between sharpness loss and change reduction for the first two arms named in
---pair.  CPU only.
-  python3 flicker_diag.py <root> <out.json> --pair <before> <after> <arm> [<arm> ...]
+--pair. CPU only.
 """
 import json
 import sys

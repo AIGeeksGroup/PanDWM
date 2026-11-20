@@ -2,7 +2,7 @@
 
 The render files come from gaussian/gs3d dwm_pano/d2_make_train.py:
     <render_root>/clip<NNNNN>.pt    {"render": (35, 2, 16, h, w) fp16, "mask": (35, 2, h, w) uint8, "meta": {...}}
-    <render_root>/clip<NNNNN>.json  the same meta (read at start-up so the 21 MB files are not opened twice)
+    <render_root>/clip<NNNNN>.json  the same meta (read at start-up so the large files are not opened twice)
 meta holds scene_token, anchor_timestamp_us and frame_timestamps_us (35) of the GS-dataset clip.  They are
 paired with the video dataset's clips by (scene_token, anchor_timestamp_us); every frame timestamp must agree,
 otherwise __getitem__ raises (a one-frame offset would silently train next-frame prediction).

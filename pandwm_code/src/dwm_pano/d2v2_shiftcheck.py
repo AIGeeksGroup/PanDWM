@@ -1,9 +1,9 @@
-"""Does the refiner keep the lateral shift?
+"""Check whether the refiner keeps the lateral shift.
 
-The shift protocol scores refined views unpaired against the recorded (0 m) frames, so a refiner that drifted back
-to the original viewpoint would score well without doing the task.  For each clip / frame / shift d this compares
-the decoded refined view at +-d with the export's raw render at the same +-d and with the raw render at 0 m, after a
-16 x 16 average pool (layout / geometry, blind to the detail the refiner adds), on the stitch-valid pixels:
+The shift protocol scores refined views unpaired against the recorded (0 m) frames, so a refiner that drifted back to
+the original viewpoint would score well without doing the task. For each clip / frame / shift d this compares the
+decoded refined view at +-d with the export's raw render at the same +-d and with the raw render at 0 m, after a 16x16
+average pool (layout / geometry, blind to the detail the refiner adds), on the stitch-valid pixels:
 
     psnr_same = PSNR(pool(refined_d), pool(raw_d))      should stay high
     psnr_zero = PSNR(pool(refined_d), pool(raw_0))      should stay below psnr_same, as for the raw render itself

@@ -1,14 +1,12 @@
 """Trajectory inference for the pano GS decoder on one clip.
 
-Loads a decoder checkpoint, decodes `--frame-count` frames of one clip into
-Gaussians, and renders every target camera at each `--lateral-shifts-m`
-offset (0 = the supervised center). Output: one grid png per frame per shift.
-This exercises the exact novel-view path the full world model will use once
-DiT-generated latents replace the VAE latents.
+Loads a decoder checkpoint, decodes `--frame-count` frames of one clip into Gaussians, and renders every target
+camera at each `--lateral-shifts-m` offset (0 = the supervised center). Output: one grid png per frame per shift.
+This exercises the novel-view path the full world model uses once DiT-generated latents replace the VAE latents.
 
-Run (GPU node that holds /local data):
+Run:
     PYTHONPATH=src python src/dwm_pano/infer_pano_gs_decoder.py \
-        --config configs/ctsd/pandwm/..._gs_decoder.json \
+        --config <gs_decoder config>.json \
         --checkpoint <run>/checkpoints/<step>.pth \
         --clip-index 100000 --lateral-shifts-m 0.0 1.0 2.0 --out-dir <dir>
 """

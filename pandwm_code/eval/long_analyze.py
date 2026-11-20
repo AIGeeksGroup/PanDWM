@@ -1,21 +1,15 @@
-"""Long-video quality over time from long_feats.py features (a diagnostic, not a gate).
+"""Long-video quality over time from long_feats.py features.
 
-All arms are compared on the SAME videos and windows: the (scene, seed, window) cells every listed arm has.  The real
-frames of every cell come from one reference arm (--real-from, default the first arm), as in long_fid.py, so a number
-here with all 24 videos and windows 1-6 / 7-12 reproduces long_fid.py.
-  1. FID (Inception, torchmetrics features) generated vs real per time bucket, and KID x 1000 per window (unbiased,
-     cubic polynomial kernel, the full sets; KID is unbiased at small n, FID is not).
-  2. FVD (6 camera patches x I3D logits, the 149-clip instrument) per bucket of 16-frame windows.
-  3. Seed-vs-seed reference (arms with two seeds per scene): FID / FVD between the seed-a and seed-b videos of the same
-     scenes, next to each seed vs the real frames at the same n.  If the model's videos varied like real futures do,
-     a real video would be "one more seed", so gen-vs-real ~ gen-vs-gen; the excess gen-vs-real minus gen-vs-gen is the
-     part that is not explained by the videos inventing other, plausible content (a heuristic split).
-  4. Uncertainty over scenes (all of a scene's seeds together): delete-one-scene jackknife SE of each arm's FID per
-     bucket, of its late - early rise and of its difference to the first arm; paired-bootstrap P(difference < 0).
-  5. Realism vs an UNPAIRED real pool (--pool NAME: feats_pool_NAME.npz, e.g. the real frames of the 78 non-test
-     149-clip eval clips, 78 scenes): FID / FVD of each seed's videos vs the pool, next to the recorded frames of the
-     same scenes and windows vs the pool (the floor at equal n).  Matching the recorded content does not help here, so
-     excess = generated - recorded is the realism gap only.
+All arms are compared on the same videos and windows (the (scene, seed, window) cells that every listed arm has). The
+real frames of every cell come from one reference arm (--real-from, default the first arm), as in long_fid.py.
+  1. FID (Inception features) of generated vs real frames per time bucket, and KID x 1000 per window.
+  2. FVD (6 camera patches x I3D logits) per bucket of 16-frame windows.
+  3. Seed-vs-seed reference (arms with two seeds per scene): FID / FVD between the two seeds' videos of the same
+     scenes, next to each seed vs the real frames at the same n.
+  4. Uncertainty over scenes: delete-one-scene jackknife SE of each arm's FID per bucket, of its late minus early
+     change and of its difference to the first arm; paired-bootstrap P(difference < 0).
+  5. Realism vs an unpaired real pool (--pool NAME reads feats_pool_NAME.npz): FID / FVD of each seed's videos vs the
+     pool, next to the recorded frames of the same scenes and windows vs the pool.
   python3 long_analyze.py <feat_dir> <out.json> --arms A B ... [--real-from A] [--seeds 42] [--boot 300] [--pool P]
 """
 import argparse
@@ -234,9 +228,7 @@ def main():
             out["seed_split"][t] = res
 
     if a.boot > 0 and len(scenes) >= 4:
-        # Intervals: delete-one-scene jackknife SE (point +- 1.96 SE).  A bootstrap that resamples scenes WITH
-        # replacement duplicates scenes, which shifts FID upward (fewer distinct frames), so its percentiles can miss
-        # the point; it is kept only for P(difference < 0) of paired arm differences, where the shift cancels.
+        # intervals are delete-one-scene jackknife SEs; the bootstrap is only used for P(difference < 0) of paired arms
         main_b = [b for b in buckets if b[0].startswith(("early", "late", "all"))]
         names = [b[0] for b in main_b]
         # per-scene bucket sums once, so a resample is a weighted sum over scenes only

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit whether Vista's official nuScenes windows cover common clip anchors."""
+"""Check whether Vista's nuScenes windows cover the anchors of the common clips."""
 from __future__ import annotations
 
 import argparse

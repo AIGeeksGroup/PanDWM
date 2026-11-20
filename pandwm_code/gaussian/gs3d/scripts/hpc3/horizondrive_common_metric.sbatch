@@ -6,6 +6,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=00:30:00
 #SBATCH --output=%x_%j.log
+# FID/FVD of a HorizonDrive common-clip dump (3 context frames, 32 predicted frames).
+# Usage: HORIZON_JOB=.. HORIZON_SEED=.. sbatch horizondrive_common_metric.sbatch
 set -euo pipefail
 
 HORIZON_JOB=${HORIZON_JOB:?export the completed HorizonDrive common job id}

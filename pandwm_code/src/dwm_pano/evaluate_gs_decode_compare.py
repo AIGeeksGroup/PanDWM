@@ -1,15 +1,9 @@
 """Matched comparison of Stage-2 VAE RGB and Gaussian-rendered RGB.
 
-The evaluator generates each clip exactly once, then sends the same Stage-2
-latent through two output paths:
-
-* SD3.5 VAE decode (the video generator without the Gaussian head), and
-* the feed-forward Gaussian decoder followed by the configured own-view render.
-
-Both outputs are compared with the same GT panorama on the same fixed geometry
-support.  A GT-latent Gaussian arm is evaluated in the same process as the
-decoder ceiling, and the Gaussian RGB is also compared directly with the VAE
-RGB to isolate the change introduced downstream of the shared latent.
+Each clip is generated once and the same Stage-2 latent goes through two output paths: the SD3.5 VAE decode, and the
+feed-forward Gaussian decoder followed by the configured own-view render. Both outputs are compared with the same GT
+panorama on the same fixed geometry support. A GT-latent Gaussian arm is evaluated as the decoder ceiling, and the
+Gaussian RGB is also compared directly with the VAE RGB.
 """
 
 from __future__ import annotations
@@ -75,9 +69,8 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=19,
         help=(
-            "Clip length used to enumerate the evaluation dataset.  The "
-            "default reproduces the G2 holdout protocol; pass 35 for the "
-            "frozen common149 anchors."
+            "Clip length used to enumerate the evaluation dataset; pass 35 "
+            "to reproduce the frozen 149-clip anchors."
         ),
     )
     parser.add_argument(
@@ -85,8 +78,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help=(
             "Fail unless the untruncated enumerated dataset has exactly this "
-            "many clips.  This prevents a changed sampling protocol from "
-            "being mislabeled as a fixed evaluation set."
+            "many clips."
         ),
     )
     parser.add_argument(
@@ -94,9 +86,8 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help=(
             "Restrict shorter inference windows to anchors enumerated with "
-            "this reference length.  For example, use 19-frame inference "
-            "with a 35-frame reference to preserve the frozen common149 "
-            "scene/anchor identities without a 35-frame DiT attention pass."
+            "this reference length, e.g. 19-frame inference with a 35-frame "
+            "reference keeps the same scene/anchor identities."
         ),
     )
     parser.add_argument(
@@ -113,8 +104,7 @@ def parse_args() -> argparse.Namespace:
         "--rgb-only",
         action="store_true",
         help=(
-            "Development-only RGB evaluation: do not load or report depth "
-            "ground truth. This must not be used as a depth comparison."
+            "RGB-only evaluation: do not load or report depth ground truth."
         ),
     )
     parser.add_argument("--out", required=True, type=Path)
@@ -324,9 +314,8 @@ def main() -> None:
         pkl_path=args.holdout_pkl,
         fps_stride_tuples=[[10, 20]],
     )
-    # The ordinary G2 reconstruction protocol uses 19-frame windows.  For
-    # common149 we must instead retain the canonical 35-frame enumeration:
-    # that is what fixes the 149 scene/anchor identities across methods.
+    # The 149-clip protocol needs the canonical 35-frame enumeration, which
+    # fixes the scene/anchor identities across methods.
     for dataset_config in (conditioned_config, canonical_config):
         dataset_config["base_dataset"]["sequence_length"] = \
             args.sequence_length
@@ -497,9 +486,8 @@ def main() -> None:
                 stage2_latents[:, local_index],
                 decoded_halves[:, local_index],
             )
-            # GT posterior.sample() is kept for compatibility with the
-            # established G1 "gt" arm.  fork_rng makes this diagnostic arm
-            # unable to perturb the random stream used by later Stage-2 clips.
+            # fork_rng keeps this GT-latent arm from perturbing the random
+            # stream used by later Stage-2 clips.
             with torch.random.fork_rng(devices=[torch.cuda.current_device()]):
                 torch.manual_seed(
                     int(config["generator_seed"])

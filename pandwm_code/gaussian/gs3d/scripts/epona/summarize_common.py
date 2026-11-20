@@ -1,4 +1,4 @@
-"""Summarize completed 16-frame common-protocol JSON results."""
+"""Aggregate per-seed FID/FVD results (16 predicted frames, 149 clips) into a JSON summary and a Markdown table."""
 from __future__ import annotations
 
 import argparse

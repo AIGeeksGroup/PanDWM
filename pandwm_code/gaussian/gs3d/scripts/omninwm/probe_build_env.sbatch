@@ -7,6 +7,7 @@
 #SBATCH --mem=16G
 #SBATCH --time=00:10:00
 #SBATCH --output=%x_%j.log
+# Print compiler, CUDA and torch information of the build environment.
 set -euo pipefail
 
 H=/path/to/pandwm_root

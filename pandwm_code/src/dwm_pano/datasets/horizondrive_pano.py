@@ -1,18 +1,14 @@
 """Task-matched nuScenes input adapter for the official HorizonDrive code.
 
-The public HorizonDrive evaluator normally reads raw nuScenes camera images
-and enumerates its own 12 Hz scene rollouts.  That is useful for reproducing
-the paper, but it is not a controlled comparison with PanDWM.  This adapter
-keeps HorizonDrive's model and rollout code unchanged while replacing only
-the validation data path:
+HorizonDrive's evaluator normally reads raw nuScenes camera images and enumerates its own 12 Hz scene rollouts. This
+adapter keeps HorizonDrive's model and rollout code unchanged and replaces only the validation data path:
 
 * clips are enumerated with PanDWM's timestamp sampler;
 * RGB, bbox and HD-map inputs come from the same 9600x600 pano caches;
-* the same two-half resize/dedup canvas is resampled into CAM_FRONT's real
-  calibration, restricted to the pano's available vertical band.
+* the same two-half resize/dedup canvas is resampled into CAM_FRONT's real calibration, restricted to the pano's
+  available vertical band.
 
-It deliberately lives in first-party ``dwm_pano`` rather than modifying the
-read-only HorizonDrive reference checkout.
+It lives in dwm_pano so the HorizonDrive checkout stays unmodified.
 """
 from __future__ import annotations
 

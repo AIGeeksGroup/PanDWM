@@ -1,22 +1,15 @@
-"""FID / FVD for the saved 149-clip runs, with the frozen protocol's metric code.
+"""FID / FVD for the saved 149-clip runs, using the evaluation pipeline's metric code.
 
-Same instruments as ``cd_eval_hpc3.json`` / ``evaluate_pipeline``:
-  * FID  = torchmetrics FrechetInceptionDistance(normalize=True) on stitched
-    V=1 panoramas (PANDWM_PANO_BLEND_W as in generation), every generated
-    frame (32 per clip, the 3 context frames excluded, as with
-    generate_frames_for_reference=false);
-  * FVD  = PanoPatchFrechetVideoDistance(sequence_count=16): six Voronoi
-    camera patches, I3D 400-logit features, first 16 generated frames.
-The frozen FVD therefore only sees window 1.  Two extra numbers are reported
-under their own names: FVD on window 2 (generated frames 16..31) and FID per
-window.
+  * FID = torchmetrics FrechetInceptionDistance(normalize=True) on stitched V=1 panoramas (PANDWM_PANO_BLEND_W as in
+    generation), every generated frame (32 per clip, the 3 context frames excluded);
+  * FVD = PanoPatchFrechetVideoDistance(sequence_count=16): six Voronoi camera patches, I3D 400-logit features, first
+    16 generated frames (window 1). FVD on window 2 (generated frames 16..31) and FID per window are also reported.
 
-Generated frames are decoded from each clip's saved ``latents.pt`` (fp16) with
-the configured SD3.5 VAE, exactly as the 4-step sampler decodes; real frames
-are the dataset's ``vae_images``.  Metric states are checkpointed after every
-clip so the run can be split over 30-minute jobs (``--state``).
+Generated frames are decoded from each clip's saved ``latents.pt`` (fp16) with the configured SD3.5 VAE; real frames
+are the dataset's ``vae_images``. Metric states are checkpointed after every clip so the run can be split over several
+jobs (``--state``, ``--merge``).
 
-  python compute_eval149_metrics.py --base-config cd_eval_hpc3.json \
+  python compute_eval149_metrics.py --base-config <config.json> \
       --arm b0=<root> --arm b0_anchor=<root> --state S.pt --output R.json
 """
 

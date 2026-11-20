@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# validation of the 256x448 six-camera band protocol (cam_band_check.py): pixel check recorded canvas ->
-# bridge vs recorded 256x448 views, mask coverage over Val-150, preview of one clip.
+# Checks the 256x448 six-camera band protocol (cam_band_check.py): pixel check of the recorded canvas through
+# the bridge against the recorded 256x448 views, mask coverage over Val-150, and a preview of one clip.
 #SBATCH --job-name=pandwm_camchk
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

@@ -1,9 +1,8 @@
-"""Estimate the finite-sample real-vs-real floor on the common protocol.
+"""Estimate the real-vs-real FID/FVD floor on the common clips.
 
-The 149 frozen validation clips cannot provide two independent sets of 149.
-Instead, each repeat makes a deterministic random 74/74 clip-disjoint split
-and omits the remaining clip.  The resulting number is therefore labelled
-``n=74`` and must not be subtracted from the model-vs-real ``n=149`` score.
+149 clips cannot give two independent sets of 149, so each repeat draws a random
+74/74 clip-disjoint split (one clip is left out). The result is an n=74 value and
+should not be subtracted from the n=149 model-vs-real scores.
 """
 from __future__ import annotations
 
@@ -94,7 +93,7 @@ def main():
         raise ValueError("expected {} real clips, found {}".format(
             args.expected_clips, len(paths)))
 
-    # Reuse the exact TATS-I3D module and preprocessing path as common FVD.
+    # Same TATS I3D module and preprocessing as the common-clip FVD.
     from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
     fvd_metric = PanoPatchFrechetVideoDistance(
         inception_3d_checkpoint_path=args.i3d,
@@ -115,10 +114,7 @@ def main():
             mode="bilinear")[None]
         fvd_features.append(
             fvd_metric.inception(resized.transpose(1, 2))[0].cpu())
-        # torchmetrics' normalized public update path scales [0,1] floats
-        # back to uint8 before calling this feature module.  We already hold
-        # the lossless uint8 interchange, so pass it directly and avoid a
-        # float divide/multiply round trip.
+        # The FID feature module takes uint8 input, which we already have.
         fid_features.append(fid_metric.inception(video_uint8).cpu())
         if index % 10 == 0:
             print("feature clips {}/{}".format(index + 1, len(paths)),

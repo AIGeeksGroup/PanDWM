@@ -7,6 +7,8 @@
 #SBATCH --mem=96G
 #SBATCH --time=02:00:00
 #SBATCH --output=%x_%j.log
+# Front-camera FID/FVD of the Vista dump of one seed (1 context frame, 16 scored frames).
+# Usage: SEED=0 sbatch score_common.sbatch
 set -euo pipefail
 
 SEED=${SEED:?SEED is required}

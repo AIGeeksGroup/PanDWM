@@ -1,1 +1,1 @@
-"""Gaussian reconstruction table (tab:gs_recon) evaluation (PanDWM-gs-recon)."""
+"""Gaussian reconstruction evaluation utilities (targets, masks, rendering, scoring)."""

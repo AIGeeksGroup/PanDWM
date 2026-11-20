@@ -7,6 +7,8 @@
 #SBATCH --mem=160G
 #SBATCH --time=08:00:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%A_%a.log
+# Epona generation on the common clips (10 context frames, 16 predicted), one shard per array task.
+# Usage: SEED=0 [SHARD_SIZE=5] [SMOKE=0|1|2] sbatch --array=0-29 epona_common.sbatch
 set -euo pipefail
 
 SEED=${SEED:?export SEED}

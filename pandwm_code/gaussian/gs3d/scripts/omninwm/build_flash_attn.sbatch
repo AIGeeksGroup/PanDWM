@@ -7,6 +7,7 @@
 #SBATCH --mem=96G
 #SBATCH --time=00:30:00
 #SBATCH --output=%x_%j.log
+# Install the prebuilt flash-attn wheel into the OmniNWM environment and run a smoke test.
 set -euo pipefail
 
 H=/path/to/pandwm_root

@@ -1,14 +1,13 @@
-"""CAM_FRONT band dumps of 35-frame clip runs in the September common-protocol format (comparison figure).
+"""CAM_FRONT band dumps of 35-frame clip runs in a common format for comparison with front-view methods.
 
-The September front-view comparison (HorizonDrive / Epona / Vista / GEM, docs/reports/-*) scored every method
-on a 384x768 uint8 CAM_FRONT view resampled from the panorama with the real calibration
-(NuScenes6BandFrechetVideoDistance.update_from_canvas, quantize_uint8, PANDWM_COMMON_VIS_DIR). This writes the same
-interchange for a clip run of run_eval149_videos.py / run_clips_videos.py:
-  real/<anchor>.pt : recorded frames 0..34, hard-seam canvas (blend 0), as the September canonical GT;
-  fake/<anchor>.pt : the clip's latents.pt decoded with the configured VAE, stitched with --blend (paper: 128).
+Writes a 384x768 uint8 CAM_FRONT view resampled from the panorama with the real calibration
+(NuScenes6BandFrechetVideoDistance.update_from_canvas, quantize_uint8, PANDWM_COMMON_VIS_DIR) for a clip run of
+run_eval149_videos.py / run_clips_videos.py:
+  real/<anchor>.pt : recorded frames 0..34, hard-seam canvas (blend 0);
+  fake/<anchor>.pt : the clip's latents.pt decoded with the configured VAE, stitched with --blend.
 Both are uint8 [35, 3, 384, 768]; frame index = clip frame index (frames 0..2 of fake are the decoded history).
---cams (several real cameras -> [T, V, 3, H, W] in that order), --render H,W and --frames (keep only these
-clip frames, in order) for the multi-view figure; the defaults reproduce the single CAM_FRONT 384x768 dump exactly.
+--cams (several real cameras, giving [T, V, 3, H, W] in that order), --render H,W and --frames (keep only these
+clip frames, in order) are for multi-view figures; the defaults give the single CAM_FRONT dump.
   python3 front_band_dump.py --base-config cd_eval_frozen149_hpc3.json --manifest dev149_manifest.json \
       --dataset-stride 20 --arm-root <dir with clipNNN/> --out <dir> [--positions 31,64,148] [--blend 128]
 """

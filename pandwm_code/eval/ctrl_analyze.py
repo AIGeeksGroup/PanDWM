@@ -1,12 +1,13 @@
-"""Controllability metrics.
+"""Controllability metrics (object detection recall / AP50 and road IoU) for generated clips.
 
 Per image (clip frame 3..34 x camera) and class (vehicle = COCO car / bus / truck, pedestrian = COCO person):
-detections -> vehicle class-agnostic NMS 0.5 -> centre inside the protocol mask -> top 100 by score; COCOeval matching
+detections, vehicle class-agnostic NMS at 0.5, centre inside the protocol mask, top 100 by score; COCOeval matching
 at IoU 0.5 (required GT first; ignore regions match by IoA >= 0.5 like iscrowd and may absorb several detections);
-unmatched detections lower than 16 px are ignored (size range on both sides). Recall = TP(score >= 0.5) / required GT;
-AP50 = COCO 101-point interpolated precision, pooled over all images of the arm. Obj. recall / Obj. AP = mean of the two
-classes. Road IoU = sum TP / sum (TP + FP + FN) over the region pixels. Intervals: point +- 1.96 SE of a delete-one-scene
-jackknife (Val-150: one clip per scene); seed groups: mean of the seed values (SD ddof=1), jackknife of the seed mean.
+unmatched detections shorter than 16 px are ignored. Recall = TP(score >= 0.5) / required GT; AP50 = COCO 101-point
+interpolated precision, pooled over all images of the arm. Obj. recall / Obj. AP = mean of the two classes.
+Road IoU = sum TP / sum (TP + FP + FN) over the region pixels. Intervals: point +- 1.96 SE of a delete-one-scene
+jackknife (one clip per scene); for seed groups, the mean of the seed values (SD with ddof=1) and the jackknife of
+the seed mean.
 
   python3 ctrl_analyze.py --gt-dir GT --pred-dir PRED --tag frcnn+m2f_cs --out analysis.json \
      --arm 'ours=P_s42+P_s1000+P_s2026@band' --arm 'unimlvg_P=unimlvg_P_s42@opendwm' --arm 'rec448=rec448@opendwm' \
@@ -35,7 +36,7 @@ def load_dir(d):
 
 
 def prep_dets(p, img, mask_c):
-    """Detections of one image -> {cls: (boxes, scores)} after mapping, vehicle NMS, mask-centre filter, top 100."""
+    """Detections of one image as {cls: (boxes, scores)} after class mapping, vehicle NMS, mask-centre filter and top 100."""
     sel = p["_by_img"].get(img)
     out = {}
     for cls in (cc.VEH, cc.PED):
@@ -224,7 +225,7 @@ def main():
     ap.add_argument("--floor", action="append", default=[], help="NAME=PRED@TIMING: GT of the next scene with the same rig")
     ap.add_argument("--subset", default="", help="common = only images whose camera sweep is the same in both timings")
     ap.add_argument("--no-size-rule", action="store_true")
-    ap.add_argument("--diag", action="append", default=[], help="arm names for matched-pair diagnostics (G3)")
+    ap.add_argument("--diag", action="append", default=[], help="arm names for matched-pair diagnostics")
     ap.add_argument("--coco-export", default="", help="ARM:DIR: write COCO json of that arm (first seed) for the parity check")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
@@ -321,7 +322,7 @@ def main():
 
 
 def export_coco(ex, d, full):
-    """COCO json (GT with ignore regions as iscrowd, processed detections) for the pycocotools parity check (G6)."""
+    """COCO json (GT with ignore regions as iscrowd, processed detections) for a pycocotools parity check."""
     d.mkdir(parents=True, exist_ok=True)
     images, anns, dets = [], [], []
     img_id = {}

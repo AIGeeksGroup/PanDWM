@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export official OmniNWM six-view tensors into the common front metric."""
+"""Export OmniNWM six-view outputs as front-camera uint8 tensors for the common-clip metric."""
 
 from __future__ import annotations
 

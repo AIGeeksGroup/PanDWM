@@ -1,10 +1,8 @@
-"""Extend Test-S / Test-L from 71 to 83 scenes.
+"""Extend the Test-S / Test-L manifests from 71 to 83 scenes.
 
 The 12 added scenes are the validation scenes outside the 71 test scenes that also have a valid 195-frame (12-window)
-sequence: the 8 long-video development scenes and the 4 project-page scenes.
-Clips are built exactly as build_tests_manifest.py builds Test-S (frozen eval dataset with fps_stride_tuples [[10, 5]],
-clips at 5 / 10 / 15 s after the scene start, 35 frames).  New clips get test_index 213..248 and scene_order 71..82,
-so their output folders (clipNNN) never collide with the 213 existing ones.
+sequence. Clips are built as in build_tests_manifest.py (frozen eval dataset with fps_stride_tuples [[10, 5]], clips
+at 5 / 10 / 15 s after the scene start, 35 frames). New clips get test_index 213..248 and scene_order 71..82.
 
 Writes:
   tests_ext36_manifest.json   the 36 new clips only (for generation)
@@ -22,7 +20,7 @@ C = Path(__file__).resolve().parent
 STRIDE_S = 5.0
 OFFSETS_S = (5.0, 10.0, 15.0)
 CLIP = 35
-NEW = [  # 8 development scenes, then the 4 project-page scenes (10 / 31 / 52 / 72)
+NEW = [  # 8 development scenes, then 4 further scenes
     "2f56eb47c64f43df8902d9f88aa8a019", "ed242d80ccb34b139aaf9ab89859332e", "9068766ee9374872a380fe75fcfb299e",
     "ca6e45c25d954dc4af6e12dd7b23454d", "380ff00ec86447e3b986edc8e82ffba7", "85651af9c04945c3a394cf845cb480a6",
     "5521cd85ed0e441f8d23938ed09099dd", "0dae482684ce4cd69a7258f55bc98d73",

@@ -7,18 +7,14 @@ Extra fields (fixed shapes so default collation works):
   box_valid       [T, M]       bool
   box_track       [T, M]       int64    clip-local track id (-1 = padding)
 
-Only classes listed in ``dynamic_classes`` are emitted: they decide which
-Gaussians the 4D decoder treats as dynamic.  Boxes come from the same pkl
-(``gt_boxes`` in LiDAR coordinates, mmdet3d origin (0.5, 0.5, 0.5), and
-``lidar2ego``) used for the rendered box conditions.
+Only classes in ``dynamic_classes`` are emitted; they decide which Gaussians the 4D decoder treats as dynamic.
+Boxes come from the same pkl (``gt_boxes`` in LiDAR coordinates, ``lidar2ego``) used for the rendered box conditions.
 
-, both off by default:
-  pose_source "camera_time"   ego_transforms = the mean ego pose of the six cameras at their exposure times
-                              (recon.targets.camera_time_pose) instead of the pkl's frame-level pose, which for the
-                              12 Hz interpolated frames is the pose of a LiDAR sweep up to 250 ms before the cameras; the boxes follow through the adjusted lidar2ego of
-                              recon.targets.camera_time_infos, so their global placement is unchanged;
-  box_reading "mmdet3d_v0x"   gt_boxes read as the pkl stores them, (x, y, z, w, l, h, -yaw - pi/2): length along the
-                              heading.  "legacy" reads (x, y, z, dx, dy, dz, yaw), which mirrors diagonal boxes.
+Options (both off by default):
+  pose_source "camera_time"   ego_transforms is the mean ego pose of the six cameras at their exposure times
+                              instead of the pkl's frame-level pose.
+  box_reading "mmdet3d_v0x"   gt_boxes read as stored in the pkl, (x, y, z, w, l, h, -yaw - pi/2), length along the
+                              heading. "legacy" reads (x, y, z, dx, dy, dz, yaw).
 """
 
 from __future__ import annotations
@@ -108,8 +104,7 @@ class PanoNuScenesBoxDataset(PanoNuScenesDataset):
         track_ids: dict = {}
         for t, info in enumerate(window):
             tokens, c, r, h = frame_boxes_in_ego(info, self.dynamic_classes, self.box_reading)
-            # Nearest boxes first if a frame exceeds the cap: they dominate
-            # the panorama and the static/dynamic split near the ego vehicle.
+            # Nearest boxes first if a frame exceeds the cap.
             order = np.argsort(np.linalg.norm(c[:, :2], axis=-1)) if len(tokens) else []
             for slot, i in enumerate(list(order)[:m]):
                 centers[t, slot], rotations[t, slot], half[t, slot] = c[i], r[i], h[i]

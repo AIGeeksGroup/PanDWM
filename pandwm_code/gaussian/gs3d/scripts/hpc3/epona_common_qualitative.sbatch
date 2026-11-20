@@ -2,13 +2,13 @@
 #SBATCH --job-name=epona_qual
 #SBATCH --partition=<partition>
 #SBATCH --nodes=1
-# The cluster's only available partitions require an explicit GPU request;
-# rendering itself remains CPU-only.
+# A GPU is requested for scheduling only; rendering is CPU-only.
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=24G
 #SBATCH --time=00:30:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# Qualitative comparison figures for three common clips.
 set -euo pipefail
 
 H=/path/to/pandwm_root

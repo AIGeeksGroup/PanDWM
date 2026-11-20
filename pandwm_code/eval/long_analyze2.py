@@ -1,17 +1,16 @@
-"""Long-video quality over time from long_feats.py features, memory-light (long_analyze.py's successor).
+"""Long-video quality over time from long_feats.py features.
 
-long_analyze.py kept one 2048 x 2048 float64 statistic per (scene, window, arm): ~20 GB for 12 scenes, ~130 GB for
-Dev-76-L.  This keeps the raw features (float32) and computes moments on demand on the GPU, with the same Frechet
-distance (torchmetrics' formula through symmetric eigensolvers), so on the same videos it reproduces long_analyze.py.
-All arms are compared on the same (scene, seed, window) cells; real frames come from --real-from (default: first arm).
+Raw features are kept in float32 and moments are computed on demand on the GPU (Frechet distance through symmetric
+eigensolvers). All arms are compared on the same (scene, seed, window) cells; real frames come from --real-from
+(default: first arm).
   1. FID / FVD generated vs recorded per window bucket (equal n across arms); KID x 1000 per window.
   2. Seed-vs-seed reference (two seeds per scene): gen-gen vs gen-real at the same n, excess = gen-real - gen-gen.
-  3. Uncertainty: delete-one-group jackknife over scenes (groups of --jack-group scenes) -> point +- 1.96 SE, for each
-     arm, its late - early rise, and its difference to the first arm; paired bootstrap P(difference < 0).
+  3. Uncertainty: delete-one-group jackknife over scenes (groups of --jack-group scenes) giving point +- 1.96 SE for
+     each arm, its late - early rise, and its difference to the first arm; paired bootstrap P(difference < 0).
   4. Realism vs an unpaired real pool, either --pool NAME (feats_pool_NAME.npz; drop pool clips that show the evaluated
      scenes with --pool-exclude-clips) or --pool-split: the scenes are split in two halves and each half's generated
-     and recorded frames are compared with the OTHER half's recorded frames of all windows (disjoint scenes, same
-     pipeline, all time offsets); the two directions are averaged.  excess = generated - recorded vs the same pool.
+     and recorded frames are compared with the other half's recorded frames of all windows; the two directions are
+     averaged. excess = generated - recorded vs the same pool.
   python3 long_analyze2.py <feat_dir> <out.json> --arms A B ... [--buckets NAME=LO-HI ...] [--pool-split]
 """
 import argparse

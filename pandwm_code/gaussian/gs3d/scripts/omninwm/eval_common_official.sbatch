@@ -8,6 +8,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --array=0-14%2
 #SBATCH --output=%x_%A_%a.log
+# OmniNWM inference on the 149 common clips: array of 15 shards (10 clips each) x 3 seeds, 8 GPUs per task.
 set -euo pipefail
 
 H=/path/to/pandwm_root

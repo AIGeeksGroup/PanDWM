@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-"""Build PKL shards for official 8-way OmniNWM sequence-parallel inference.
+"""Build PKL shards for 8-way sequence-parallel OmniNWM inference.
 
-The official ``hybrid`` plugin sets ``sp_size=8`` and consequently creates
-eight singleton data-parallel groups when inference is launched on eight
-GPUs.  ``prepare_dataloader`` constructs its ``DistributedSampler`` over that
-data-parallel group (size 1), not over WORLD.  Each sequence-parallel rank must
-therefore iterate the same unreplicated scene list.  This adapter leaves the
-official source untouched and only makes small NumPy-1-compatible PKL shards.
+With the official ``hybrid`` plugin (sp_size=8) the sampler runs over a data-parallel
+group of size 1, so all sequence-parallel ranks must iterate the same scene list.
+The shards are written to be readable by the NumPy-1 OmniNWM environment.
 """
 
 from __future__ import annotations

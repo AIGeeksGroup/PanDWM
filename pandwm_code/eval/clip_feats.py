@@ -1,14 +1,13 @@
-"""Per-frame Inception and per-window pano-patch I3D features of 35-frame clip runs (Test-S / Dev sets).
+"""Per-frame Inception and per-window pano-patch I3D features of 35-frame clip runs.
 
-The frozen-protocol instrument of compute_eval149_metrics.py, but saving the features of every clip instead of
-accumulating metric states, so FID / FVD can be computed per seed, bootstrapped over scenes and compared at equal n:
+Same instrument as compute_eval149_metrics.py, but saving the features of every clip instead of accumulating metric
+states, so FID / FVD can be computed per seed, bootstrapped over scenes and compared at equal n:
   * generated frames: the clip's latents.pt (fp16) decoded with the configured SD3.5 VAE, stitched (blend from
     PANDWM_PANO_BLEND_W), frames 3..34 (32 = 2 windows); real frames: the dataset's vae_images of the same clip;
-  * inc: torchmetrics FrechetInceptionDistance(normalize=True) features (2048) of every frame, i.e. the metric's own
-    (x * 255).byte() -> Inception;
+  * inc: torchmetrics FrechetInceptionDistance(normalize=True) features (2048) of every frame;
   * i3d: PanoPatchFrechetVideoDistance features (6 Voronoi camera patches x 400 I3D logits) per 16-frame window.
 A self-check on the first clip compares the feature sums with the metric objects' own states.
-  python3 clip_feats.py --base-config cd_eval_frozen149_hpc3.json --manifest M.json --dataset-stride 5 \
+  python3 clip_feats.py --base-config <config.json> --manifest M.json --dataset-stride 5 \
       --out OUT.npz (--arm-root <dir with clipNNN/latents.pt> | --real)
 --real writes the real features only (the same for every arm of a manifest).
 """
@@ -57,8 +56,8 @@ def self_check(fid, fvd, pano, inc, i3d, device):
     ok_v = torch.allclose(m.real_features_sum, i3d[0].double().sum(0), rtol=1e-4, atol=1e-3)
     f = FrechetInceptionDistance(normalize=True).to(device)
     f.update(pano[:, :16].flatten(0, 2), real=True)
-    # like for like: the metric saw a batch of 16 frames, so compare with this code on the same batch of 16; the saved
-    # features come from batches of 32, whose cuDNN kernels differ in the last float bits (reported, not gated)
+    # Compare on the same batch of 16 as the metric saw; the saved features come from batches of 32, whose cuDNN
+    # kernels differ in the last float bits (reported, only checked against a loose tolerance).
     same16 = inc_float(fid, pano[0, :16, 0]).double()
     ok_i = torch.allclose(f.real_features_sum, same16.sum(0), rtol=1e-4, atol=1e-3)
     batch_diff = (same16 - inc[:16].double()).abs().max().item()
@@ -108,7 +107,7 @@ def main():
         shift = vae.config.shift_factor or 0
         chunk = pc.get("common_config", {}).get("memory_efficient_batch", -1)
 
-        def decode(latents):  # (T, V, C, h, w) -> (T, V, 3, H, W) in [0, 1], as compute_eval149_metrics.py
+        def decode(latents):  # (T, V, C, h, w) latents to (T, V, 3, H, W) images in [0, 1], as in compute_eval149_metrics.py
             t, v = latents.shape[:2]
             image = dwm.functional.memory_efficient_split_call(
                 vae, latents.flatten(0, 1).to(device, dtype=vae.dtype),

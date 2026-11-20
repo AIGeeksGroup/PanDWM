@@ -1,12 +1,14 @@
-"""Round-3 fine-tune configs: train on the test-time geometry.
+"""Write the fine-tune configs that train the 4D decoder on the test-time geometry.
 
-All arms = the R1 config (C2 + camera-time poses + mmdet3d v0.x boxes, lr 2e-5, frame_stride [2, 3, 4], LOO 0.5)
-started from R1 step 2000, with the pipeline class switched to pipeline_relabel (every frame's Gaussians slid along
-their rays to the step's jointly reconstructed DA3 ranges before any loss):
-  G0 = bound 0, offsets kept (exactly the test-time "scale" relabel)
-  G1 = G0 + no_offset (centres exactly on the DA3 ray points; InfiniSplat v2 2610.20341)
-  G2 = G1 + perceptual weights 0.5 on own / composite / LOO (Lyra 2509.19296: LPIPS keeps novel views sharp)
-Run on HPC2 with the gaussian/finetune code copy first on PYTHONPATH (train_ft3_hpc2.sbatch).
+All variants start from the same base config (DA3 pipeline, camera-time poses, mmdet3d v0.x boxes, lr 2e-5,
+frame_stride [2, 3, 4], LOO 0.5) and its step-2000 checkpoint, with the pipeline class switched to pipeline_relabel
+(every frame's Gaussians are slid along their rays to the step's jointly reconstructed DA3 ranges before any loss):
+  G0  = bound 0, offsets kept (the test-time "scale" relabel)
+  G1  = G0 + no_offset (centres exactly on the DA3 ray points)
+  G2  = G1 + perceptual weights 0.5 on own / composite / LOO
+  G3a = G0 + G2's perceptual weights (free offsets)
+  G3b = in-plane offsets bounded to 1 decoder pixel + G2's perceptual weights
+Usage: python3 make_ft3_configs.py [out_dir]
 """
 import copy
 import json
@@ -45,8 +47,7 @@ ARMS = {
               {"bound": 0.0, "no_offset": True, "loo_perceptual": 0.5},
               gs4d={"weight_composite_perceptual": 0.5}),
 }
-# (after the G0-G2 GS-Dev results: no offset lost 0 m FID, LPIPS 0.5 gave the sharpest renders
-# and the best +-1/2/4 m): G3a = G0 + G2's LPIPS weights (free offsets); G3b = in-plane offsets bounded to 1 px
+# G3a = G0 + G2's LPIPS weights (free offsets); G3b = in-plane offsets bounded to 1 px
 # (da3_depth.plane_offsets) + G2's LPIPS weights.
 ARMS["G3a"] = arm("round-3 G3a: G0 (free offsets) + LPIPS 0.5 on own / composite / LOO",
                   {"bound": 0.0, "loo_perceptual": 0.5}, gs4d={"weight_composite_perceptual": 0.5})

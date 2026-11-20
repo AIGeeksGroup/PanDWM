@@ -1,53 +1,19 @@
 """Instance appearance consistency: does one object keep its look across frames?
 
-FID/FVD are distribution metrics over whole frames; neither is designed to
-notice that a particular car changed colour between frame 3 and frame 7.  The
-identity-preserving driving world models (ConsisDrive, InstaDrive) both
-validate instance consistency with *tracking* metrics rather than FID/FVD for
-exactly this reason.  This metric is the cheapest instrument that measures the
-property directly, without needing a detector or a tracker: the GT boxes and
-their persistent `gt_box_ids` already tell us where each object is in every
-frame, so we can simply compare an object's own crops over time.
+Uses the GT boxes and their persistent `gt_box_ids` to crop each instance in every frame it is visible,
+embeds the crops into a descriptor and measures ``drift``, the mean distance between descriptors of the
+same instance in consecutive frames.  Real video sets the achievable floor (objects legitimately change
+appearance), so the reported score is IAC = drift(generated) / drift(real); 1.0 means the generated video
+drifts as much as real video and values above 1.0 mean excess identity drift.  ``separation`` is the mean
+distance between different instances in the same frame, a sanity check that the descriptor is discriminative.
 
-Score definition
-----------------
-For every instance visible in at least two frames, crop its region in each
-frame, resize to a fixed patch, and L2-normalise the flattened RGB into a
-descriptor.  ``drift`` is the mean distance between descriptors of the *same*
-instance in consecutive frames.
+``descriptor`` selects how crops are embedded; all are L2-normalised:
+``"patch"``      32x32 RGB flatten (low-order appearance statistic).
+``"inception"``  2048-d pool features of the FID Inception-V3.
+``"vgg"``        ImageNet VGG16 through ``relu3_3`` (the LPIPS backbone), sensitive to texture and shape.
 
-Real video sets the achievable floor -- a real car legitimately changes
-appearance as it turns, becomes occluded, or moves through shadow -- so the
-reported number is the ratio
-
-    IAC = drift(generated) / drift(real)
-
-A value of 1.0 means the generated video drifts exactly as much as reality;
-above 1.0 means excess identity drift.  ``separation`` is a sanity companion:
-the mean distance between *different* instances in the same frame.  If
-same-instance and different-instance distances are comparable, the descriptor
-is not discriminative and the ratio should not be trusted.
-
-Descriptor choice is the load-bearing assumption
-------------------------------------------------
-The original descriptor is a 32x32 bilinear downsample of the raw RGB crop.
-That is a *low-order appearance* statistic: it moves a lot when lighting or
-pose changes and barely at all when the object keeps its colour but swaps
-identity (a sedan becoming a hatchback of the same tone).  A near-1.0 reading
-from that descriptor therefore cannot by itself close the "does this model
-preserve instance identity" question -- the instrument may simply be blind to
-the failure mode.  ``descriptor`` selects what the crops are embedded with:
-
-``"patch"``      32x32 RGB flatten (the original; kept as the control arm).
-``"inception"``  2048-d pool features of the FID Inception-V3.  Semantic, and
-                 the exact space FID itself lives in.
-``"vgg"``        ImageNet VGG16 through ``relu3_3`` -- the LPIPS perceptual
-                 backbone, sensitive to texture and shape rather than tone.
-
-Both CNN weights already sit in the torch hub cache used by the FID metric, so
-no download is needed.  Run several instances side by side on one evaluation:
-the frames are deterministic, so the ``"patch"`` arm must reproduce its earlier
-number exactly, which doubles as an instrument check on the others.
+Both CNN weights are read from the torch hub cache used by the FID metric, so no download is needed.
+Several instances with different descriptors can be run side by side in one evaluation.
 """
 import numpy as np
 import torch
@@ -59,19 +25,17 @@ from dwm_pano.metrics.instance_boxes import PANO_W_V1, frame_instance_boxes
 # Input side each backbone expects.  None = use the caller's patch_size.
 _DESCRIPTOR_INPUT = {"patch": None, "inception": 299, "vgg": 224}
 
-# One backbone per (descriptor, device); several metric instances in the same
-# evaluation would otherwise each hold their own copy of VGG16.
+# One backbone per (descriptor, device), shared by all metric instances.
 _BACKBONE_CACHE = {}
 
 
 def _build_backbone(descriptor: str, device: str):
     """Load a frozen embedding network from the local torch hub cache.
 
-    Both checkpoints are already present wherever the FID metric has run
-    (``weights-inception-2015-12-05-6726825d.pth`` and ``vgg16-*.pth``), so
-    this must not require network access.  Failing loudly beats silently
-    falling back to the raw-pixel descriptor, which is the very thing these
-    arms exist to check.
+    Both checkpoints (``weights-inception-2015-12-05-6726825d.pth`` and
+    ``vgg16-*.pth``) must already be in the cache, so no network access is
+    needed.  Loading fails loudly instead of falling back to the raw-pixel
+    descriptor.
     """
     key = (descriptor, device)
     if key in _BACKBONE_CACHE:
@@ -144,7 +108,7 @@ class InstanceAppearanceConsistency(torchmetrics.Metric):
         return self.patch_size if side is None else side
 
     def _embed(self, crops):
-        """crops: (N, 3, S, S) float in [0, 1] -> (N, D) raw embeddings."""
+        """crops: (N, 3, S, S) float in [0, 1]; returns (N, D) raw embeddings."""
         if self.descriptor == "patch":
             return crops.flatten(1).double()
 
@@ -154,9 +118,8 @@ class InstanceAppearanceConsistency(torchmetrics.Metric):
         batch = crops.to(self.backbone_device)
         with torch.no_grad():
             if self.descriptor == "inception":
-                # torch-fidelity's extractor asserts a uint8 input and does its
-                # own [-1, 1] rescale; feeding it floats silently returns
-                # garbage on some versions, so convert explicitly.
+                # torch-fidelity's extractor expects uint8 input and does its own
+                # [-1, 1] rescale, so convert explicitly.
                 batch = (batch.clamp(0.0, 1.0) * 255.0).to(torch.uint8)
                 out = self._backbone(batch)
             else:
@@ -168,12 +131,10 @@ class InstanceAppearanceConsistency(torchmetrics.Metric):
         return out.float().cpu().double()
 
     def _descriptors(self, frames, boxes):
-        """frames: (T, C, H, W); boxes: (T, 4) -> (T, D) L2-normalised.
+        """frames: (T, C, H, W); boxes: (T, 4); returns (T, D) L2-normalised descriptors.
 
         Crop geometry and the L2 normalisation are identical across
-        descriptors; only the embedding of each crop changes.  That is what
-        makes the ``"patch"`` arm reproduce the historical number bit for bit
-        while the CNN arms answer the same question in a different space.
+        descriptors; only the embedding of each crop changes.
         """
         side = self._crop_side()
         crops = []
@@ -246,12 +207,9 @@ class InstanceAppearanceConsistency(torchmetrics.Metric):
             return float(total / count) if int(count) > 0 else float("nan")
 
         real_drift, fake_drift = mean("real", "drift"), mean("fake", "drift")
-        # Several arms run side by side in one evaluation, and the printer
-        # flattens every dict into one line, so the labels have to carry the
-        # arm identity themselves -- an unprefixed `iac_ratio` from four
-        # metrics is four indistinguishable numbers. The prefix is built from
-        # the two settings that define an arm rather than from the config key,
-        # which the metric never sees. Values stay numeric: the printer
+        # Several instances can run in one evaluation and the printer flattens
+        # every dict into one line, so the labels carry a prefix built from the
+        # settings that define the instance. Values stay numeric: the printer
         # formats with `{:.3f}`.
         tag = "{}{}".format(self.descriptor, self.min_pixels)
         return {

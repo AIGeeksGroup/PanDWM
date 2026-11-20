@@ -1,4 +1,4 @@
-# shared runtime for the 4D GS depth pilot on HPC3 (sourced by the sbatch files).
+# Shared runtime for the 4D GS depth jobs (sourced by the sbatch files).
 DR=/path/to/pandwm_root
 source $DR/pandwm_code/gaussian/gs4d/scripts_hpc3/gsplat_env_hpc3.sh
 GS4D=$DR/pandwm_code/gaussian/gs4d

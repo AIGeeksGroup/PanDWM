@@ -1,20 +1,17 @@
-"""HD map rendering onto cylindrical pano for 2-pano driving WM.
+"""HD map rendering onto the cylindrical pano for the 2-pano driving world model.
 
-Loads nuScenes map-expansion-v1.3 JSONs, queries nearby polygons per frame
-(within distance threshold from ego), transforms world→ego, and projects each
-polygon vertex to pano via the cam-aware forward projection in pano_projection.
-Then draws polygon outlines as a series of line segments on the pano canvas
-(same as OpenDWM's native pinhole renderer at nuscenes.py:478-567).
+Loads the nuScenes map-expansion JSONs, queries nearby polygons per frame (within a distance threshold from ego),
+transforms world to ego, and projects each polygon vertex to the pano with the camera-aware forward projection in
+pano_projection. Polygon outlines are drawn as line segments on the pano canvas, like OpenDWM's pinhole renderer.
 
-Map JSON structure (from /path/to/pandwm_root/data/nuscenes/maps/expansion/{location}.json):
-  - node[i]: {token, x, y}     — 2D coord in WORLD / map frame, flat (z=0)
+Map JSON structure ({location}.json in the map-expansion folder):
+  - node[i]: {token, x, y}: 2D coordinate in the world/map frame
   - polygon[i]: {token, exterior_node_tokens[], holes[{node_tokens}]}
-  - drivable_area[i]: {token, polygon_tokens[]}   — multi-polygon region
+  - drivable_area[i]: {token, polygon_tokens[]}: multi-polygon region
   - lane[i], ped_crossing[i], walkway[i], road_segment[i]: {polygon_token}
   - stop_line[i], road_divider[i], lane_divider[i]: {line_token} (line segments, not polygons)
 
-Default color table matches OpenDWM MotionDataset.default_hdmap_color_table
-(nuscenes.py:105 area).
+The default color table matches OpenDWM's MotionDataset.default_hdmap_color_table.
 """
 from __future__ import annotations
 
@@ -36,7 +33,7 @@ from dwm_pano.datasets.pano_projection import (
 
 DEFAULT_MAP_ROOT = "/path/to/pandwm_root/data/nuscenes/maps/expansion"
 
-# Match OpenDWM defaults (see nuscenes.py default_hdmap_color_table)
+# Layer colors, same as the OpenDWM defaults.
 DEFAULT_HDMAP_COLORS = {
     "drivable_area":  (0, 128, 128),
     "lane":           (255, 128, 0),
@@ -46,12 +43,12 @@ DEFAULT_HDMAP_COLORS = {
     "carpark_area":   (128, 0, 128),
 }
 
-# Default query radius (meters), matches OpenDWM nuscenes.py:513 default max_distance=65.0
+# Default query radius in meters (same as OpenDWM).
 DEFAULT_MAX_DISTANCE = 65.0
 
 
 class MapCache:
-    """Loads + caches nuScenes HD map JSON data. Singleton per-location."""
+    """Loads and caches nuScenes HD map JSON data (one instance per location)."""
     _instances: dict = {}
 
     def __init__(self, location: str, map_root: str = DEFAULT_MAP_ROOT):
@@ -61,11 +58,11 @@ class MapCache:
         with open(path, "r") as f:
             raw = json.load(f)
 
-        # Index nodes by token for O(1) lookup
+        # Index nodes by token.
         self.nodes = {n["token"]: (n["x"], n["y"]) for n in raw.get("node", [])}
         self.polygons = {p["token"]: p for p in raw.get("polygon", [])}
 
-        # Layer → list of polygon-containing records (for query_in_patch)
+        # Layer name to list of polygon-containing records.
         self.layers = {}
         for layer in ["drivable_area", "lane", "ped_crossing", "walkway", "road_segment",
                       "carpark_area", "stop_line"]:
@@ -96,8 +93,7 @@ class MapCache:
 
 
 def world_to_ego(pts_world_2d, ego_translation, ego_rotation):
-    """Transform (N, 2) or (N, 3) world-frame points to ego frame.
-    Input assumed z=0 if 2D. Output is (N, 3)."""
+    """Transform (N, 2) or (N, 3) world-frame points to the ego frame. 2D input is assumed to have z=0. Output is (N, 3)."""
     if pts_world_2d.shape[-1] == 2:
         pts_world = np.hstack([pts_world_2d, np.zeros((pts_world_2d.shape[0], 1))])
     else:
@@ -129,20 +125,20 @@ def render_hdmap_on_pano(
     color_table: dict = None,
     max_distance: float = DEFAULT_MAX_DISTANCE,
     pen_width: int = 3,
-    mode: str = "outline",  # "outline" (edges only) or "fill" (TODO)
+    mode: str = "outline",  # only "outline" (edges only) is supported
 ):
-    """Render HD map layers onto the full 9600×600 pano image.
+    """Render HD map layers onto the full 9600x600 pano image.
 
     Args:
         info: pkl info dict. Must have `ego2global_translation`, `ego2global_rotation`.
         map_cache: MapCache for info["location"].
-        cam_translations: dict name → (3,) sensor2ego translation.
-        color_table: layer → (r, g, b). Defaults to OpenDWM-compatible palette.
+        cam_translations: dict name to (3,) sensor2ego translation.
+        color_table: layer to (r, g, b). Defaults to the OpenDWM-compatible palette.
         max_distance: discard polygons whose centroid is farther than this (m) from ego.
         pen_width: stroke width in full-pano pixels.
-        mode: only "outline" supported for now.
+        mode: only "outline" is supported.
 
-    Returns: PIL.Image of 9600×600 with polygons drawn on black background.
+    Returns: PIL.Image of 9600x600 with polygons drawn on a black background.
     """
     from PIL import Image
     img = Image.new("RGB", (PANO_W, PANO_H), (0, 0, 0))
@@ -160,7 +156,6 @@ def render_hdmap_on_pano(
             continue
         records = map_cache.layers[layer_name]
         for rec in records:
-            # Get polygon token(s)
             if "polygon_token" in rec:
                 poly_tokens = [rec["polygon_token"]]
             elif "polygon_tokens" in rec:
@@ -169,15 +164,13 @@ def render_hdmap_on_pano(
                 continue
 
             for pt in poly_tokens:
-                # Distance filter via centroid
+                # Distance filter on the polygon centroid (in the ego frame).
                 cx, cy = map_cache.polygon_centroid_world(pt)
-                # Need ego pose to filter: transform centroid to ego and check
                 centroid_world = np.array([[cx, cy]])
                 centroid_ego = world_to_ego(centroid_world, ego_t, ego_r)[0]
                 if np.sqrt(centroid_ego[0]**2 + centroid_ego[1]**2) > max_distance:
                     continue
 
-                # Polygon exterior
                 pts_world = map_cache.polygon_exterior_world_pts(pt)
                 if pts_world.shape[0] < 3:
                     continue

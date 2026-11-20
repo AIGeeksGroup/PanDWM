@@ -5,14 +5,9 @@
 #SBATCH --mem=100G
 #SBATCH --time=06:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b/logs/%x_%A_%a.log
-# tab:gs_recon with the FT3 G3b decoder.
-# Settings of gs_recon_ext249/scripts/ext_ours_render.sbatch (config g2.json, pkl, DA3 weights, render_ours.py
-# modes 3d / 4d, the three resolutions) with the gaussian/finetune code and checkpoint G3b 2000 (md5 18e655d8...):
-#   3d: scene overrides {"plane_offset_px": 1.0}            (single frame, per-frame DA3 as before)
-#   4d: scene overrides {"da3_window": "clip", "da3_fuse": true, "plane_offset_px": 1.0}   (G3b's V2 scene, frames 0..20)
-# Task k of N renders positions k::N of the 213-clip targets, then of the 36-clip targets, for both modes.
-#   [TAG=g3b OVR3=<json> OVR4=<json>] sbatch --array=0-2 g3b_render_v2.sbatch
-#   TAG=g3bs with seam_bridge overrides
+# Render the reconstruction targets with the fine-tuned Gaussian decoder (render_ours.py, modes 3d and 4d, three
+# resolutions). Task k of N renders positions k::N of the 213-clip targets, then of the 36-clip targets.
+#   [TAG=g3b OVR3=<json> OVR4=<json> CKPT=<ckpt>] sbatch --array=0-2 g3b_render_v2.sbatch
 set -uo pipefail
 source $HOME/pandwm_env.sh
 H=$HOME; X2=$H/pandwm_runs/gs_recon_g3b

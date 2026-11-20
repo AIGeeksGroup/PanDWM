@@ -1,4 +1,4 @@
-"""Distributed entry point used by pandwm_common_front.sbatch."""
+"""Entry point for pandwm_common_front.sbatch: runs dwm_pano.evaluate_4step on the common clips."""
 import argparse
 import sys
 import types

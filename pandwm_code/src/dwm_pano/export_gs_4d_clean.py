@@ -1,21 +1,15 @@
-"""Training-free 4D Gaussian demo, version 2: hole filling from nearby frames.
+"""Training-free 4D Gaussian demo with hole filling from nearby frames.
 
-The first 4D demo (``export_gs_4d_demo.py``) pooled static Gaussians from the
-whole 19.5 s trajectory into one map.  Decoder depth is off by about 5 m, so
-the frames disagree, and the multi-frame filter that removes the
-disagreement leaves a sparse speckle.  This version keeps frame t as the
-primary layer and uses other frames only where frame t has no coverage:
+Frame t is the primary layer and other frames are used only where frame t has no coverage:
 
   image = render(frame t) + (1 - alpha(frame t)) * render(static of nearby frames)
 
-"Nearby" is ``--window`` frames (default -20 .. +10, i.e. 2 s back and 1 s
-ahead).  Each nearby frame is decoded in its own ego frame, its static part
-(outside the padded 3D boxes, within ``--static-range`` m) is moved into the
-world frame with the logged ego poses, and then into frame t's view.  The
-ground behind and under the car, never seen by frame t, was seen by earlier
-frames, so that is what the 4D layer fills.
+"Nearby" is ``--window`` frames (default -20 .. +10, i.e. 2 s back and 1 s ahead). Each nearby frame is decoded in
+its own ego frame, its static part (outside the padded 3D boxes, within ``--static-range`` m) is moved into the world
+frame with the logged ego poses, and then into frame t's view. The ground behind and under the car, never seen by
+frame t, was seen by earlier frames, so that is what the 4D layer fills.
 
-Outputs, in a new directory (earlier demos are not touched):
+Outputs, in a new directory:
   4d_clean_compare.mp4  camera 3 m behind, 1.8 m up: per-frame 3D | 4D filled
   4d_clean_views.mp4    4D filled from the near-rig views of export_gs_clean_views
 """
@@ -82,8 +76,8 @@ def intrinsics(width, hfov_deg, up_deg, down_deg):
     return np.array([[focal, 0.0, width / 2.0], [0.0, focal, up], [0.0, 0.0, 1.0]]), height
 
 
-# Higher, farther camera for the 3D-vs-4D comparison: here per-frame 3D shows
-# the unobserved ground behind the car, which earlier frames did observe.
+# Higher, farther camera for the 3D vs 4D comparison: per-frame 3D shows the unobserved ground behind the car,
+# which earlier frames did observe.
 COMPARE_C2W = look_at_c2w([-3.0, 0.0, RIG_HEIGHT + 0.2], [15.0, 0.0, RIG_HEIGHT - 1.4])
 
 

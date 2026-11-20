@@ -1,11 +1,10 @@
 """Lateral-shift FID / FVD / sharpness of the D2 v2 refiner.
 
-eval_gs_shift.py's protocol (32 generated frames 3..34; FID-torchmetrics on the stitched pano, FVD-I3D-sector-6-16
-on frames 0..15; +d and -d pooled with the real frames added once per side; sharpness = luminance gradient energy of
-the output over the real frame's, eval_gs_shift.grad_energy), on the d2v2_export.py packs and the refined latents
-of d2_refine.py (<refined>/clipNNN/d2_dy<d>.pt), per shift d:
+Follows the protocol of eval_gs_shift.py (32 generated frames 3..34; FID on the stitched pano, FVD-I3D on frames
+0..15; +d and -d pooled; sharpness = ratio of luminance gradient energy, eval_gs_shift.grad_energy), on the
+d2v2_export.py packs and the refined latents of d2_refine.py (<refined>/clipNNN/d2_dy<d>.pt), per shift d:
 
-  raw_<d>   the export's pixels (eval_gs_shift's 4D output; must reproduce the GS-Dev FT3_G3b numbers)
+  raw_<d>   the export's pixels (eval_gs_shift's 4D output)
   d2f_<d>   the refined latents decoded with the SD3.5 VAE and stitched like the video model's outputs (full)
   d2m_<d>   d2f inside the export's fixmask (holes + magnified content), dilated by --dilate and feathered over
             --feather pano pixels, raw elsewhere (covered, unmagnified pixels keep the render exactly)

@@ -1,18 +1,9 @@
-"""Render bbox / hdmap to pano by rendering on 6 pinhole cam images and
-running the SAME `stitch_hardseam` pipeline that produced the RGB pano.
+"""Render bbox / hdmap onto the pano by drawing on the 6 pinhole camera images and running the same
+`stitch_hardseam` pipeline that produced the RGB pano.
 
-This guarantees pixel-level alignment with the RGB pano:
-  * Voronoi hardseam cuts at identical boundaries
-  * im2sphere warp identical
-  * r_offset parallax correction identical
-  * Hard seams, wrap, and near-clip all handled by the existing stitch code
-    (which has been validated on our 35K val samples)
-
-vs. direct cylindrical projection (our earlier `pano_projection.py` approach):
-  + No hand-rolled cylindrical math → no subtle axis/offset bugs
-  + Automatically hardseam-consistent with RGB
-  - Slower (6 pinhole renders + stitch per frame) — but fine for Dataset; can
-    pre-compute if bottleneck in training.
+This gives pixel-level alignment with the RGB pano (identical Voronoi hard-seam cuts, im2sphere warp, parallax
+correction, wrap and near-clip handling) without hand-written cylindrical projection math. It is slower (6 pinhole
+renders plus a stitch per frame), so the results are normally precomputed.
 """
 from __future__ import annotations
 
@@ -25,10 +16,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 from pyquaternion import Quaternion
 
-# Import the hardseam stitch from PanDWM workspace (same one used to make RGB pano).
-# Lazy: hosts that only read pre-rendered bbox/hdmap PNGs (the config'd fast path)
-# never call stitch_hardseam, and must not fail at import time when omninwm is
-# absent (e.g. single-node eval machines outside the cluster).
+# Import the hard-seam stitch (the one used to make the RGB pano). If omninwm is missing, the failure is deferred
+# to the first call so that runs that only read pre-rendered bbox/hdmap PNGs still work.
 _PANDWM_ROOT = Path("/path/to/pandwm_root/workspace/PanDWM")
 if str(_PANDWM_ROOT) not in sys.path:
     sys.path.insert(0, str(_PANDWM_ROOT))
@@ -43,12 +32,11 @@ except ModuleNotFoundError:
             "(every timestamp must have {int(ts)}.png).")
 
 
-# nuscenes_stitch expects this order (from pano_hardseam.py:20)
-# CAM_BACK(fov=110°) first, others fov=70°
+# Camera order expected by the stitch (CAM_BACK has fov 110 degrees, the others 70 degrees).
 ONEBEV_CAM_ORDER = ["CAM_BACK", "CAM_BACK_LEFT", "CAM_FRONT_LEFT",
                      "CAM_FRONT", "CAM_FRONT_RIGHT", "CAM_BACK_RIGHT"]
 
-# Native per-cam image size for nuScenes
+# Native per-camera image size for nuScenes.
 CAM_W, CAM_H = 1600, 900
 
 # Edges of a cuboid, matching mmdet3d LiDARInstance3DBoxes.corners order
@@ -80,9 +68,7 @@ HDMAP_COLORS = {
 }
 
 
-# -----------------------------------------------------------------------------
 # Helpers
-# -----------------------------------------------------------------------------
 # 8 corners in [-0.5, +0.5]^3, matching mmdet3d LiDARInstance3DBoxes corner order
 # (x0y0z0, x0y0z1, x0y1z1, x0y1z0, x1y0z0, x1y0z1, x1y1z1, x1y1z0)
 _CORNER_TEMPLATE = np.array([
@@ -94,10 +80,8 @@ _CORNER_TEMPLATE = np.array([
 
 
 def _ego_corners_from_boxes(gt_boxes_7d, q_l2e, t_l2e):
-    """Pure-numpy replacement for mmdet3d LiDARInstance3DBoxes(..., origin=(0.5,0.5,0.5)).corners
-    then rotated/translated to ego frame via lidar2ego extrinsics.
-    Verified pixel-perfect vs mmdet3d (max diff 1.2e-7, float32 precision noise).
-    """
+    """Pure-numpy replacement for mmdet3d LiDARInstance3DBoxes(..., origin=(0.5,0.5,0.5)).corners, rotated and
+    translated to the ego frame with the lidar2ego extrinsics."""
     boxes = np.asarray(gt_boxes_7d, dtype=np.float32)
     if boxes.size == 0:
         return np.zeros((0, 8, 3), dtype=np.float32)
@@ -122,15 +106,14 @@ def _ego_to_cam(points_ego, q_s2e, t_s2e):
     q_e2s = q_s2e.inverse
     t = np.asarray(t_s2e)
     shifted = np.asarray(points_ego) - t
-    # rotate each point
     flat = shifted.reshape(-1, 3)
     rotated = np.stack([q_e2s.rotate(p) for p in flat])
     return rotated.reshape(shifted.shape)
 
 
 def _project_line_near_clip(a, b, near_z=0.05, far_z=512.0):
-    """Pure-numpy copy of dwm.datasets.common.project_line (to avoid torch import).
-    Clips segment a→b against near/far z planes, returns (x/z, y/z) for each endpoint.
+    """Pure-numpy copy of dwm.datasets.common.project_line (avoids the torch import).
+    Clips segment a-b against the near/far z planes and returns (x/z, y/z) for each endpoint.
     """
     if (a[2] < near_z and b[2] < near_z) or (a[2] > far_z and b[2] > far_z):
         return None
@@ -156,25 +139,22 @@ def _project_line_pinhole(a_cam, b_cam, K, img_w, img_h, near_z=0.1, far_z=300.0
     xy = _project_line_near_clip(a_cam, b_cam, near_z=near_z, far_z=far_z)
     if xy is None:
         return None
-    # Scale by K
     xa, ya, xb, yb = xy
-    # xa, ya are already x/z and y/z; multiply by K to get pixel coords
+    # xa, ya are x/z and y/z; apply K to get pixel coordinates.
     u_a = K3[0, 0] * xa + K3[0, 2]
     v_a = K3[1, 1] * ya + K3[1, 2]
     u_b = K3[0, 0] * xb + K3[0, 2]
     v_b = K3[1, 1] * yb + K3[1, 2]
-    # basic off-image test (coarse — let draw.line clip)
+    # Coarse off-image test; draw.line does the final clipping.
     if (u_a < -img_w or u_a > 2 * img_w) and (u_b < -img_w or u_b > 2 * img_w):
         return None
     return (u_a, v_a, u_b, v_b)
 
 
-# -----------------------------------------------------------------------------
 # bbox render
-# -----------------------------------------------------------------------------
 def render_bboxes_via_stitch(info: dict, pen_width: int = 3) -> Image.Image:
-    """Render 3D bbox wireframes on 6 cam images, then hardseam-stitch.
-    Returns PIL.Image RGB 9600×600 (black bg, colored wireframes)."""
+    """Render 3D bbox wireframes on the 6 camera images, then hard-seam stitch.
+    Returns a 9600x600 RGB PIL.Image (black background, colored wireframes)."""
     q_l2e = Quaternion(info["lidar2ego_rotation"])
     t_l2e = np.array(info["lidar2ego_translation"])
     gt_boxes = info["gt_boxes"]
@@ -213,9 +193,7 @@ def render_bboxes_via_stitch(info: dict, pen_width: int = 3) -> Image.Image:
     return Image.fromarray(pano.astype(np.uint8))
 
 
-# -----------------------------------------------------------------------------
 # hdmap render
-# -----------------------------------------------------------------------------
 def _world_to_ego_2d(world_xy, ego_translation, ego_rotation):
     """Transform (N, 2) world-frame ground points to ego frame (N, 3) with z=0 in world."""
     pts3 = np.hstack([world_xy, np.zeros((world_xy.shape[0], 1))])
@@ -228,15 +206,13 @@ def _world_to_ego_2d(world_xy, ego_translation, ego_rotation):
 
 def render_hdmap_via_stitch(info: dict, map_cache, pen_width: int = 2,
                              max_distance: float = 65.0) -> Image.Image:
-    """Render HD map polygon outlines on 6 cam images, then hardseam-stitch.
-    Uses the same `stitch_hardseam` as RGB → pixel-aligned.
-    """
+    """Render HD map polygon outlines on the 6 camera images, then hard-seam stitch (same `stitch_hardseam` as the RGB pano)."""
     q_l2e = Quaternion(info["lidar2ego_rotation"])
-    t_l2e = np.array(info["lidar2ego_translation"])  # unused but kept for symmetry
+    t_l2e = np.array(info["lidar2ego_translation"])  # unused
     ego_t = info["ego2global_translation"]
     ego_r = info["ego2global_rotation"]
 
-    # Collect all polygons within max_distance, in ego frame (z=0 assumed)
+    # Collect all polygons within max_distance, in the ego frame (z=0 assumed).
     layers_polys = []   # list of (pts_ego (N,3), color)
     for layer_name, color in HDMAP_COLORS.items():
         if layer_name not in map_cache.layers:
@@ -271,7 +247,7 @@ def render_hdmap_via_stitch(info: dict, map_cache, pen_width: int = 2,
         draw = ImageDraw.Draw(img)
         for pts_ego, color in layers_polys:
             pts_cam = _ego_to_cam(pts_ego, q_s2e, t_s2e)
-            # closed polygon: draw edges including last → first
+            # Closed polygon: draw edges including last to first.
             n = pts_cam.shape[0]
             for i in range(n):
                 j = (i + 1) % n

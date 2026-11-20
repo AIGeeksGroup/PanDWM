@@ -7,6 +7,7 @@
 #SBATCH --mem=96G
 #SBATCH --time=01:00:00
 #SBATCH --output=%x_%j.log
+# Check the official OmniNWM DiT and VAE checkpoints against the model definitions.
 set -euo pipefail
 
 H=/path/to/pandwm_root

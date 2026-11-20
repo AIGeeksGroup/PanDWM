@@ -9,12 +9,11 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs_ft3/logs/%x_%A_%a.log
-# Gaussians on generated scenes, our row: dwm_pano.eval_gs_shift on the v84i4250 seed-42 Test-S generations with
-# the G3b decoder, the fixed 4D scene (camera-time poses, mmdet3d v0.x boxes), DA3 scale relabel and the 2 bottom
-# decoder rows dropped, shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m render (recon/gen_depth_pack.py).
-# ARM selects the scene flags (DA3FLAGS / EXTRA); SUBSET=s71 runs the 71-clip Test-S subset.
-# Task i evaluates its share of the clips; MERGE=1 merges.
-#   [CHUNK=18] sbatch --array=0-11 tab5_ft3_hpc3.sbatch ;  MERGE=1 sbatch tab5_ft3_hpc3.sbatch
+# Gaussians on generated scenes: dwm_pano.eval_gs_shift on the generated test clips with the fine-tuned decoder,
+# the fixed 4D scene (camera-time poses, mmdet3d v0.x boxes), DA3 scale relabel and the 2 bottom decoder rows
+# dropped, shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m render (recon/gen_depth_pack.py).
+# ARM selects the scene flags (DA3FLAGS / EXTRA). Task i evaluates its share of the clips; MERGE=1 merges.
+#   [CHUNK=18] sbatch --array=0-11 <script> ;  MERGE=1 sbatch <script>
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh
@@ -34,7 +33,7 @@ CHUNK=${CHUNK:-18}
 TASK=${SLURM_ARRAY_TASK_ID:-0}
 S=$(( TASK * CHUNK )); E=$(( S + CHUNK )); if (( E > 213 )); then E=213; fi
 mkdir -p $ST $OUT/logs
-# SUBSET=s71 CLIP_LIST=<71 test indices, one per scene> [TASKS=6]: task i takes CLIP_LIST[i::TASKS]
+# CLIP_LIST=<test indices, one per scene> [TASKS=6]: task i takes CLIP_LIST[i::TASKS]
 if [ -n "${CLIP_LIST:-}" ]; then
   SEL=$(python3 -c "import sys; l=sys.argv[1].split(','); n,k=int(sys.argv[2]),int(sys.argv[3]); print(','.join(l[k::n]))" "$CLIP_LIST" ${TASKS:-6} $TASK)
   SPAN="--clip-list $SEL"; NEXP=$(echo "$CLIP_LIST" | tr ',' '\n' | grep -c .)

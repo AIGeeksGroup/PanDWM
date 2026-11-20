@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# v7 (pipeline_v7, configs/cfdmd_D_gan_v7_hpc3_8gpu.json), the first stage of the student (steps 0-1150).
-# Resumable campaign (pause file, latest committed checkpoint), launcher with a __main__ guard for the spawn dataloader workers.
+# First-stage student training with the v7 pipeline.  Resumable (pause file, latest committed checkpoint);
+# the launcher has a __main__ guard for the spawn dataloader workers.
 #SBATCH --job-name=pandwm_cfdmd_D
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

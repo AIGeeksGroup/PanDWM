@@ -7,6 +7,7 @@
 #SBATCH --mem=16G
 #SBATCH --time=12:00:00
 #SBATCH --output=%x_%j.log
+# Download the official OmniNWM DiT weights, validation pickle and VAE, and verify their SHA-256.
 set -euo pipefail
 
 H=/path/to/pandwm_root

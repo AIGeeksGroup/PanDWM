@@ -1,11 +1,9 @@
-"""tab:gs_recon rows of the FT3 G3b decoder on the 249-clip Test-S.
+"""Reconstruction rows of the fine-tuned decoder on the 249 test clips.
 
-The 213-clip and 36-clip per-image rows of each G3b (mode, resolution) are concatenated and aggregated with the
-verbatim copies of score.py's summarize functions in gs_recon_ext249/scripts/merge_249.py (its own verbatim
-check is run first).  The stored rows of FINAL_249.json are printed next to the new ones.
+The per-image rows of the 213-clip and 36-clip parts of each (mode, resolution) are concatenated and aggregated with
+merge_249.py, whose copies of the score.py summarize functions are checked against score.py first.
 
-    python merge_g3b.py [tag]  (in ~/pandwm_runs/gs_recon_g3b; tag g3b (default) or g3bs; writes
-                               FINAL_<TAG>_249.json)
+    python merge_g3b.py [tag]    (tag g3b by default; writes FINAL_<TAG>_249.json)
 """
 import json
 import sys

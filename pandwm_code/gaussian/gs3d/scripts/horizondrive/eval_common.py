@@ -1,9 +1,8 @@
-"""Run HorizonDrive while dumping task-matched clips losslessly.
+"""Run the HorizonDrive evaluator and dump real and generated clips as uint8 tensors.
 
-The upstream evaluator always writes MP4 previews.  Codec round-trips are not
-acceptable inputs to a controlled FID/FVD comparison, so this entry point
-wraps only the preview writer and stores its exact input tensors as uint8 PT
-files.  Model loading, sampling and rollout remain the official code path.
+The upstream evaluator only writes MP4 previews. This entry point wraps the preview
+writer and also saves its input tensors, so the metrics see no codec round trip.
+Model loading, sampling and rollout are unchanged.
 """
 from __future__ import annotations
 
@@ -51,8 +50,7 @@ def _install_lossless_dump():
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / (clip_id + ".pt")
         temporary = target.with_suffix(".pt.tmp")
-        # Round once and keep lossless uint8.  Both methods are scored after
-        # this exact quantisation, so neither pays a codec-specific penalty.
+        # Quantize once to uint8; all methods are scored from the same quantization.
         torch.save((tensor.clamp(0, 1) * 255).round().to(torch.uint8).cpu(),
                    temporary)
         os.replace(temporary, target)

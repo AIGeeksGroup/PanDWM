@@ -1,23 +1,18 @@
 """D2 refiner pipeline.
 
-Training: every step takes ONE 19-frame window [s, s + 19) of a 35-frame train clip (s = d2_window_start(step,
-seed), 0..16, the same on every rank) together with the matching frames of the clip's degraded GS render condition
-(batch["d2_render"], (1, 35, 2, 17, h, w): 16 render-latent channels + coverage, from D2RenderDataset), and runs
-the native Stage-1 flow-matching train_step of PanoCrossviewTemporalSD on it.  The render condition reaches the
-model through a stand-in for model_wrapper that adds render_condition= to the single forward call of that
-train_step.  With probability render_dropout (hash of seed, step, rank) the render condition is all zeros, which
-is also the "no render" input of render guidance at inference.
-
-Render-init samples: with probability
-render_init_prob (hash of seed, step, rank; never on a render-dropped step) the noisy input of every non-reference
-frame whose sigma >= render_init_min_sigma is built from the RENDER instead of the ground truth,
-x = sigma * eps + (1 - sigma) * render, while the target stays the ground-truth latent.  This is the input the
-sampler sees when it starts from the noised render (refine_window init_sigma), so the model learns to correct the
-render there instead of copying its blur.
+Training: each step takes one 19-frame window [s, s + 19) of a 35-frame train clip (s = d2_window_start(step, seed),
+0..16, the same on every rank) with the matching frames of the clip's degraded GS render condition
+(batch["d2_render"], (1, 35, 2, 17, h, w): 16 render-latent channels + coverage, from D2RenderDataset) and runs the
+flow-matching train_step of PanoCrossviewTemporalSD.  The render condition reaches the model through a stand-in for
+model_wrapper that adds render_condition= to the forward call.  With probability render_dropout the condition is all
+zeros, which is also the "no render" input of render guidance at inference.  With probability render_init_prob (never
+on a render-dropped step) the noisy input of every non-reference frame with sigma >= render_init_min_sigma is built
+from the render instead of the ground truth, x = sigma * eps + (1 - sigma) * render, with the ground-truth latent as
+target; this matches the input of sampling from the noised render (refine_window init_sigma).
 
 Inference: refine_window() is inference_pipeline's full-sequence denoising path (same scheduler, causal mask,
-reference-frame injection at timestep 0) plus the render condition; the 3D-box and HD-map conditions are dropped
-by default because they are drawn for the original trajectory, not the shifted one.
+reference-frame injection at timestep 0) plus the render condition.  The 3D-box and HD-map conditions are dropped by
+default because they are drawn for the original trajectory, not the shifted one.
 """
 
 import hashlib

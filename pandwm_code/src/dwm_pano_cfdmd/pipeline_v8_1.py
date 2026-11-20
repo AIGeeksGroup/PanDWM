@@ -1,23 +1,11 @@
-"""v8.1 = v8 with two fixes to the temporal-difference heads .
+"""Temporal-difference discriminator heads with scale-aware input and a delayed adversarial ramp.
 
-v8 (branch E, resumed from v7 step 1000) did not reduce flicker.  Its latent flicker monitor motion_ratio_w1 went from
-1.083 (steps 1001-1150, same as v7) and 1.075 (1151-1250) up to 1.123 (1351-1430), and hf_ratio_w1 from 0.98 to 1.02,
-while v7 had been drifting down (1.137 -> 1.101 -> 1.083 over steps 701-1150).  Two causes in v8's temporal heads:
-
-1. Each temporal head began with LayerNorm on the change feature f_k - f_{k-1}.  That divides out the size of the
-   change: the head could not tell a large change from a small one, and its gradient (LayerNorm's Jacobian removes
-   the input's own direction) could not ask the student for a smaller change, only for a differently shaped one.
-   v8.1 normalises each frame's pooled features on their own (LayerNorm without learned scale) and feeds the
-   difference of the normalised features to Linear -> SiLU -> Linear, so the head sees how much a token changes
-   relative to its own feature scale.
-2. The new heads pushed the student from their first step, while near random (v7's heads had 100 heads-only steps
-   and a 200-step ramp).  In v8.1 the temporal heads' share of the student's adversarial term has weight
-   w_t = 0 before `temporal_adv_from`, then ramps linearly to 1 over `temporal_adv_ramp` steps; the heads train
-   throughout.  Student term: -(sum of spatial head means + w_t * sum of temporal head means) /
-   (n_spatial + w_t * n_temporal), which is exactly v7's while w_t = 0 and v8's form at w_t = 1.
-
-Everything else as v8 / v7 (pairs, sigma, cap on the total adversarial gradient, schedules, v7-tolerant resume).
-Report adds `temporal_weight` (w_t of the last student step).
+Each temporal head sees the difference of per-frame normalised pooled features (LayerNorm without learned scale,
+then Linear -> SiLU -> Linear), so it can tell a large change from a small one relative to the feature scale.
+The temporal heads' share of the student's adversarial term has weight w_t = 0 before `temporal_adv_from`, then
+ramps linearly to 1 over `temporal_adv_ramp` steps; the heads train throughout. Student term:
+-(sum of spatial head means + w_t * sum of temporal head means) / (n_spatial + w_t * n_temporal).
+Everything else is as in v8. The report adds `temporal_weight`.
 """
 import torch
 import torch.nn.functional as F
@@ -68,7 +56,7 @@ class PanoContextForcedDMDv8_1(PanoContextForcedDMDv8):
         return min(1.0, (step - self.temporal_adv_from + 1) / self.temporal_adv_ramp)
 
     def _token_logits(self, feats, shape, drop_context):
-        """As v8, but a temporal head sees LayerNorm(f_k) - LayerNorm(f_{k-1}) per pooled token (size kept)."""
+        """As in v8, but a temporal head sees LayerNorm(f_k) - LayerNorm(f_{k-1}) per pooled token (size kept)."""
         b, t, v = shape[:3]
         frames = t - CONTEXT if drop_context else t
         p = self.fake_score.config.patch_size

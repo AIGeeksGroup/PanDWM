@@ -1,4 +1,4 @@
-"""Check campaign decisions before importing any training dependencies."""
+"""Decide whether a launch should be skipped (marker file in the campaign directory) before heavy imports."""
 import argparse
 import datetime
 import json

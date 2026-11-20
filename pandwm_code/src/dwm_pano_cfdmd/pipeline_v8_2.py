@@ -1,22 +1,12 @@
-"""v8.2 = v8.1 plus a direct frame-to-frame change match on the student's first window .
+"""Adds a direct frame-to-frame change match on the student's first window to the v8.1 pipeline.
 
-Why: v7 step 1000 (149-clip eval) changes about 15% more from frame to frame than the real footage (B0: 5-8%).  The
-excess is spread over all scales (low-pass structure 1.15x GT, high-frequency detail 1.13x, regional brightness 1.17x;
-the first and second temporal differences carry the same excess), so it is not a particular texture shimmer or a
-brightness flicker.  The v8.1 temporal discriminator heads cut the latent flicker monitor by only ~0.5% (same-step
-paired, steps 1310-1450): their real/fake gap stayed near 0.02.
-
-What: on the first rollout window (the student's deployed 4-step sample from the clip's real history, which v7 already
-computes for the "first" adversarial pair) compare the student's latent frame-to-frame change with the real future's:
-    r = mean_k |x_k - x_{k-1}|^2 (student, 16 target frames) / same for the real frames      (per sample)
-and add  w_m * mean(relu(r - 1))  to the student loss.  Only the excess over the real change is penalised, so the
-student is never pushed below the real amount of change (no "frozen video"); this is the training monitor
-motion_ratio_w1 turned into a loss.  The gradient this term sends to the student output is capped at
-`motion_match_cap` x the DMD gradient (CapGrad, as for the adversarial terms), and w_m ramps linearly from 0 at
-`motion_match_from` to `motion_match_weight` over `motion_match_ramp` steps.
-
-Everything else as v8.1.  Report adds mm_ratio (r before the update, mean over samples), mm_loss, mm_dmd_ratio
-(uncapped gradient norm of the term / DMD gradient norm) and mm_cap_frac.
+On the first rollout window (the student's 4-step sample from the clip's real history) the student's latent
+frame-to-frame change is compared with the real future's: r = mean_k |x_k - x_{k-1}|^2 (student, 16 target
+frames) over the same quantity for the real frames, per sample. The term w_m * mean(relu(r - 1)) is added to
+the student loss, so only excess motion is penalised. Its gradient to the student output is capped at
+`motion_match_cap` times the DMD gradient (CapGrad), and w_m ramps linearly from 0 at `motion_match_from` to
+`motion_match_weight` over `motion_match_ramp` steps. The report adds mm_ratio, mm_loss, mm_dmd_ratio
+(uncapped gradient norm of the term over the DMD gradient norm), mm_cap_frac and mm_weight.
 """
 import torch
 import torch.nn.functional as F
@@ -50,7 +40,7 @@ class PanoContextForcedDMDv8_2(PanoContextForcedDMDv8_1):
         return self.motion_match_weight * min(1.0, (step - self.motion_match_from + 1) / self.motion_match_ramp)
 
     def _motion_match(self, x1, gt, cap):
-        """w_m-free motion-match loss on the first window and its stats; gradient to x1 capped."""
+        """Motion-match loss (without the weight w_m) on the first window, the per-sample ratio and the cap stats."""
         stats = {}
         x = CapGrad.apply(x1, cap, stats)
         fake = latent_motion(x[:, CONTEXT:])
@@ -58,8 +48,7 @@ class PanoContextForcedDMDv8_2(PanoContextForcedDMDv8_1):
         ratio = fake / real
         return F.relu(ratio - 1.0).mean(), ratio.detach(), stats
 
-    # A copy of PanoContextForcedDMDv7._generator_step_cf with the motion-match term added to the first-window pass
-    # (marked "v8.2"); the rest is unchanged.
+    # Copy of PanoContextForcedDMDv7._generator_step_cf with the motion-match term added to the first-window pass.
     def _generator_step_cf(self, latent_shape, cond, cond_cfg, history, target_mask):
         use_scaler = self.training_config.get("enable_grad_scaler", False)
         scale = float(self.grad_scaler.get_scale()) if use_scaler else 1.0
@@ -98,7 +87,7 @@ class PanoContextForcedDMDv8_2(PanoContextForcedDMDv8_1):
 
         st = self._stash
         use_first = w_adv > 0 and "first" in adv_pairs
-        w_mm = self._motion_weight()                                                   # v8.2
+        w_mm = self._motion_weight()
         if (use_first or self.gt_regression_weight > 0 or w_mm > 0) and "cond0" in st and "gt" in st:
             gt = st["gt"]
             saved = self.random_exit_step
@@ -113,13 +102,13 @@ class PanoContextForcedDMDv8_2(PanoContextForcedDMDv8_1):
                 mse = (x1[:, CONTEXT:].float() - gt[:, CONTEXT:WINDOW].float()).square().mean()
                 loss1 = loss1 + self.gt_regression_weight * mse
                 self._last_gt_reg = float(mse.item())
-            if w_mm > 0:                                                               # v8.2
+            if w_mm > 0:
                 cap_mm = None if self.motion_match_cap is None else self.motion_match_cap * dmd_norm * scale
                 mm, ratio, mm_stats = self._motion_match(x1, gt, cap_mm)
                 loss1 = loss1 + w_mm * mm
                 self._last_mm.update(mm_ratio=float(ratio.mean()), mm_loss=float(mm.item()))
                 self._mm_stats, self._mm_w = mm_stats, w_mm
-                if not mm_stats:                       # no backward reached the term (e.g. r <= 1 everywhere)
+                if not mm_stats:                       # no backward reaches the term (e.g. r <= 1 everywhere)
                     self._last_mm.update(mm_dmd_ratio=0.0, mm_cap_frac=0.0)
             else:
                 self._mm_stats = None
@@ -128,7 +117,7 @@ class PanoContextForcedDMDv8_2(PanoContextForcedDMDv8_1):
                 loss1 = loss1 + w_adv * adv1 + touch1
                 self._last_adv_first = float(adv1.item())
             self._backward(loss1)
-            if self._mm_stats:                                                         # v8.2: after backward
+            if self._mm_stats:
                 # weighted, uncapped gradient of the term over the DMD gradient (same convention as gan_dmd_ratio)
                 self._last_mm.update(mm_dmd_ratio=self._mm_stats["norm"] / max(scale, 1e-30) / max(dmd_norm, 1e-30),
                                      mm_cap_frac=float(self._mm_stats["scale"] < 1.0))

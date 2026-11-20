@@ -9,7 +9,7 @@ each moved with the known ego poses into camera k of frame t and z-buffered per 
 candidate counts only if |z - z0| <= tol_rel * z0 (occlusion check), and the fused depth is the median of z0 and the
 accepted candidates.  Non-static pixels keep z0.
 
-temporal_consistency() is the diagnostic of the plan: over consecutive frames, the median |z_{t-1 -> t} - z_t| / z_t
+temporal_consistency() is a diagnostic: over consecutive frames, the median |z_{t-1 -> t} - z_t| / z_t
 of the static pixels of frame t that receive a static point of frame t - 1.
 """
 

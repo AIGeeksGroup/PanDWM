@@ -1,23 +1,13 @@
-"""v8 = v7 + temporal-difference discriminator heads, aimed at the flicker v7 leaves .
+"""Context-Forced DMD with temporal-difference discriminator heads on top of the v7 pipeline.
 
-Step-500 evaluation of v7: the student's
-frame-to-frame change is ~20% above the real footage while B0's is ~7% above, so distillation adds flicker; the
-latent monitor motion_ratio_w1 agrees (1.1-1.2).  The v7 heads score every token of every frame on its own, so a
-token that changes too much between frames looks no different from one that does not.  v8 adds, per feature
-block, a second small head that scores the change of each pooled token between consecutive target frames
-(feature at frame k minus frame k-1, same view and place).  Real and fake of a pair share sigma and the noise
-tensor, so noise-driven differences are the same on both sides; excess change is what tells them apart.
+Per feature block, a second small head scores the change of each pooled token between consecutive target
+frames (feature at frame k minus frame k-1, same view and place), so excess frame-to-frame change can be
+detected. Pairs, sigma, gradient cap, warm-up and schedule are as in v7; the hinge and student losses average
+over all heads. When resuming from a v7 checkpoint, the v7 heads load as saved and the temporal heads keep
+their fresh initialisation (HeadDict and TolerantAdamW).
 
-Everything else is v7: same pairs, sigma, cap (it bounds the sum over both kinds of heads), warm-up, schedule.
-The hinge and student losses average over all heads, spatial and temporal alike.
-
-Resume from a v7 checkpoint (branching off a v7 run): the v7 heads load as saved, the temporal heads keep their
-fresh initialisation, and the head optimizer takes the v7 heads' Adam state while the temporal heads start with
-none (HeadDict and TolerantAdamW below; both only relax the "v7 file, more v8 heads" case).
-
-Reported: disc_* / disc1_* / d_gap_* are the spatial heads only (same meaning as in v7; disc_loss / disc1_loss
-are the full pair losses); dt_real_acc / dt_fake_acc / dt_gap (rollout pair) and dt1_real_acc / dt1_fake_acc /
-dt1_gap (first pair) are the temporal heads.
+Reported: disc_* / disc1_* / d_gap_* are the spatial heads only; dt_* (rollout pair) and dt1_* (first pair)
+are the temporal heads.
 """
 import torch
 import torch.nn.functional as F
@@ -68,8 +58,8 @@ class TolerantAdamW(torch.optim.AdamW):
 
 
 class PanoContextForcedDMDv8(PanoContextForcedDMDv7):
-    # Same mechanism as v7: the parent's head assignment builds the v8 heads, so the optimizer, resume,
-    # save_checkpoint and milestones use them unchanged.
+    # As in v7, the parent's head assignment builds the heads, so the optimizer, resume, save_checkpoint and
+    # milestones use them unchanged.
     @property
     def disc_head(self):
         return self._v7_heads
@@ -83,7 +73,7 @@ class PanoContextForcedDMDv8(PanoContextForcedDMDv7):
                 heads[TEMPORAL + name] = head
         self._v7_heads = heads.to(self.device)
 
-    # The parent builds a plain AdamW over the heads; give it the v7-tolerant load_state_dict.
+    # The parent builds a plain AdamW over the heads; give it the tolerant load_state_dict.
     @property
     def disc_optimizer(self):
         return self._v8_disc_optimizer
@@ -102,7 +92,7 @@ class PanoContextForcedDMDv8(PanoContextForcedDMDv7):
             print(f"V8 temporal_heads={self._v8_temporal} heads={heads}", flush=True)
 
     def _token_logits(self, feats, shape, drop_context):
-        """Spatial logits [(b t v), hp / pool, wp / pool] per block (as v7), then temporal logits
+        """Spatial logits [(b t v), hp / pool, wp / pool] per block, then temporal logits
         [(b (t - 1) v), hp / pool, wp / pool] per block: the head applied to the change of each pooled token
         from the previous target frame."""
         b, t, v = shape[:3]

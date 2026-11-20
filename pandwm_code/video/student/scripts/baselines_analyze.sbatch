@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Val-150 main-table metrics of the six-camera baselines next to ours, with tests_analyze.py (same real
-# features, jackknife intervals and floor as the ours rows of analysis_val150.json).
+# Metrics of the six-camera baselines next to ours on Val-150, with tests_analyze.py (same real features
+# and jackknife intervals as the ours rows).
 #   ARMS="unimlvg_P=feats_unimlvg_P_s42.npz;unimlvg_G=..." PAIRS="ours:unimlvg_P,oursG:unimlvg_G" TAG=<name> \
 #     sbatch scripts/baselines_analyze.sbatch
 # ARMS files are relative to feats_val150_baselines; ours / oursG (3 seeds each) are always included.

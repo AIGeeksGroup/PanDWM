@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# ablation: one variant of the final recipe (v8.4, branch I) trained for 500
-# iterations (global steps) from the consistency-distilled student cd_10000_ema.pth, fresh optimizers / heads / EMA.
-# Copy of video/student/scripts/train_v8_4.sbatch with these changes only:
-#   - ARM selects configs/abl_<ARM>_v8_4_hpc3_8gpu.json (make_ablation_configs.py; diffs pre-registered);
-#   - campaign pandwm_runs/abl_<ARM>; NO seeding from a staged checkpoint: the first run starts at step 0 from
-#     the config's generator_ckpt (cd_10000_ema.pth), fake / real score from stage1_causal_20000.pth;
-#   - a re-run (requeue after a node failure) resumes from the last committed full checkpoint of THIS campaign with
-#     --resume-data-offset = step % sampler length (scripts/dataset_len.py, as in train_v8_4.sbatch);
-#   - refuses to touch a campaign dir it did not create (marker ABLATION_OWNER.json);
-#   - --mem 700G (branch L was OOM-killed at 480G; M ran at 700G); host memory only, no effect on the training math;
-#   - ends with ABL_TRAIN_DONE only if milestones/500_ema.pth exists (afterok gate for the eval chain).
+# Ablation: train one variant of the final recipe for 500 iterations from the consistency-distilled student
+# (cd_10000_ema.pth), with fresh optimizers / heads / EMA. Same as video/student/scripts/train_v8_4.sbatch except:
+#   - ARM selects the config written by make_ablation_configs.py (configs/abl_<ARM>_...);
+#   - the run directory is pandwm_runs/abl_<ARM> and starts at step 0 from the config's generator_ckpt;
+#   - a re-run resumes from the last full checkpoint of this run directory (--resume-data-offset = step % sampler length);
+#   - it refuses to touch a run directory it did not create (marker ABLATION_OWNER.json);
+#   - it prints ABL_TRAIN_DONE only if milestones/500_ema.pth exists.
 #   ARM=A_ctrl sbatch --job-name=pandwm_abl_A scripts/train_abl.sbatch
 #SBATCH --job-name=pandwm_abl
 #SBATCH --partition=<partition>

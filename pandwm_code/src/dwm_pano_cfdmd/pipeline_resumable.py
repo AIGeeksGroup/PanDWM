@@ -1,4 +1,8 @@
-"""v4 training with full rank-local state and safe pause boundaries."""
+"""Context-Forced DMD training with full rank-local state (optimizers, scaler, RNG) and safe pause boundaries.
+
+Checkpoints are committed through a staging directory and a completion manifest; training pauses cleanly when
+the file named by PAUSE_FILE exists.
+"""
 import os
 import random
 import shutil
@@ -26,7 +30,7 @@ class PanoContextForcedDMDResumable(PanoContextForcedDMDv4):
         resume = kwargs.get("resume_from")
         if resume is not None:
             validate_manifest(self._output, resume, self._world)
-        # Parent loaders use distcp; this run uses rank-local Adam state instead.
+        # The parent loads distributed optimizer state; here rank-local Adam state is restored instead.
         loader = dwm_distributed.distributed_load_optimizer_state
         if resume is not None:
             dwm_distributed.distributed_load_optimizer_state = lambda *a, **k: None

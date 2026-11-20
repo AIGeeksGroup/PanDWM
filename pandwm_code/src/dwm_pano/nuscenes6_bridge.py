@@ -1,40 +1,15 @@
-"""Protocol bridge: the 360x33 pano band -> the six real nuScenes cameras.
+"""Protocol bridge from the 360 x 33 degree pano band to the six real nuScenes cameras.
 
-Why this exists
----------------
-Every number this project reports lives in its own panorama space, so none of
-them can be placed beside a published nuScenes figure.  This module maps a
-pano frame into the six *real* camera frames (real ``camera_intrinsics`` and
-real ``sensor2ego`` from the dataset), which is the space every public driving
-video-generation number is reported in.
+A pano frame is resampled into the six real camera frames (real ``camera_intrinsics`` and ``sensor2ego``), with no
+Gaussians and no depth. The hard-seam pano holds, in each Voronoi region, content as seen from that region's own
+camera translation (see :func:`dwm_pano.datasets.pano_projection.project_ego_point_to_pano_with_cams`), so a pixel ray
+of camera ``c`` starts at its own translation and its pano column and row do not depend on scene depth, as long as the
+region it lands in is owned by ``c``. Residual parallax appears only near a Voronoi seam;
+:func:`resample_pano_to_real_camera` returns that fraction per frame.
 
-Two facts make it a pure resample, with no Gaussians and no depth:
-
-1.  The hard-seam pano was stitched so that each Voronoi region holds content
-    as seen from **that region's own camera translation** (see
-    :func:`dwm_pano.datasets.pano_projection.project_ego_point_to_pano_with_cams`).
-    A pixel ray of camera ``c`` therefore already starts at ``t_c``, so its
-    azimuth/elevation -- and hence its pano column/row -- is **independent of
-    the unknown scene depth**, as long as the pano region it lands in is owned
-    by ``c`` itself.  Residual parallax appears only near a Voronoi seam, where
-    the landing region belongs to a neighbour that saw the world from a
-    different origin.  :func:`resample_pano_to_real_camera` returns that
-    fraction per frame so it is measured rather than assumed.
-
-2.  gsplat/Gaussian decoding is *not* needed for an appearance/temporal
-    distribution metric.  The G2 decoder currently sits at ~19.8 dB future
-    PSNR with a ~0 dB gain over its own no-GS control, so routing through it
-    would add a one-sided instrument penalty that a natively-6-view external
-    method never pays.
-
-The hard limit that no resample can remove
-------------------------------------------
-The pano is a +-16.67 deg elevation band.  The real cameras are taller, so a
-full-frame 6-camera protocol is geometrically impossible: about 16% of the rows
-of the five ~39 deg cameras have no pano content at all, and **46% of CAM_BACK**
-(58.1 deg vertical span) does.  Any bridged metric is therefore *band limited*
-and must be tagged as such; it cannot be compared against a published
-full-frame number.  Every arm has to pass through the identical crop instead.
+The pano covers a +-16.67 degree elevation band, which is narrower than the real cameras (about 16% of the rows of
+the five ~39 degree cameras, and 46% of the back camera's rows, are covered). Bridged metrics are therefore band
+limited and must be compared only between methods that pass through the identical crop.
 """
 from __future__ import annotations
 
@@ -55,17 +30,14 @@ from dwm_pano.datasets.pano_projection import (
     _cam_idx_for_angle,
 )
 
-# Elevation half-extent of the FINAL 600-row pano.  Same expression as
-# dwm_pano.gs_geometry.PANO_LAT_HALF_RAD; kept as one authority here so the
-# bridge cannot drift from the projection it inverts.
+# Elevation half-extent of the final 600-row pano; same expression as
+# dwm_pano.gs_geometry.PANO_LAT_HALF_RAD.
 PANO_BAND_HALF_RAD = VERT_FOV_HALF_RAD * PANO_H / PANO_H_PRE_CROP
 
 # Columns the pipeline drops from the resized right half before concatenation,
 # giving the 4114-wide V=1 canvas.  Mirrored from
 # `dwm_pano.pipelines.ctsd_pano_gs_decoder.PANO_CANVAS_OVERLAP_COLUMNS` rather
-# than imported, because that module pulls in diffusers and this one must stay
-# importable with numpy and torch alone.  test_nuscenes6_bridge pins the two
-# together by reading the pipeline source, so the copy cannot drift silently.
+# than imported, so this module stays importable with numpy and torch alone.
 PANO_CANVAS_OVERLAP_COLUMNS = 494
 
 def canvas_source_axes(half_size, right_trim_px: int | None = None):
@@ -73,12 +45,10 @@ def canvas_source_axes(half_size, right_trim_px: int | None = None):
 
     The evaluation pipeline never materialises a 600x9600 pano: it produces
     the 4114-wide V=1 canvas by resizing the two halves independently and
-    dropping the overlap band.  Re-deriving that map with a single global
-    resize is wrong, so this delegates to
-    :func:`dwm_pano.calibrated_stitch.half_canvas_pano_axes`, which is the
-    authority the GS pipeline already uses, and only shifts the rows from the
-    900-row pre-crop frame into the 600-row post-crop frame the bridge works
-    in.  Returned coordinates are 0-based pixel centres.
+    dropping the overlap band.  This delegates to
+    :func:`dwm_pano.calibrated_stitch.half_canvas_pano_axes` and only shifts
+    the rows from the 900-row pre-crop frame into the 600-row post-crop frame.
+    Returned coordinates are 0-based pixel centres.
     """
     from dwm_pano.calibrated_stitch import half_canvas_pano_axes
     if right_trim_px is None:
@@ -89,9 +59,8 @@ def canvas_source_axes(half_size, right_trim_px: int | None = None):
     return (rows.numpy() - PANO_CROP_TOP, columns.numpy())
 
 
-# Radius used only to pick a Voronoi owner for the parallax report.  It never
-# enters the sampling grid (see the module docstring), so the resample itself
-# is depth free.  50 m is the far end of typical nuScenes annotation range.
+# Radius used only to pick a Voronoi owner for the parallax report; it never
+# enters the sampling grid, so the resample itself is depth free.
 OWNER_PROBE_RADIUS_M = 50.0
 
 
@@ -162,8 +131,7 @@ def real_camera_pixel_directions_ego(
     ``camera_to_ego`` is the dataset's OpenCV-convention 4x4; ``intrinsics`` is
     the raw nuScenes pixel-index K.  The offset/stride pair lets a caller
     address a cropped and/or resized output grid in *native* pixel
-    coordinates, which is how the band crop stays exact instead of being
-    re-derived from a resized K.
+    coordinates, so the band crop stays exact.
     """
     c2w = np.asarray(camera_to_ego, dtype=np.float64)
     k = np.asarray(intrinsics, dtype=np.float64)
@@ -186,7 +154,7 @@ def ego_directions_to_pano_pixels(directions_ego):
 
     This is :func:`project_ego_points_to_pano` specialised to a direction: the
     azimuth/elevation of a ray does not depend on how far along it a point
-    sits, which is exactly why the bridge needs no depth.
+    sits.
     """
     directions = np.asarray(directions_ego, dtype=np.float64)
     x_ego = directions[..., 0]
@@ -215,7 +183,7 @@ def voronoi_owner_indices(directions_ego, camera_translation,
     **ego origin**, so a ray leaving ``camera_translation`` can land in a
     neighbour's region.  Where it does, that region's content was rendered
     from a different origin and the depth-free resample carries a parallax
-    error.  Reporting this is the point of the function.
+    error.
     """
     directions = np.asarray(directions_ego, dtype=np.float64)
     translation = np.asarray(camera_translation, dtype=np.float64).reshape(3)
@@ -237,10 +205,8 @@ def build_camera_sampling_grid(
 ):
     """Normalised ``grid_sample`` grid taking a pano source into one camera.
 
-    Split out of the sampler because the grid depends only on calibration and
-    sizes, never on pixels: a clip's 32 frames share one rig, and the whole
-    dataset has only a couple of distinct rigs, so a caller that caches on a
-    calibration signature builds this once instead of per frame.
+    The grid depends only on calibration and sizes, never on pixels, so it can
+    be cached on a calibration signature and reused across frames.
 
     Returns ``(grid, valid, report)``; ``grid`` is ``[H, W, 2]`` addressing a
     source that has been padded by one column on each side (see
@@ -296,8 +262,7 @@ def build_camera_sampling_grid(
     else:
         # Invert the canvas map.  `source_columns` is strictly increasing
         # (half_canvas_pano_axes asserts it), so np.interp is exact at the
-        # sample points and linear between them -- the same assumption the
-        # forward resize made.
+        # sample points and linear between them.
         column_centre = np.interp(
             tx - 0.5, source_columns, np.arange(source_width, dtype=np.float64))
         row_centre = np.interp(
@@ -331,7 +296,7 @@ def apply_camera_sampling_grid(source, grid, valid):
     """Sample ``source`` with a grid from :func:`build_camera_sampling_grid`.
 
     ``source`` is ``[N, C, H, W]`` (N may be batch*time); the same grid is
-    applied to every entry, which is the whole point of caching it.
+    applied to every entry.
     """
     source_tensor = torch.as_tensor(source)
     if source_tensor.ndim != 4:
@@ -364,7 +329,7 @@ def resample_pano_to_real_camera(
 ):
     """Sample a single pano frame into one real camera's frame.
 
-    Thin wrapper over build/apply, kept because it reads well for one frame.
+    Thin wrapper over build/apply.
 
     Args:
         pano: ``[C, H, W]`` float tensor -- either the 600x9600 pano, or any
@@ -430,11 +395,9 @@ def resample_pano_to_rig(
     """Sample one pano frame into all six real cameras.
 
     Returns ``(images, valid, reports)`` with ``images`` ``[6, C, H, W]``,
-    ``valid`` ``[6, H, W]`` and one report dict per camera.  Output size is
-    common across cameras on purpose: the six native bands have different
-    heights, and a per-camera output size would reintroduce exactly the
-    per-camera squeeze that makes PanoPatch-FVD's per-camera values
-    incomparable across cameras.
+    ``valid`` ``[6, H, W]`` and one report dict per camera.  The output size is
+    common across cameras, so no per-camera squeeze is introduced even though
+    the six native bands have different heights.
     """
     pano_tensor = torch.as_tensor(pano)
     if pano_tensor.ndim != 3:

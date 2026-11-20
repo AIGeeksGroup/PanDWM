@@ -1,29 +1,16 @@
-"""v8.3 = v8.2 with a reworked frame-to-frame change match .
+"""Frame-to-frame change match split into low-frequency and high-frequency parts (extends the v8.2 pipeline).
 
-Why:
-  * the remaining flicker is static-scene "boiling": in the third of clips with the least real motion the generated
-    frame change is 1.75x GT (VAE round trip 1.10x); scenes with motion are at ~1.0x;
-  * the step between windows (last history frame -> first generated frame) carries the same excess but v8.2's term
-    never sees it: latent_motion(x[:, CONTEXT:]) covers the 15 steps inside the 16 generated frames only;
-  * v8.2 matched raw latent L2 change, which falls when detail is removed: from v8.1 to v8.2 high-frequency change fell
-    more than low-frequency change and per-clip sharpness loss correlates with change loss (+0.45);
-  * the term was on/off: zero when r <= 1, otherwise always clipped to 0.35 x DMD (its uncapped gradient was 1.7-10x
-    DMD), and it only covered the first window (real history), not windows built on the student's own history.
-
-What changes (everything else is v8.2):
-  1. Seam: the change sequence starts at the last history frame, so the history -> first generated step counts.
-  2. Blur-proof split: each latent frame is split into a low-pass part (average over `mm3_pool` x `mm3_pool` latent
-     pixels) and the high-frequency residual.
-       r_hf = (HF frame change / HF energy)_student / (same)_real      -- removing detail does not lower it
-       r_lf = (LF frame change)_student / (LF frame change)_real
-     loss = w_hf * relu(log r_hf)^2 + w_lf * [relu(log r_lf)^2 + relu(log floor - log r_lf)^2]
-     The LF part is two-sided (below `mm3_lf_floor` x the real change counts too), so the video is not pushed static.
-  3. Smooth push: squared log ratios grow with the excess; the 0.35 x DMD cap (CapGrad) stays as a safety bound.
-  4. Rollout window: when the student's main pass exited at the final step (its x0 is the deployed 4-step sample),
-     the same term is applied to the trained window, whose history is the student's own rollout (Self-Forcing's
-     train-on-own-history point), against the real window's change; earlier exits are skipped (blurry by design).
-Report keys: mm3_hf_ratio / mm3_lf_ratio (first window, before the update), mm3_loss, mm3_cap_frac, mm3_dmd_ratio,
-mm3_roll_hf_ratio / mm3_roll_lf_ratio / mm3_roll_on (rollout term), mm_weight.  The v8.2 keys keep their names.
+The change sequence starts at the last history frame, so the step between windows is included. Each latent
+frame is split into a low-pass part (average over `mm3_pool` x `mm3_pool` latent pixels) and the
+high-frequency residual:
+  r_hf = (HF frame change / HF energy) of the student over the same quantity for the real frames,
+  r_lf = LF frame change of the student over that of the real frames,
+  loss = w_hf * relu(log r_hf)^2 + w_lf * [relu(log r_lf)^2 + relu(log floor - log r_lf)^2].
+The LF part is two-sided (below `mm3_lf_floor` times the real change is also penalised) so the video is not
+pushed static. The gradient to the student output is capped at `motion_match_cap` times the DMD gradient. When
+the main pass exited at the final step, the same term is also applied to the trained window, whose history is
+the student's own rollout. Report keys: mm3_hf_ratio, mm3_lf_ratio, mm3_loss, mm3_cap_frac, mm3_dmd_ratio,
+mm3_roll_hf_ratio, mm3_roll_lf_ratio, mm3_roll_on.
 """
 import math
 
@@ -74,7 +61,7 @@ class PanoContextForcedDMDv8_3(PanoContextForcedDMDv8_2):
                   f"penalty, cap {self.motion_match_cap} x DMD)", flush=True)
 
     def _motion_match3(self, x_gen, hist_last, real_seq, cap):
-        """Weight-free v8.3 term.  x_gen: student frames [B, T, ...] (gradient capped); hist_last: [B, 1, ...] the
+        """Motion-match term without the weight.  x_gen: student frames [B, T, ...] (gradient capped); hist_last: [B, 1, ...] the
         history frame before them (no gradient); real_seq: [B, 1 + T, ...] the real last history frame + future."""
         stats = {}
         x = CapGrad.apply(x_gen, cap, stats)
@@ -88,8 +75,8 @@ class PanoContextForcedDMDv8_3(PanoContextForcedDMDv8_2):
                 + self.mm3_w_lf * (F.relu(log_lf).square() + F.relu(floor - log_lf).square())).mean()
         return loss, log_lf.detach().exp(), log_hf.detach().exp(), stats
 
-    # A copy of PanoContextForcedDMDv8_2._generator_step_cf with the v8.3 term ("v8.3") in place of v8.2's
-    # _motion_match on the first window, plus the rollout-window term; the rest is unchanged.
+    # Copy of PanoContextForcedDMDv8_2._generator_step_cf with this module's motion-match term in place of the
+    # v8.2 one on the first window, plus the rollout-window term.
     def _generator_step_cf(self, latent_shape, cond, cond_cfg, history, target_mask):
         use_scaler = self.training_config.get("enable_grad_scaler", False)
         scale = float(self.grad_scaler.get_scale()) if use_scaler else 1.0
@@ -114,13 +101,13 @@ class PanoContextForcedDMDv8_3(PanoContextForcedDMDv8_2):
         loss = 0.5 * diff.square().sum() / count
         dmd_norm = float((grad.double() * mask).norm() / count)
         cap = None if self.gan_ratio_cap is None else self.gan_ratio_cap * dmd_norm * scale
-        cap_mm = None if self.motion_match_cap is None else self.motion_match_cap * dmd_norm * scale   # v8.3
+        cap_mm = None if self.motion_match_cap is None else self.motion_match_cap * dmd_norm * scale
         adv = torch.zeros((), device=self.device)
         stats = {}
         if w_adv > 0 and "rollout" in adv_pairs:
             adv, touch = self._adv_term(x0_pred, lambda xs: self._rollout_inputs(xs, exit_main), cap, stats)
             loss = loss + w_adv * adv.double() + touch.double()
-        w_mm = self._motion_weight()                                                   # v8.3
+        w_mm = self._motion_weight()
         st = self._stash
         roll_stats = None
         if w_mm > 0:
@@ -157,7 +144,7 @@ class PanoContextForcedDMDv8_3(PanoContextForcedDMDv8_2):
                 mse = (x1[:, CONTEXT:].float() - gt[:, CONTEXT:WINDOW].float()).square().mean()
                 loss1 = loss1 + self.gt_regression_weight * mse
                 self._last_gt_reg = float(mse.item())
-            if w_mm > 0:                                                               # v8.3
+            if w_mm > 0:
                 mm, r_lf, r_hf, mm_stats = self._motion_match3(x1[:, CONTEXT:], gt[:, CONTEXT - 1:CONTEXT],
                                                                gt[:, CONTEXT - 1:WINDOW], cap_mm)
                 loss1 = loss1 + w_mm * mm
@@ -169,7 +156,7 @@ class PanoContextForcedDMDv8_3(PanoContextForcedDMDv8_2):
                 loss1 = loss1 + w_adv * adv1 + touch1
                 self._last_adv_first = float(adv1.item())
             self._backward(loss1)
-            if mm_stats:                                                               # v8.3: after backward
+            if mm_stats:
                 self._last_mm3.update(mm3_dmd_ratio=mm_stats["norm"] / max(scale, 1e-30) / max(dmd_norm, 1e-30),
                                       mm3_cap_frac=float(mm_stats["scale"] < 1.0))
             elif w_mm > 0:

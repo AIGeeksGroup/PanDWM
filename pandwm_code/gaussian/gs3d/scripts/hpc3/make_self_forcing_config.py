@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build auditable Stage-2 restart and paired on-policy CD configs."""
+"""Build Stage-2 warmup, control and self-forcing consistency-distillation configs from a base config."""
 
 import argparse
 import json
@@ -34,9 +34,8 @@ def build_config(base, arm, seed, student, teacher, train_pkl, train_rgb,
     })
 
     pipeline = config["pipeline"]
-    # The inherited official namespace contains 35 accepted but unused keys,
-    # including distribution_loss="dmd" and teacher_forcing=True. Remove
-    # them so the saved config states the objective actually trained here.
+    # Drop inherited keys that the pipeline accepts but ignores, so the saved
+    # config matches the objective that is actually trained.
     for key in INERT_OFFICIAL_STAGE2_KEYS:
         pipeline.pop(key, None)
     pipeline["_class_name"] = (

@@ -1,23 +1,22 @@
-"""GS render conditions for the D2 refiner.
+"""GS render conditions for the lateral-shift refiner.
 
-Frame t of a gs_scene_v3 scene (current frame's Gaussians over the static Gaussians of nearby frames) is rendered at
-the six nuScenes cameras and stitched with the pipeline's hard seam into the (3, 256, 4114) canvas, as in
-eval_gs_shift.py / export_shift_pano_latents.py.  Modes:
+Frame t of a GS scene (current frame's Gaussians over the static Gaussians of nearby frames) is rendered at the six
+cameras and stitched with the pipeline's hard seam into the (3, 256, 4114) canvas, as in eval_gs_shift.py /
+export_shift_pano_latents.py.  Modes:
 
 * shift      (inference): rig moved by offset = (dx, dy) metres in the ego frame; current frame + fill.
 * plain      (training):  original rig; current frame + fill.
 * cull       (training):  original rig; the current frame keeps only the Gaussians that the rig moved by offset
                           would capture (inside its +/-16.7 deg band about the rig centre at 1.6 m, and not hidden
-                          behind the expected depth of its own render), then + fill.  The holes are those a real
-                          shift by -offset would open, seen from the other side.
+                          behind the expected depth of its own render), then + fill, which gives holes like a real
+                          shift by -offset.
 * neighbors  (training):  original rig; the current frame keeps only its Gaussians inside the padded 3D boxes, so
-                          the static scene comes from the nearby frames alone (their depth errors show as
-                          misplacement and stretching, as on a real novel view).
+                          the static scene comes from the nearby frames alone.
 
-encode_condition() fills the holes (alpha < 0.5) with pushpull_fill, cuts the canvas back into the two 2304-wide
-halves (left = canvas[..., :2304], right = canvas[..., 1810:]) and VAE-encodes them with the posterior MEAN and
-the video model's shift / scaling (the same latent space as the refiner's targets); the coverage mask is the
-8 x 8 mean of (alpha >= 0.5) per half at latent resolution, stored as uint8 (x 255).
+encode_condition() fills the holes (alpha < 0.5) with pushpull_fill, cuts the canvas into the two 2304-wide halves
+(left = canvas[..., :2304], right = canvas[..., 1810:]) and VAE-encodes them with the posterior mean and the video
+model's shift / scaling; the coverage mask is the 8 x 8 mean of (alpha >= 0.5) per half at latent resolution, stored
+as uint8 (x 255).
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ from dwm_pano.gs_scene_v3 import RIG_HEIGHT_M, composite
 LEFT_W = 2304
 MODES = ("shift", "plain", "cull", "neighbors")
 MODE_PROBS = (("cull", 0.70), ("neighbors", 0.15), ("plain", 0.15))
-DY_RANGE = (0.5, 4.0)                                   # |dy| = lo + (hi - lo) * u^2: median 1.4 m, 90% 3.3 m
+DY_RANGE = (0.5, 4.0)                                   # |dy| = lo + (hi - lo) * u^2
 DX_RANGE = (-1.5, 1.5)
 
 

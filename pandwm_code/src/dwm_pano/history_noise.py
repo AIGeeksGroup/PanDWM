@@ -46,9 +46,9 @@ def make_history_for_window(reference, initial_stats, mode, sigma, alpha,
 def history_noise_draws(shape, settings, step, seed, rank):
     """Per-sample history noise levels and noise for one training step.
 
-    teacher v3.  settings = {"prob": p, "sigma_max": s1, "sigma_min": s0}:
-    a sample is noised with probability p, with s ~ U(s0, s1).  The generator is
-    seeded by (seed, step, rank) only, so the draws never touch the model RNG.
+    settings = {"prob": p, "sigma_max": s1, "sigma_min": s0}: a sample is noised with probability p, with
+    sigma uniform in [s0, s1]. The generator is seeded by (seed, step, rank) only, so the draws never touch
+    the model RNG.
     """
     prob = float(settings.get("prob", 0.5))
     smin = float(settings.get("sigma_min", 0.0))

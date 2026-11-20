@@ -1,28 +1,20 @@
 """WorldSplat-style 4D training for the PanDWM Gaussian decoder.
 
-Subclasses ``dwm_pano.pipelines.ctsd_pano_gs_decoder.PanoGaussianDecoderPipeline``
-and overrides only ``train_step``; rendering, depth loading, LPIPS, previews
-and checkpointing are inherited unchanged.
+Subclasses ``dwm_pano.pipelines.ctsd_pano_gs_decoder.PanoGaussianDecoderPipeline`` and overrides only ``train_step``;
+rendering, depth loading, LPIPS, previews and checkpointing are inherited.
 
-Per step, F frames of one clip (stride ``frame_stride``) are decoded, each in
-its own ego frame, with gradients kept for all of them.  Gaussians whose
-centre lies inside a padded 3D box of their frame are *dynamic*.  Losses:
+Per step, F frames of one clip (stride ``frame_stride``) are decoded, each in its own ego frame, with gradients kept
+for all of them. Gaussians whose centre lies inside a padded 3D box of their frame are dynamic. Losses:
 
-* ``own``       the original single-frame reconstruction (RGB L1, LPIPS and,
-                when a depth mirror exists, render-depth / range L1);
-* ``composite`` WorldSplat: static Gaussians of all F frames moved into frame
-                t's ego frame + frame t's own dynamic Gaussians, rendered at
-                frame t's cameras and compared with frame t (Wang et al.,
-                WorldSplat, ``render_with_static_dynamic``);
-* ``loo``       leave-one-out: only the *other* frames' static Gaussians
-                rendered at frame t, on static, covered pixels -- a genuine
-                novel-view signal that a single-frame decoder never receives;
-* ``motion``    (off by default) dynamic Gaussians of frame s carried to frame
-                t by the rigid motion of the same tracked box, supervised on
-                frame t's dynamic pixels.
+* ``own``       single-frame reconstruction (RGB L1, LPIPS and, when depth is available, render-depth / range L1);
+* ``composite`` static Gaussians of all F frames moved into frame t's ego frame plus frame t's own dynamic
+                Gaussians, rendered at frame t's cameras and compared with frame t (as in WorldSplat);
+* ``loo``       leave-one-out: only the other frames' static Gaussians rendered at frame t, on static, covered
+                pixels;
+* ``motion``    (off by default) dynamic Gaussians of frame s carried to frame t by the rigid motion of the same
+                tracked box, supervised on frame t's dynamic pixels.
 
-Batch size must be 1 (as in every G2 config).  Batches need the box fields of
-``dwm_pano_4d.dataset.PanoNuScenesBoxDataset``.
+Batch size must be 1. Batches need the box fields of ``dwm_pano_4d.dataset.PanoNuScenesBoxDataset``.
 """
 
 from __future__ import annotations
@@ -56,22 +48,17 @@ DEFAULT_4D = {
     "loo_min_alpha": 0.5,
     "dynamic_pixel_alpha": 0.3,
     # Keep only each frame's (N, 14) output between forward and backward and
-    # recompute decoder activations in backward: F frames must stay in one
-    # graph for the pooled losses, which otherwise exceeds a 48 GB GPU.
+    # recompute decoder activations in backward, so F frames fit in one graph.
     "checkpoint_decoder": True,
-    # Composite every training render over a random solid background colour.
-    # With the default black background a transparent Gaussian matches a dark
-    # pixel for free, and at 1000 steps night clips collapsed to ~40 %
-    # coverage.  Evaluation and demos still render on black.
+    # Composite every training render over a random solid background colour,
+    # since with a black background a transparent Gaussian matches a dark
+    # pixel for free.  Evaluation and demos still render on black.
     "random_background": False,
     # Probability of the random background per step (1.0 = always); the
-    # rest of the steps keep the black background that evaluation and demos
-    # render on, so colours stay calibrated for black.
+    # other steps keep the black background used for evaluation.
     "random_background_prob": 1.0,
     # Coverage regulariser on each frame's own render: mean(1 - alpha) over
-    # valid pixels.  With the black background a transparent Gaussian matches
-    # a dark pixel for free; this term makes transparency cost something
-    # while keeping the background (and so the colour calibration) black.
+    # valid pixels.
     "weight_coverage": 0.0,
 }
 
@@ -141,8 +128,7 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
         if self.gs4d["random_background"]:
             colour = torch.rand(3, generator=self.generator)
             prob = self.gs4d["random_background_prob"]
-            # prob = 1 draws nothing extra, so the RNG stream (frame choice)
-            # matches runs made before this option existed.
+            # prob = 1 draws nothing extra, so the RNG stream (frame choice) is unchanged.
             if prob >= 1.0 or float(torch.rand((), generator=self.generator)) < prob:
                 self._train_background = colour.to(self.device)
         vae_images = batch["vae_images"]

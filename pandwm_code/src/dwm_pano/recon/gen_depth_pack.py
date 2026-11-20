@@ -1,16 +1,12 @@
-"""LiDAR depth pack for Table 5.
+"""Build a LiDAR depth pack for the depth-based reconstruction metrics.
 
-For every Test-S clip (tests213_manifest.json, the frozen eval enumeration rebuilt as in targets.py) and every
-clip frame k in --frames (default 3, 11, 19, 27 = generated frames 0, 8, 16, 24), the generated scene of frame k is
-compared with the RECORDED LiDAR of frame k (static structure follows the conditioning poses and map).  Per frame:
-  * the six real cameras: K at 1600x900 and c2w in frame k's camera-time ego (targets.camera_time_pose), the frame
-    the Gaussians of frame k live in;
-  * the LIDAR_TOP sample_data nearest in time to the info (lidar_sync.py logic), moved with its own ego pose into each
-    camera (camera at its own recorded ego pose); points with 0.5 < z <= 80 m that land inside the 1600x900 image;
-  * static = outside every dynamic 3D box (DYNAMIC_CLASSES, mmdet3d v0.x reading, 0.3 m margin) after moving the
-    points into the info's LiDAR frame (lidar_to_box).
-Output <out>/clip<test_index:03d>.npz: frames (F,), c2w (F, 6, 4, 4) f4, K (F, 6, 3, 3) f4, counts (F, 6) i4, and the
-concatenated points uv16 (N, 2) uint16 = round(16 * native pixel coords), z (N,) f4, static (N,) bool.
+For every test clip in the manifest and every clip frame k in --frames, the generated scene of frame k is compared
+with the recorded LiDAR of frame k. Per frame this stores the six camera intrinsics (1600x900) and camera-to-world
+poses in the camera-time ego frame (targets.camera_time_pose), and the LIDAR_TOP points nearest in time (see
+lidar_sync.py) moved into each camera, keeping 0.5 < z <= 80 m inside the image. Points outside every dynamic 3D box
+(DYNAMIC_CLASSES, 0.3 m margin, evaluated in the info's LiDAR frame via lidar_to_box) are flagged static.
+Output <out>/clip<test_index:03d>.npz: frames (F,), c2w (F, 6, 4, 4), K (F, 6, 3, 3), counts (F, 6), and the
+concatenated points uv16 (N, 2) uint16 = round(16 * native pixel coords), z (N,), static (N,) bool.
 
     python -m dwm_pano.recon.gen_depth_pack --manifest tests213_manifest.json --data-pkl <val pkl>
         --meta-dir <v1.0-trainval> --nusc-root <root> --out <dir>

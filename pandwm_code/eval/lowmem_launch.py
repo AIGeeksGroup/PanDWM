@@ -1,4 +1,4 @@
-"""Run an existing PanDWM script on a 24 GB GPU (HPC1 A30) without editing it.
+"""Run an existing PanDWM script on a 24 GB GPU without editing it.
 
 Two substitutions, both applied before the target script builds the pipeline:
 
@@ -17,7 +17,7 @@ Two substitutions, both applied before the target script builds the pipeline:
    (identical BlockMask; building it on the GPU needs a 14 GB dense temporary).
 
 Evaluations launched this way are compared only with each other (same GPU,
-same path), not with numbers produced through real FSDP on HPC2.
+same path), not with numbers produced through real FSDP.
 
   python lowmem_launch.py run_eval149_videos.py <its arguments...>
 """

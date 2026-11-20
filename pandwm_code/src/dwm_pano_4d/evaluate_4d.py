@@ -11,7 +11,7 @@ pixels only:
   coverage_*    fraction of valid pixels the representation covers
   psnr_own      frame t decoded and rendered at its own cameras (round trip)
 
-Run the same command with the G2 checkpoint and with a 4D checkpoint.
+Run the same command with a 3D decoder checkpoint and with a 4D checkpoint.
 """
 
 from __future__ import annotations

@@ -1,11 +1,11 @@
-"""Stage A  cache the clip-level DA3 metric crop depth of the generated Dev clips.
+"""Cache the clip-level DA3 metric crop depth of generated clips.
 
 For each clip (eval_gs_shift's layout and dataset), SceneBuilder._clip_da3_crops (one DA3 pass over all 35 decoded
-frames) times the clip's ground scale gives the metric z-depth of the six pinhole crops of every
-frame; it is resized (nearest) to the external models' input size and saved with DA3's sky mask (>= 0.3):
+frames) times the clip's ground scale gives the metric z-depth of the six pinhole crops of every frame. It is
+resized (nearest) to the external models' input size and saved with DA3's sky mask (>= 0.3):
   <out>/clip<index:03d>.npz   depth float16 (35, 6, h, w), sky uint8 (35, 6, h, w), scale float
-external_gs.py reads it to put the external Gaussians at metric scale (InfiniSplat pins another DA3 revision, so the two
-cannot share a process).
+external_gs.py reads it to put the external Gaussians at metric scale (the external model pins another DA3
+revision, so the two cannot share a process).
 """
 
 from __future__ import annotations

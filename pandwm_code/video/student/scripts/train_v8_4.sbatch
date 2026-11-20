@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
-# v8.4 branch I (deep self-rollouts, src/dwm_pano_cfdmd/pipeline_v8_4.py) from branch H step 4000.
-# Copy of scripts/train_ext2.sbatch with these changes:
-#   - config configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json (v8.4 pipeline, clips of 179 frames, target_steps 5000);
-#   - campaign cfdmd_I; on the first run it is seeded from seeds/H_4000 by hard links (scripts/seed_branch.py);
-#   - MAX_STEPS defaults to 4250, the pilot.  The gate  decides whether
-#     to continue: MAX_STEPS=5000 sbatch ... resumes from the last committed checkpoint;
-#   - --resume-data-offset is step % sampler length of the 179-frame dataset (scripts/dataset_len.py), not the step;
-#   - markers PLAN_I_START / PLAN_I_COMPLETE.
+# Student training with the v8.4 pipeline (deep self-rollouts, src/dwm_pano_cfdmd/pipeline_v8_4.py), seeded on
+# the first run from seeds/H_4000 by hard links (scripts/seed_branch.py).  Copy of train_ext2.sbatch with its
+# own config (clips of 179 frames) and --resume-data-offset set to step % sampler length of the 179-frame
+# dataset (scripts/dataset_len.py) instead of the step.  MAX_STEPS defaults to 4250; to continue, run
+# MAX_STEPS=5000 sbatch ..., which resumes from the last committed checkpoint.
 #   sbatch --job-name=pandwm_cfdmd_I scripts/train_v8_4.sbatch
 #SBATCH --job-name=pandwm_cfdmd_I
 #SBATCH --partition=<partition>
@@ -58,8 +55,8 @@ if [[ "$STEP" == none ]]; then
 fi
 if [[ "$STEP" == none ]] || (( STEP < FROM )); then echo "BRANCH_NOT_SEEDED: $OUT step=$STEP"; exit 1; fi
 if (( STEP >= MAX_STEPS )); then echo "ARM_ALREADY_COMPLETE gan step=$STEP"; exit 0; fi
-# The 179-frame dataset is far smaller than the 51-frame one (11433 vs 100295 clips; 1430 sampler items per rank), and
-# vendor_snapshot/train.py requires --resume-data-offset == resume step % sampler length (4000 -> 1140).
+# The 179-frame dataset is much smaller than the 51-frame one, and vendor_snapshot/train.py requires
+# --resume-data-offset == resume step % sampler length.
 OFFSET=$(python3 "$CF/scripts/dataset_len.py" "$CONFIG" 8 "$STEP" | awk '/RESUME_DATA_OFFSET/ {print $2}')
 [[ "$OFFSET" =~ ^[0-9]+$ ]] || { echo "DATA_OFFSET_FAILED"; exit 1; }
 echo "PLAN_${ARM}_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS data_offset=$OFFSET"

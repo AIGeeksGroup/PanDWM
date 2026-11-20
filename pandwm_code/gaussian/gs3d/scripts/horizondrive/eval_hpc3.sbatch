@@ -7,14 +7,15 @@
 #SBATCH --time=2:00:00
 #SBATCH --output=%x_%j.log
 #
-# Smoke:
-#   sbatch eval_hpc3.sbatch
-# Task-matched PanDWM protocol:
-#   sbatch --export=ALL,HD_MODE=common_smoke eval_hpc3.sbatch
-#   sbatch --export=ALL,HD_MODE=common eval_hpc3.sbatch
-# Full paper protocol (recommended 4 GPUs):
+# HorizonDrive baseline evaluation (official checkpoints, upstream evaluator).
+# Smoke test:
+#   sbatch eval_cluster.sbatch
+# Common-clip protocol (smoke test, then full):
+#   sbatch --export=ALL,HD_MODE=common_smoke eval_cluster.sbatch
+#   sbatch --export=ALL,HD_MODE=common eval_cluster.sbatch
+# Full HorizonDrive protocol (4 GPUs recommended):
 #   sbatch --gres=gpu:4 --cpus-per-task=48 --time=8:00:00 \
-#     --export=ALL,HD_MODE=full eval_hpc3.sbatch
+#     --export=ALL,HD_MODE=full eval_cluster.sbatch
 set -euo pipefail
 
 HD_MODE=${HD_MODE:-smoke}

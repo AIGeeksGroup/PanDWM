@@ -1,16 +1,10 @@
 """Re-render Gaussian demos from viewpoints close to the capture rig.
 
-The original demos (``export_gs_long_demo.py`` / ``export_gs_batch149.py``)
-put the camera 4 m behind and 2.5 m above the ego vehicle and orbit it at 8 m.
-The decoder emits one Gaussian per panorama pixel (a single depth shell seen
-through a +/-16.7 deg vertical band), so such viewpoints expose the unobserved
-ground under the car (black), disoccluded backs of objects (stretched shells)
-and depth seams between cameras (cracks).  This script renders only views the
-representation can support: small translations around the rig at rig height,
-a pure-rotation pan, and a vertical field of view inside the observed band.
-
-It writes ``gs_clean_views.mp4`` to a new directory and never touches the
-earlier outputs.
+The decoder emits one Gaussian per panorama pixel (a single depth shell seen through a +/-16.7 deg vertical band),
+so far viewpoints expose the unobserved ground under the car, disoccluded object backs and depth seams between
+cameras. This script renders only views the representation supports: small translations around the rig at rig
+height, a pure-rotation pan, and a vertical field of view inside the observed band. It writes
+``gs_clean_views.mp4`` to a new directory.
 
   long demo : --scene-token T (--rollout-dir D | --latent-source gt) --out DIR
   149 clips : --clips-root R --start a --end b --out-root DIR
@@ -59,7 +53,7 @@ VIEWS = {
               lambda t: (lambda y: look_at_c2w([0.0, y, RIG_HEIGHT],
                                                [15.0, y, RIG_HEIGHT - 0.2]))(
                   1.0 * math.sin(2 * math.pi * t / 40.0))),
-    # Kept only for the side-by-side test: the old, far viewpoint.
+    # Far viewpoint, kept for side-by-side comparison.
     "old_chase": ("old: 4 m behind, 2.5 m up",
                   lambda t: look_at_c2w([-4.0, 0.0, 2.5], [10.0, 0.0, 1.0])),
 }
@@ -73,9 +67,8 @@ def parse_args():
     p.add_argument("--views", default="chase,sweep,pan")
     p.add_argument("--width", type=int, default=960)
     p.add_argument("--hfov-deg", type=float, default=70.0)
-    # Vertical extent above / below the horizon.  The panorama band is
-    # +/-16.7 deg, and the ground near the rig is never observed, so the
-    # frame stops a few degrees below the horizon instead of showing black.
+    # Vertical extent above / below the horizon. The panorama band is +/-16.7 deg and the ground near the rig
+    # is never observed, so the frame stops a few degrees below the horizon.
     p.add_argument("--vfov-up-deg", type=float, default=14.0)
     p.add_argument("--vfov-down-deg", type=float, default=7.0)
     p.add_argument("--fill-width", type=int, default=61,
@@ -102,11 +95,10 @@ def parse_args():
 
 
 def fill_cracks(rgb, alpha, width):
-    """Inpaint thin uncovered gaps; leave large uncovered regions untouched.
+    """Inpaint thin uncovered gaps (cracks); leave large uncovered regions untouched.
 
-    rgb (3, H, W) in [0, 1], alpha (H, W).  A pixel is filled only if it is
-    uncovered and its uncovered region does not survive a morphological
-    opening of ``width`` pixels, i.e. it is a crack, not a missing area.
+    rgb (3, H, W) in [0, 1], alpha (H, W). A pixel is filled only if it is uncovered and its uncovered region
+    does not survive a morphological opening of ``width`` pixels.
     """
     import cv2
     hole = (alpha.float().numpy() < 0.5).astype(np.uint8)

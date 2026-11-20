@@ -1,12 +1,11 @@
-"""Several closed-loop long rollouts in ONE process : run_long_rollout_v2.py with the pipeline, the
-sampler and the dataset built once.  Every scene restarts from the exact RNG state a fresh single-scene run has at that
-point (pipeline generator, global CPU and CUDA RNG, snapshotted after construction), so each output equals
-run_long_rollout_v2.py's for the same scene, seed and arguments; this skips the ~2.7 min of loading per video.
+"""Several closed-loop long rollouts in one process, with the pipeline, sampler and dataset built once.
+Every scene restarts from the RNG state a fresh single-scene run has at that point (pipeline generator, global CPU
+and CUDA RNG, snapshotted after construction), so the output for a scene does not depend on the other scenes.
   python lowmem_launch.py run_long_rollout_multi.py --base-config C --checkpoint K --output-root R --tag T \
       --scene-list dev76_long10.json --indices 0 1 2 --seed 42 --windows 10
-Output R/<T>_scene<dev76_index>_seed<seed>, the same files as run_long_rollout_v2.py.  A finished video is skipped;
+Output R/<T>_scene<dev76_index>_seed<seed>.  A finished video is skipped;
 an interrupted one with resume_state.pt is resumed; a directory without either is moved aside (.incomplete_<time>).
---debug-windows N stops every scene after N windows without writing the final video (for the equality check).
+--debug-windows N stops every scene after N windows without writing the final video.
 """
 
 
@@ -282,8 +281,7 @@ def main():
     parser.add_argument("--noise-sigma", type=float, default=0.0)
     parser.add_argument("--align-alpha", type=float, default=0.5)
     parser.add_argument("--engine", choices=("student", "teacher"), default="student")
-    # the student step list was hard-coded to [1000, 625, 250, 42]; that stays the default so earlier
-    # runs reproduce. The paper uses the training list [1000, 750, 500, 250].
+    # The default step list is [1000, 625, 250, 42]; the training list is [1000, 750, 500, 250].
     parser.add_argument("--student-steps", type=int, nargs=4, default=[1000, 625, 250, 42])
     parser.add_argument("--teacher-guidance-scale", type=float, default=3.0)
     parser.add_argument("--time-budget-s", type=float, default=0.0)

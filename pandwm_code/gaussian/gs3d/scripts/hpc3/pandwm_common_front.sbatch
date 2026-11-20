@@ -2,17 +2,16 @@
 #SBATCH --job-name=pandwm_common
 #SBATCH --partition=<partition>
 #SBATCH --nodes=1
-# 149 clips is not divisible by four.  Keep the formal common protocol on one
-# rank so the evaluator does not truncate the final clip for DistributedSampler.
+# Single rank: 149 clips do not split evenly, and DistributedSampler would drop the last clip.
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=120G
 #SBATCH --time=02:00:00
 #SBATCH --output=%x_%j.log
 #
-# Re-score PanDWM on the exact HorizonDrive task-matched interchange:
-# 149 clips, first 3 frames as context, all 32 predicted frames, CAM_FRONT
-# band at 384x768, uint8 round-trip, TATS I3D-400.
+# Score PanDWM on the common-clip protocol: 149 clips, 3 context frames, 32
+# predicted frames, front-camera band at 384x768, uint8 round trip, I3D-400.
+# Usage: [ITEMS=149] [SEED=42] [INDICES=..] [VIS_DIR=..] sbatch pandwm_common_front.sbatch
 set -euo pipefail
 
 ITEMS=${ITEMS:-149}
@@ -32,9 +31,8 @@ done
 source /path/to/conda/bin/activate pandwm
 export PYTHONPATH=$H/pandwm_code/src:$H/pandwm_code/TATS_fvd
 export PANDWM_4STEP_SAMPLER=stochastic
-# The HorizonDrive adapter constructs this exact hard-deduplicated canvas.
-# Cross-fading the PanDWM canvas here would change CAM_FRONT GT pixels because
-# the 21.6-degree internal seam lies inside the front camera's field of view.
+# Disable the panorama cross-fade: the seam lies inside the front camera's field of view and
+# blending would alter the front-view pixels that are scored.
 export PANDWM_PANO_BLEND_W=0
 if [[ -n "$INDICES" ]]; then
   export PANDWM_EVAL_INDICES="$INDICES"
@@ -66,7 +64,7 @@ config["generator_seed"] = int(seed)
 config["global_state"]["device_mesh"]["mesh_shape"] = [1, int(processes)]
 pipeline = config["pipeline"]
 pipeline["inference_config"]["evaluation_item_count"] = int(items)
-# Frozen best four-step schedule used by the s13bl PanDWM arm.
+# Four-step sampling schedule.
 pipeline["denoising_step_list"] = [1000, 625, 250, 42]
 pipeline["metrics"] = {
     "n6bridge": {

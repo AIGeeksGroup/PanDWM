@@ -1,11 +1,10 @@
-"""tab:gs_recon on the 249-clip Test-S: merge the stored 213-clip per-image rows with the 36 new ones
-and re-aggregate with the aggregation of dwm_pano/recon/score.py.
+"""Merge the stored 213-clip per-image reconstruction rows with the 36 additional clips and re-aggregate.
 
-summarize / summarize_depth below are verbatim copies of the nested functions in score.py main() (md5 3bc20a25...),
-which cannot be imported.  Step 1 re-aggregates the stored 213-clip rows alone and requires EXACT equality with the
-stored score JSON ("image" and "depth" blocks); only then are the merged 249-clip numbers written.
+summarize / summarize_depth below are verbatim copies of the nested functions in score.py main(), which cannot be
+imported. The stored 213-clip rows are first re-aggregated alone and must reproduce the stored score JSON exactly
+("image" and "depth" blocks); only then are the merged 249-clip numbers written.
 
-    python merge_249.py            (run in ~/pandwm_runs/gs_recon_ext249)
+    python merge_249.py
 """
 import json
 import sys
@@ -18,7 +17,7 @@ X = H / "pandwm_runs/gs_recon_ext249"
 R = H / "pandwm_runs/gs_recon"
 OX = H / "pandwm_runs/gs_recon_extra"
 
-# table row -> (stored 213-clip score JSON, new 36-clip score JSON)
+# table row: (method, resolution, key, stored 213-clip score JSON)
 ROWS = [
     ("Omni-Scene", "224x400", "omniscene_224x400", R / "scores/omniscene_224x400.json"),
     ("Ours (3D)", "224x400", "ours_3d_224x400", R / "scores/ours_3d_224x400.json"),
@@ -33,14 +32,14 @@ ROWS = [
 COLS = [("PSNR_cov", "image", "psnr_cov"), ("PSNR", "image", "psnr_fill"), ("SSIM", "image", "ssim_fill"),
         ("LPIPS", "image", "lpips_vgg_fill"), ("Cov.", "image", "coverage"), ("AbsRel", "depth", "abs_rel"),
         ("delta1", "depth", "delta1")]
-# overridable by a wrapper (merge_249_a800.py): where the new 36-clip scores of a key live, output names
+# can be overridden by a wrapper script: location of the new 36-clip scores and the output names
 NEW_SCORES = {}                    # key -> score JSON path; default X / f"scores/{key}_ext36.json"
 FINAL_NAME = "FINAL_249.json"
 MERGED_DIR = "scores_249"
 DIGITS = {"PSNR_cov": 2, "PSNR": 2, "SSIM": 3, "LPIPS": 3, "Cov.": 3, "AbsRel": 3, "delta1": 3}
 
 
-# ---- verbatim from dwm_pano/recon/score.py main() ----
+# verbatim from dwm_pano/recon/score.py main()
 def summarize(rs, key_rows):
     out = {}
     for group in ["all"] + sorted({r["target"] for r in rs}):
@@ -68,7 +67,7 @@ def summarize_depth(rs):
                 agg[tag]["points"] = int(sum(v["points"] for v in vals))
         out[group] = agg
     return out
-# ---- end verbatim ----
+# end verbatim
 
 
 def table_values(res):
@@ -137,7 +136,7 @@ def main():
         new_path = Path(NEW_SCORES.get(key, X / f"scores/{key}_ext36.json"))
         new = json.loads(new_path.read_text())
         new_rows = json.loads(new_path.with_suffix(".rows.json").read_text())
-        # 1) reproduction of the stored 213-clip aggregate from its rows
+        # 1) re-aggregate the stored 213-clip rows
         rep = {"image": summarize(old_rows["image"], old_rows["image"]), "depth": summarize_depth(old_rows["depth"])}
         exact = rep["image"] == old["image"] and rep["depth"] == old["depth"]
         diff = max(max_abs_diff(rep["image"], old["image"]), max_abs_diff(rep["depth"], old["depth"]))

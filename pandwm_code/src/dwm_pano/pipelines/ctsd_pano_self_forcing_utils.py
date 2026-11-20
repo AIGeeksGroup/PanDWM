@@ -1,4 +1,4 @@
-"""Small, CPU-testable helpers for paired self-forcing experiments."""
+"""Small CPU-testable helpers for self-forcing rollouts."""
 
 import dwm.functional
 
@@ -28,7 +28,7 @@ def validate_rollout_config(config):
 
 
 def slice_sequence_batch(batch, start, length, exceptions):
-    """Slice every time-dependent condition exactly like AR inference."""
+    """Slice every time-dependent condition as autoregressive inference does."""
     end = start + length
     if start < 0 or end > batch["vae_images"].shape[1]:
         raise ValueError("window escapes batch time axis")

@@ -7,6 +7,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=03:00:00
 #SBATCH --output=%x_%j.log
+# Build the OmniNWM inputs (images, 12 Hz records, manifest) for all 149 common clips.
 set -euo pipefail
 
 H=/path/to/pandwm_root

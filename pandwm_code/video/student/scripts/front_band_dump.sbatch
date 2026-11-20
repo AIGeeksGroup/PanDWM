@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# CAM_FRONT band dumps of the Dev-149 v84i4250 run for the qualitative comparison with the September
-# front-view baselines (front_band_dump.py). ARM/OUT can be overridden for other seeds.
+# Dumps the front-camera band of a generated run (front_band_dump.py) for qualitative comparison with
+# front-view baselines. ARM and OUT can be overridden.
 #SBATCH --job-name=pandwm_fband
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

@@ -1,18 +1,10 @@
-"""Evaluate the official Epona checkpoint on PanDWM's frozen nuScenes clips.
+"""Run the official Epona checkpoint on the 149 common nuScenes clips.
 
-This is deliberately a data/output adapter, not a reimplementation of Epona.
-The model, VAE, checkpoint loader, sampler, and rollout step are imported from
-the pinned upstream Epona checkout.  The adapter only:
-
-* enumerates the same 149 nuScenes clips used by the PanDWM/HorizonDrive run;
-* reconstructs their CAM_FRONT band from PanDWM's immutable panorama cache;
-* feeds the official 10-frame Epona context at its native 512x1024 size; and
-* writes lossless uint8 tensors understood by the shared PanDWM evaluator.
-
-The target interval for the comparison is frames 10..25 of each 35-frame
-clip (16 future frames).  PanDWM and HorizonDrive must be re-scored on exactly
-the same interval.  Epona has ten context frames whereas those methods use
-three; this conditioning difference must be disclosed with every result.
+A thin data adapter: the model, VAE, checkpoint loader and rollout come from the
+upstream Epona checkout. It builds the front-camera band of each clip from the
+panorama cache, feeds 10 context frames at 512x1024, and writes uint8 tensors for
+the shared evaluator. Targets are frames 10 to 25 of each 35-frame clip; Epona
+uses 10 context frames while the other methods use 3.
 """
 from __future__ import annotations
 
@@ -45,7 +37,7 @@ from dwm_pano.nuscenes6_bridge import (
     canvas_source_axes,
 )
 
-# These imports must resolve to the pinned official Epona checkout.
+# These imports resolve to the upstream Epona checkout.
 from models.model import TrainTransformersDiT
 from models.modules.tokenizer import VAETokenizer
 from utils.preprocess import get_rel_pose
@@ -85,8 +77,7 @@ def parse_args():
 
 
 def load_official_config(path: str, vae_path: str):
-    # The released Config helper misses one imported symbol.  Loading this
-    # plain assignment-only config via runpy avoids patching upstream code.
+    # Load the assignment-only config with runpy; the upstream Config helper misses an import.
     values = {
         key: value for key, value in runpy.run_path(path).items()
         if not key.startswith("__")
@@ -106,10 +97,8 @@ def load_official_config(path: str, vae_path: str):
         raise ValueError(
             "official Epona sampling steps changed: {}".format(
                 config.num_sampling_steps))
-    # The released GitHub config retains the image-DCAE defaults, while the
-    # official Hugging Face model card identifies dcae_td_20000.pkl as the
-    # temporal-aware decoder with temporal patch size 6.  The checkpoint has
-    # 90 temporal-layer keys and cannot load strictly with the image default.
+    # The released config keeps the image-DCAE defaults, but dcae_td_20000.pkl is the
+    # temporal decoder (patch size 6) and does not load strictly with them.
     config.add_encoder_temporal = False
     config.add_decoder_temporal = True
     config.temporal_patch_size = OFFICIAL_TEMPORAL_DECODE_PATCH
@@ -119,8 +108,7 @@ def load_official_config(path: str, vae_path: str):
 def load_common_clips(annotation_path: str):
     with open(annotation_path, "rb") as handle:
         payload = pickle.load(handle)
-    # Match HorizonDrive's official annotation loader before applying the
-    # shared PanDWM timestamp sampler; this fixes both scene and clip order.
+    # Sort by timestamp first so that scene and clip order are fixed.
     infos = list(sorted(payload["infos"], key=lambda item: item["timestamp"]))
     scene_groups = payload["scene_tokens"]
     token_to_scene = {}
@@ -296,11 +284,9 @@ def generate_clip(model, tokenizer, loader, clip, args, config):
     start_latents = tokenizer.encode_to_z(context)
     del context
 
-    # The released temporal DCAE is defined for six-frame patches.  When the
-    # metric wants 16 frames, roll the causal world model out to 18, decode
-    # 6+6+6 exactly as the official video path does, then retain the first 16.
-    # The DCAE uses a lower-triangular temporal mask, so the two padding-tail
-    # frames cannot leak into the 16 retained frames.
+    # The temporal DCAE decodes six-frame patches: roll out to 18 frames, decode
+    # in three patches of 6 as the official video path does, keep the first 16.
+    # The decoder is causal, so the padding frames do not affect the kept ones.
     rollout_frames = temporal_rollout_frames(args.prediction_frames)
     predicted_latents = []
     torch.cuda.reset_peak_memory_stats()
@@ -417,7 +403,7 @@ def main():
             print("skip validated {}".format(target), flush=True)
             continue
 
-        # Make random output independent of job-array sharding and resume order.
+        # Per-clip seed, so output does not depend on sharding or resume order.
         clip_seed = int(args.seed) * 1_000_003 + clip_index
         random.seed(clip_seed)
         np.random.seed(clip_seed % (2 ** 32))

@@ -6,12 +6,11 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 def distributed_save_optimizer_state(model, optimizer, folder, filename):
     if torch.distributed.is_initialized():
-        # Drain prior NCCL collectives across all PGs before kicking off
-        # the optim save's plan-stage gather. Without this, a preceding
-        # 8-rank `get_model_state_dict` (full-mesh all_gather) on the same
-        # CUDA stream leaves state that trips "NCCL Error 1: unhandled cuda
-        # error" or 10-min watchdog timeout when the optim save then opens
-        # collectives on the inner-shard subgroup.
+        # Drain pending NCCL collectives on all process groups before the
+        # optimizer save's plan-stage gather; otherwise a preceding full-mesh
+        # all_gather on the same CUDA stream can cause an NCCL error or a
+        # watchdog timeout when the save opens collectives on the inner-shard
+        # subgroup.
         torch.cuda.synchronize()
         torch.distributed.barrier()
 
@@ -28,23 +27,19 @@ def distributed_save_optimizer_state(model, optimizer, folder, filename):
             # Hybird Zero2, Zero3: ranks in the 1st group save
             state_dict = torch.distributed.checkpoint.state_dict\
                 .get_optimizer_state_dict(model, optimizer)
-            # Compute the set of ranks responsible for save.
-            # Official line `model._device_mesh.mesh[0].tolist()` works for 2D
-            # mesh (HYBRID_SHARD): mesh[0] = first ROW (shard group of node 0)
-            # → list of ranks. But on 1D mesh (FULL_SHARD single-node), mesh[0]
-            # is a 0-dim tensor → tolist() returns int, `rank in int` errors.
-            # Per OpenDWM's own comment ("Zero2/Zero3: all ranks save; HYBRID:
-            # ranks in 1st group save"), the intent for 1D FULL_SHARD is ALL
-            # ranks save (the only shard group is everyone). The save call is
-            # a NCCL collective on `process_group=device_mesh.get_group(-1)`,
-            # so only-rank-0 hangs the other 3 forever (NCCL watchdog kills at
-            # 10 min). Earlier attempt with `[mesh[0].item()]` caused exactly
-            # that hang.
+            # Compute the set of ranks responsible for the save.
+            # `model._device_mesh.mesh[0].tolist()` works for a 2D mesh
+            # (HYBRID_SHARD): mesh[0] is the first row (shard group of node 0).
+            # On a 1D mesh (FULL_SHARD, single node) mesh[0] is a 0-dim tensor
+            # and `rank in int` errors. For 1D FULL_SHARD all ranks save, since
+            # the save is a NCCL collective on
+            # `process_group=device_mesh.get_group(-1)` and saving on rank 0
+            # only would hang the other ranks.
             _mesh = model._device_mesh.mesh
             if _mesh.ndim == 0:
                 _save_ranks = [int(_mesh.item())]
             elif _mesh.ndim == 1:
-                # FULL_SHARD: the whole 1D mesh is one shard group → all save
+                # FULL_SHARD: the whole 1D mesh is one shard group, so all ranks save
                 _save_ranks = [int(r) for r in _mesh.tolist()]
             else:
                 # HYBRID_SHARD 2D: first row only
@@ -71,8 +66,8 @@ def distributed_save_optimizer_state(model, optimizer, folder, filename):
 
 def distributed_load_optimizer_state(model, optimizer, folder, filename):
     # No-op silently if neither the FSDP distcp dir nor the DDP `.pth` exist.
-    # Caller (e.g., DMD pipeline) may have opted out of optim save — Adam
-    # momentum rebuilds in ~100 steps after resume.
+    # The caller (e.g., the DMD pipeline) may have opted out of the optimizer
+    # save; Adam momentum rebuilds quickly after resume.
     fsdp_path = os.path.join(folder, filename)
     ddp_path = os.path.join(folder, "{}.pth".format(filename))
     if not os.path.exists(fsdp_path) and not os.path.exists(ddp_path):

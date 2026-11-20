@@ -1,13 +1,8 @@
-"""4-step distilled inference for a Stage 2 (consistency distillation) ckpt.
+"""4-step distilled inference for a consistency-distillation checkpoint.
 
-Generates one panoramic clip using `denoising_step_list = [1000, 750, 500, 250]`
-and saves it via `PanoCrossviewTemporalSD.preview_pipeline`. Used to verify
-distillation quality outside of training — the training-loop preview still
-runs 50-step sampling on the generator, which doesn't reflect the few-step
-regime the model is being shaped toward.
-
-Launched via:
-    scripts/preview_ctsd_unimlvg_stage3_tirda_causal_nwa_consistency_distillation_4step.sh
+Generates one panoramic clip with denoising_step_list = [1000, 750, 500, 250] and saves it via
+PanoCrossviewTemporalSD.preview_pipeline. The training-loop preview still samples with 50 steps, so this script
+checks the distilled model in the few-step regime.
 """
 import argparse
 import copy
@@ -23,11 +18,10 @@ from dwm_pano.pipelines.ctsd_pano import CrossviewTemporalSD
 
 
 def compute_denoising_sigmas(pipeline):
-    """FlowMatch sigma at each `pipeline.denoising_step_list` timestep.
+    """FlowMatch sigma at each pipeline.denoising_step_list timestep.
 
-    Pipeline only stores the 4 timestep VALUES, not the sigmas. Look them up
-    once from a 1000-step scheduler so the inference loop can convert model
-    velocity → predicted x0 via `x0 = noisy + (-sigma) * velocity`.
+    The pipeline only stores the timestep values, so the sigmas are looked up once from a 1000-step scheduler; the sampler
+    converts model velocity to predicted x0 via x0 = noisy + (-sigma) * velocity.
     """
     lookup = copy.deepcopy(pipeline.test_scheduler)
     lookup.set_timesteps(pipeline.num_train_timestep, pipeline.device)
@@ -40,12 +34,11 @@ def compute_denoising_sigmas(pipeline):
 
 
 def make_4step_inference(pipeline, sigmas):
-    """Build an `inference_pipeline` callable that does 4-step denoising.
+    """Build an inference_pipeline callable that does 4-step denoising.
 
-    Signature matches `PanoCrossviewTemporalSD.inference_pipeline` so it can
-    be hot-swapped onto the pipeline instance; `autoregressive_inference_pipeline`
-    (and hence `preview_pipeline`) will route through it transparently. CFG is
-    OFF because the Stage 2 generator is trained on conditional inputs only.
+    The signature matches PanoCrossviewTemporalSD.inference_pipeline, so it can be swapped onto the pipeline instance and
+    autoregressive_inference_pipeline (hence preview_pipeline) routes through it. CFG is off because the generator is
+    trained on conditional inputs only.
     """
     def inference_pipeline(
         latent_shape, batch, output_type, image_latents=None,
@@ -117,7 +110,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, required=True)
     parser.add_argument("-r", "--run", type=str, required=True,
-                        help="Stage 2 run dir containing checkpoints/<step>.pth")
+                        help="run dir containing checkpoints/<step>.pth")
     parser.add_argument("-s", "--step", type=int, required=True)
     parser.add_argument("-o", "--output", type=str, required=True,
                         help="Where to save preview/<step>.mp4")
@@ -128,8 +121,7 @@ def main():
     args = parser.parse_args()
 
     config = json.loads(open(args.config).read())
-    # Mesh override: training config targets 2 nodes; this script runs on the
-    # 1-node auxiliary alloc.
+    # the training config targets 2 nodes; this script uses a single-node mesh
     config["global_state"]["device_mesh"]["mesh_shape"] = [1, 4]
 
     local_rank = int(os.environ["LOCAL_RANK"])
@@ -140,9 +132,7 @@ def main():
     for k, v in config["global_state"].items():
         dwm.common.global_state[k] = dwm.common.create_instance_from_config(v)
 
-    # `resume_from` triggers the pipeline to load `<step>.pth` into the main
-    # model and `<step>_ema.pth` into the EMA model (see fix in
-    # PanoCrossviewTemporalConsistencyDistillation.__init__).
+    # resume_from loads <step>.pth into the main model and <step>_ema.pth into the EMA model
     pipeline = dwm.common.create_instance_from_config(
         config["pipeline"],
         output_path=args.run, config=config, device=device,
@@ -157,8 +147,7 @@ def main():
     val_ds = dwm.common.create_instance_from_config(
         config["validation_dataset"])
     if args.scene_index > 0:
-        # Subset starting at scene_index so DistributedSampler(shuffle=False)
-        # places sample N at rank 0's first batch (which is what preview saves).
+        # start the subset at scene_index so rank 0's first batch is the requested sample
         val_ds = torch.utils.data.Subset(
             val_ds, range(args.scene_index, len(val_ds)))
     sampler = torch.utils.data.distributed.DistributedSampler(

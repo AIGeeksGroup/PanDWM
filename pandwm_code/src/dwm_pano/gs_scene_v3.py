@@ -1,22 +1,21 @@
-"""Scene construction for the v3 GS renders and the lateral-shift evaluation.
+"""Scene construction for the GS renders and the lateral-shift evaluation.
 
-The v2 review scene (export_gs_v2_clips.py: frame t's Gaussians with the depth-edge filter and the max-scale cap,
-plus the static Gaussians of nearby frames as 4D fill) with three new switches, all off by default so that the
-default scene is exactly v2's:
+The base scene (export_gs_v2_clips.py) is frame t's Gaussians with the depth-edge filter and the max-scale cap, plus
+the static Gaussians of nearby frames as 4D fill. Optional switches, all off by default:
 
-* ownership (B1, after Instant NuRec's frustum-ownership pruning): a fill Gaussian from nearby frame s is kept only
-  if no other fill frame sees it from clearly closer range, D_s <= min_j D_j + own_tol_m + own_tol_rel * min_j D_j,
-  where D_j is the distance to frame j's rig centre if the Gaussian lies inside frame j's +/-16.7 deg band and
-  within static_range of it, else infinity.  With own_include_current frame t also competes (off by default:
-  frame t is composited on top anyway, and its own disocclusion holes need the fill).
-* da3_relabel (C1): every frame's Gaussians are moved along their exact rays to the Depth Anything 3 range
-  (dwm_pano_4d/da3_depth.py, windows (t - gap, t, t + gap) of VAE-decoded frames, da3_scale = ground by
-  default); pixels DA3 calls sky or without a DA3 range below far_cut keep the decoder geometry.
-* sky_layer (B2): the Gaussians of pixels DA3 calls sky are dropped; renderers then take the sky colour from the
-  frame's own decoded pano along the ray direction (sky is at infinity, so a pure translation does not move it).
-* box_reading "legacy" reads gt_boxes as (x, y, z, dx, dy, dz, yaw) (export_gs_4d_demo.boxes_in_ego);
-  the 12 Hz pkl stores mmdet3d v0.x boxes (x, y, z, w, l, h, -yaw - pi/2), which "mmdet3d_v0x" reads correctly.  The
-  two agree only for boxes aligned with the LiDAR axes; a diagonal box is mirrored and covers about half the object.
+* ownership: a fill Gaussian from nearby frame s is kept only if no other fill frame sees it from clearly closer
+  range, D_s <= min_j D_j + own_tol_m + own_tol_rel * min_j D_j, where D_j is the distance to frame j's rig centre
+  if the Gaussian lies inside frame j's +/-16.7 degree band and within static_range of it, else infinity. With
+  own_include_current, frame t also competes (otherwise frame t is composited on top anyway and its own
+  disocclusion holes need the fill).
+* da3_relabel: every frame's Gaussians are moved along their exact rays to the Depth Anything 3 (DA3) range
+  (dwm_pano_4d/da3_depth.py, windows (t - gap, t, t + gap) of VAE-decoded frames, da3_scale = ground by default);
+  pixels DA3 calls sky, or without a DA3 range below far_cut, keep the decoder geometry.
+* sky_layer: the Gaussians of pixels DA3 calls sky are dropped; renderers then take the sky colour from the frame's
+  own decoded pano along the ray direction (sky is at infinity, so a pure translation does not move it).
+* box_reading "legacy" reads gt_boxes as (x, y, z, dx, dy, dz, yaw) (export_gs_4d_demo.boxes_in_ego); the 12 Hz pkl
+  stores mmdet3d v0.x boxes (x, y, z, w, l, h, -yaw - pi/2), which "mmdet3d_v0x" reads correctly. The two agree only
+  for boxes aligned with the LiDAR axes.
 """
 
 from __future__ import annotations
@@ -55,82 +54,79 @@ class SceneOptions:
     far_cut: float = 99.0
     da3_gap: int = 4
     da3_scale: str = "ground"
-    da3_mode: str = "ray"                                               # "scale" = C1b
-    # "global" = one DA3/decoder median range ratio per frame, the decoder keeps its local
-    # depth; "blend" = per pixel, decoder range below blend_near_m, DA3 range beyond blend_far_m, linear in between
-    # (weight from the DA3 range); both move Gaussians like "scale" (rescale_gaussians)
+    da3_mode: str = "ray"                                               # also "scale", "global", "blend", "lowfreq", "bounded"
+    # da3_mode "global": one DA3/decoder median range ratio per frame, the decoder keeps its local depth.
+    # "blend": per pixel, decoder range below blend_near_m, DA3 range beyond blend_far_m, linear in between (weight
+    # from the DA3 range). Both move Gaussians like "scale" (rescale_gaussians).
     blend_near_m: float = 10.0
     blend_far_m: float = 30.0
-    drop_bottom_rows: int = 0                                           # C2's band-edge line
+    drop_bottom_rows: int = 0                                           # drop the lowest decoder rows (band edge)
     box_reading: str = "legacy"                                         # "legacy" | "mmdet3d_v0x"
     min_opacity: float = 0.0                                            # prune faint Gaussians
-    #: da3_window "clip" = one DA3 pass over all frames of the clip with
-    # one ground scale (V1; da3_chunk N > 0 = chunks of N frames overlapping by N // 2, chained by their overlap and
-    # each frame read from the chunk it is most central in); da3_fuse = static depth fusion over fuse_offsets with
-    # the relative occlusion tolerance fuse_tol_rel (V2, dwm_pano/da3_fusion.py); "frame" = the windows above
+    # da3_window "clip": one DA3 pass over all frames of the clip with one ground scale (da3_chunk N > 0: chunks of N
+    # frames overlapping by N // 2, chained by their overlap, each frame read from the chunk it is most central in).
+    # da3_fuse: static depth fusion over fuse_offsets with the relative occlusion tolerance fuse_tol_rel
+    # (dwm_pano/da3_fusion.py). "frame": the per-frame windows above.
     da3_window: str = "frame"
     da3_chunk: int = 0
     da3_fuse: bool = False
     fuse_offsets: tuple = (-8, -6, -4, -2, 2, 4, 6, 8)
     fuse_tol_rel: float = 0.1
-    #: da3_mode "lowfreq" = the decoder range times
-    # exp(low-passed log(DA3 / decoder)), lf_filter "gauss" (lf_sigma_px) or "guided" (lf_radius_px, lf_eps; guide =
-    # log decoder range), dwm_pano/da3_lowfreq.py; Gaussians moved like "scale"
+    # da3_mode "lowfreq": the decoder range times exp(low-passed log(DA3 / decoder)); lf_filter "gauss" (lf_sigma_px)
+    # or "guided" (lf_radius_px, lf_eps; guide = log decoder range), see dwm_pano/da3_lowfreq.py. Gaussians are moved
+    # like "scale".
     lf_filter: str = "gauss"
     lf_sigma_px: float = 32.0
     lf_radius_px: int = 32
     lf_eps: float = 0.01
-    #: da3_mode "bounded" = da3_depth.bounded_range, DA3 with the decoder's
-    # residual bounded to a factor exp(+-bound_c) (the geometry pipeline_relabel.py trains with); moved like "scale"
+    # da3_mode "bounded": da3_depth.bounded_range, DA3 with the decoder's residual bounded to a factor exp(+-bound_c)
+    # (the geometry pipeline_relabel.py trains with); moved like "scale".
     bound_c: float = 0.0
-    #: put every centre back on its pixel ray (origin + direction * decoder
-    # range) before any relabel, dropping the decoder's xyz offset (pipeline_relabel.py no_offset)
+    # Put every centre back on its pixel ray (origin + direction * decoder range) before any relabel, dropping the
+    # decoder's xyz offset (pipeline_relabel.py no_offset).
     no_offset: bool = False
-    # > 0 = keep the offset's across-ray component bounded to this many decoder pixels
-    # (da3_depth.plane_offsets, pipeline_relabel.py plane_offset_px)
+    # > 0: keep the offset's across-ray component bounded to this many decoder pixels
+    # (da3_depth.plane_offsets, pipeline_relabel.py plane_offset_px).
     plane_offset_px: float = 0.0
-    #: colour every Gaussian with its pixel of the
-    # SD3.5-VAE-decoded halves (the decoder grid is the halves' pixel grid) instead of the decoder's rgb head
+    # Colour every Gaussian with its pixel of the VAE-decoded halves (the decoder grid is the halves' pixel grid)
+    # instead of the decoder's rgb head.
     vae_colour: bool = False
-    #: coverage of the sky and of far
-    # content.  sky_dome_m > 0: the Gaussians of the pixels DA3 calls sky (prob >= 0.3, mask dilated by sky_dome_dilate
-    # px so silhouettes against the sky stay covered) become an opaque dome at that radius along their rays (EVolSplat
-    # / WonderWorld style background layer; isotropic scale = radius * pixel pitch * sky_dome_scale), exempt from the
-    # edge and scale filters; far_scale_exempt_m > 0: max_scale only caps Gaussians closer than that range
+    # Coverage of the sky and of far content. sky_dome_m > 0: the Gaussians of the pixels DA3 calls sky (prob >= 0.3,
+    # mask dilated by sky_dome_dilate px so silhouettes against the sky stay covered) become an opaque dome at that
+    # radius along their rays (isotropic scale = radius * pixel pitch * sky_dome_scale), exempt from the edge and scale
+    # filters. far_scale_exempt_m > 0: max_scale only caps Gaussians closer than that range.
     sky_dome_m: float = 0.0
     sky_dome_scale: float = 1.0
     sky_dome_dilate: int = 2
     far_scale_exempt_m: float = 0.0
-    #: seam_bridge = K > 0 fills the parallax wedge at every camera
-    # seam of the panorama.  Pixels on the two sides of a seam are rays from DIFFERENT camera centres, so the scene
-    # between the last ray of camera A and the first ray of camera B is in no pixel; seen from any other camera it
-    # renders as an empty vertical stripe (the main hole source of the single-frame recon, alpha < 0.02 on 12 % of the
-    # band).  K Gaussians per row are placed on the segment between the two kept seam Gaussians, colour and opacity
-    # interpolated, isotropic scale seam_bridge_scale * segment length / (K + 1); segments longer than
-    # seam_bridge_max_rel * range are left open (depth discontinuities)
+    # seam_bridge = K > 0 fills the parallax wedge at every camera seam of the panorama. Pixels on the two sides of a
+    # seam are rays from different camera centres, so the scene between the last ray of camera A and the first ray of
+    # camera B is in no pixel and renders as an empty vertical stripe from other viewpoints. K Gaussians per row are
+    # placed on the segment between the two kept seam Gaussians, with colour and opacity interpolated and isotropic
+    # scale seam_bridge_scale * segment length / (K + 1); segments longer than seam_bridge_max_rel * range are left
+    # open (depth discontinuities).
     seam_bridge: int = 0
     seam_bridge_scale: float = 0.8
     seam_bridge_max_rel: float = 0.5
-    # the endpoints are the nearest KEPT Gaussians within seam_bridge_search columns on each side (the columns right
-    # at a seam are usually removed by the depth-edge filter, coverage_diag)
+    # The endpoints are the nearest kept Gaussians within seam_bridge_search columns on each side (the columns right
+    # at a seam are usually removed by the depth-edge filter).
     seam_bridge_search: int = 1
-    # "current": the bridges join frame t's Gaussians (depth-sorted with them; GS-Dev shift eval: they cut in
-    # front of visible content, 0 m FVD 101 -> 138); "under": they are kept apart (SceneBuilder.under(t)) and the
-    # renderers composite them UNDER the whole frame (current over fill over under), so they only show through holes
+    # "current": the bridges join frame t's Gaussians (depth-sorted with them). "under": they are kept apart
+    # (SceneBuilder.under(t)) and the renderers composite them under the whole frame (current over fill over under),
+    # so they only show through holes.
     seam_bridge_layer: str = "current"
-    #: edge_extend = N > 0 adds, in the under layer, the background of every
-    # horizontal depth edge (range ratio > 1 + edge_extend_tol between neighbouring columns) continued N decoder
-    # pixels behind the foreground: copies of the background Gaussian on the rays of the foreground pixels, at the
-    # background range (3D Photo Inpainting / WonderWorld style layered background); a copy stops where the pixel is
-    # no longer foreground.  They only show where a camera move uncovers the background.
+    # edge_extend = N > 0 adds, in the under layer, the background of every horizontal depth edge (range ratio
+    # > 1 + edge_extend_tol between neighbouring columns) continued N decoder pixels behind the foreground: copies of
+    # the background Gaussian on the rays of the foreground pixels, at the background range; a copy stops where the
+    # pixel is no longer foreground. They only show where a camera move uncovers the background.
     edge_extend: int = 0
     edge_extend_tol: float = 0.2
     edge_extend_search: int = 6
-    #: sky_dome_layer "under" keeps the sky pixels' own Gaussians and puts
-    # the dome in the under layer (the "replace" dome moved misclassified pixels to 300 m: AbsRel 0.30 -> 0.44);
+    # sky_dome_layer "under" keeps the sky pixels' own Gaussians and puts the dome in the under layer ("replace"
+    # moves the sky pixels' Gaussians onto the dome).
     # band_extend = N > 0 continues the top and the lowest kept rows of the band N rows beyond it, in the under layer:
     # above, a vertical surface at the source's horizontal distance; below, the ground plane when the source lies on
-    # the ground (z < band_ground_z in ego), else again a vertical surface
+    # the ground (z < band_ground_z in ego), else again a vertical surface.
     sky_dome_layer: str = "replace"
     band_extend: int = 0
     band_ground_z: float = 0.5
@@ -138,9 +134,10 @@ class SceneOptions:
 
 
 def boxes_in_ego_v0x(info):
-    """gt_boxes as the 12 Hz pkl stores them, mmdet3d v0.x (x, y, z, w, l, h, yaw') with yaw' = -yaw - pi/2 and z the
-    box centre: centres (N, 3), rotations (N, 3, 3) whose first axis is the heading, half sizes (l, w, h) / 2, in ego
-    (same layout as export_gs_4d_demo.boxes_in_ego, for its inside_boxes)."""
+    """gt_boxes as the 12 Hz pkl stores them, mmdet3d v0.x (x, y, z, w, l, h, yaw') with yaw' = -yaw - pi/2 and z the box
+    centre. Returns, in the ego frame, centres (N, 3), rotations (N, 3, 3) whose first axis is the heading, and half
+    sizes (l, w, h) / 2 (same layout as export_gs_4d_demo.boxes_in_ego, for its inside_boxes).
+    """
     boxes = np.asarray(info.get("gt_boxes", []), dtype=np.float64)
     if boxes.size == 0:
         return np.zeros((0, 3)), np.zeros((0, 3, 3)), np.zeros((0, 3))
@@ -172,25 +169,24 @@ class SceneBuilder:
         self.grid_shape = tuple(pipe.pixel_content_ray_valid.shape)     # (2, H, W)
         self._decoded, self._static, self._canvas, self._da3 = {}, {}, {}, {}
         self.colours = {}
-        #: optional {t: (2, H, W) bool} over the decoder grid; decode(t) keeps
-        # only those pixels' Gaussians (a completion scene contributes where the base scene is missing)
+        # Optional {t: (2, H, W) bool} over the decoder grid; decode(t) keeps only those pixels' Gaussians (a
+        # completion scene contributes where the base scene is missing).
         self.pixel_keep = None
-        #: optional {t: (2, H, W)} range factors applied after the
-        # relabel (rescale_gaussians about the pixel origins); _ranges[t] keeps the ranges before that factor
+        # Optional {t: (2, H, W)} range factors applied after the relabel (rescale_gaussians about the pixel
+        # origins); _ranges[t] keeps the ranges before that factor.
         self.range_scale = None
         self._ranges = {}
         self._under = {}
         self.stats = {"da3_scale": [], "da3_ground_over_metric": [], "sky_fraction": [],
                       "da3_use_fraction": [], "fill_kept_fraction": []}
 
-    # ------------------------------------------------------------------
     def canvas(self, t):
         """Frame t's VAE-decoded pano as the (3, H, 4114) unpadded stitch canvas in [0, 1]."""
         if t not in self._canvas:
             lat = self.latents[t:t + 1].to(self.device, dtype=self.pipe.latent_directions.dtype)
             halves = self.pipe.decode_half_latents(lat).float()          # (1, 2, 3, H, W)
             self._canvas[t] = self.pipe._unpadded_stitch_canvas(halves)[0].clamp(0, 1)
-            if len(self._canvas) > 3 * len(self.opts.window) + 8:     # never evict the frame just decoded
+            if len(self._canvas) > 3 * len(self.opts.window) + 8:     # keep the frame just decoded
                 self._canvas.pop(min(k for k in self._canvas if k != t))
         return self._canvas[t]
 
@@ -200,8 +196,9 @@ class SceneBuilder:
         return (boxes_in_ego if self.opts.box_reading == "legacy" else boxes_in_ego_v0x)(self.infos[s])
 
     def _clip_da3_crops(self):
-        """Clip-level DA3 (V1): unscaled crop depth / sky (F * 6, h, w), crop intrinsics (6, 3, 3), and the chunking
-        actually used.  One pass when da3_chunk is 0 or covers the clip."""
+        """Clip-level DA3: unscaled crop depth / sky (F * 6, h, w), crop intrinsics (6, 3, 3), and the chunking actually used.
+        One pass when da3_chunk is 0 or covers the clip.
+        """
         frames, n = self.frames, self.opts.da3_chunk
         canvases = torch.stack([self.canvas(f) for f in range(frames)])
         e2w = torch.as_tensor(self.world, dtype=torch.float64)
@@ -234,7 +231,7 @@ class SceneBuilder:
                 [(a, a + n) for a in starts])
 
     def _clip_da3(self):
-        """Fill self._da3 for every frame from one clip-level DA3 solution (V1), fused when da3_fuse (V2)."""
+        """Fill self._da3 for every frame from one clip-level DA3 solution, fused when da3_fuse is set."""
         if self.opts.da3_scale != "ground":
             raise ValueError("da3_window clip supports da3_scale ground only")
         pipe, frames = self.pipe, self.frames
@@ -303,7 +300,7 @@ class SceneBuilder:
             else:
                 from dwm_pano_4d.da3_depth import plane_offsets
                 g = plane_offsets(g, ray_o, ray_d, rng, opts.plane_offset_px)
-        if t not in self.colours:                                      # v2's --bg-fill sky / ground colours
+        if t not in self.colours:                                      # sky / ground colours (mean of the top / bottom rows)
             rgb = g[:, 3:6].reshape(*rng.shape, 3)
             self.colours[t] = (rgb[:, :8].reshape(-1, 3).mean(0), rgb[:, -8:].reshape(-1, 3).mean(0))
         keep = self.content.to(g.device).clone()
@@ -472,8 +469,8 @@ class SceneBuilder:
             self.stats["fill_kept_fraction"].append(sum(k.shape[0] for k in kept) / max(1, total))
             parts = kept
         to_t = torch.linalg.inv(torch.as_tensor(self.world[t], device=self.device, dtype=torch.float32))
-        #: each fill Gaussian's source rig centre in frame t's
-        # ego, row-aligned with the returned tensor (read by eval_gs_shift --mag-cull; unused otherwise)
+        # Each fill Gaussian's source rig centre in frame t's ego, row-aligned with the returned tensor (read by
+        # eval_gs_shift --mag-cull; unused otherwise).
         rig = torch.tensor([0.0, 0.0, RIG_HEIGHT_M, 1.0], device=self.device, dtype=torch.float32)
         centres = [(to_t @ torch.as_tensor(self.world[s], device=self.device, dtype=torch.float32) @ rig)[:3]
                    .expand(g.shape[0], 3) for s, g in zip(frames, parts)]
@@ -533,12 +530,12 @@ class SceneBuilder:
     def _edge_extend(self, g, keep, rng, po):
         """Under-layer copies of the background across horizontal depth edges (SceneOptions.edge_extend).
 
-        For an edge between columns c (foreground) and c + 1 (background, range ratio > 1 + tol) the source is the
-        first KEPT pixel among c + 1 ... c + edge_extend_search on the background side whose range is still above the
-        foreground's (the pixels right at an edge are usually removed by the depth-edge filter: edge_extend with
-        the adjacent pixel as source added nothing).  Copies are placed on the rays of the columns from the source
-        back towards (and past) the edge, up to edge_extend columns beyond it, at the source's range; a copy is made
-        where the column is not kept or is still in front of the background."""
+        For an edge between columns c (foreground) and c + 1 (background, range ratio > 1 + tol) the source is the first kept
+        pixel among c + 1 ... c + edge_extend_search on the background side whose range is still above the foreground's (the
+        pixels right at an edge are usually removed by the depth-edge filter). Copies are placed on the rays of the columns
+        from the source back towards (and past) the edge, up to edge_extend columns beyond it, at the source's range; a copy
+        is made where the column is not kept or is still in front of the background.
+        """
         opts, (v, h, w) = self.opts, self.grid_shape
         grid = g.reshape(v, h, w, -1)
         kgrid = keep.reshape(v, h, w).to(g.device)
@@ -666,12 +663,13 @@ def composite_depth(front_depth, front_alpha, back_depth, back_alpha):
     return (wf * front_depth + wb * back_depth) / (wf + wb).clamp_min(1e-6)
 
 def background_row_fill(rgb, alpha, depth, thr=0.5, max_gap=0, smooth=5):
-    """Depth-image-based-rendering hole fill (B3): every uncovered pixel (alpha < thr) takes, along its row, the
-    colour of whichever nearest covered pixel (left or right) is farther away, because a disocclusion shows
-    background.  Rows with no covered pixel on either side stay uncovered.  The filled pixels are then box-blurred
-    vertically over `smooth` rows (filled pixels only) to break the horizontal streaks.  Returns (rgb', alpha')
-    with alpha' = 1 on filled pixels; remaining holes are left for pushpull_fill.  rgb (3, H, W), alpha / depth
-    (H, W).  max_gap > 0 fills only holes up to that many columns wide."""
+    """Depth-image-based-rendering hole fill: every uncovered pixel (alpha < thr) takes, along its row, the colour of
+    whichever nearest covered pixel (left or right) is farther away, because a disocclusion shows background. Rows with
+    no covered pixel on either side stay uncovered. The filled pixels are then box-blurred vertically over `smooth` rows
+    (filled pixels only) to break the horizontal streaks. Returns (rgb', alpha') with alpha' = 1 on filled pixels;
+    remaining holes are left for pushpull_fill. rgb is (3, H, W), alpha / depth are (H, W). max_gap > 0 fills only holes up
+    to that many columns wide.
+    """
     covered = alpha.float() >= thr
     h, w = covered.shape
     cols = torch.arange(w, device=rgb.device).expand(h, w)

@@ -1,18 +1,17 @@
-"""Controllability predictions.
+"""Detection and segmentation predictions for the controllability evaluation.
 
-Every arm becomes the uint8 [32, 6, 3, 256, 448] camera views of the camera-space protocol exactly as in
-cam_band_feats.py (latents: decode + stitch + LegacyInverseOwnGeometry resample; recband: recorded canvas resampled;
-views: six-camera run, resized to 256x448 if needed), then x = u8 / 255 with x = 0.5 outside the protocol mask
-(onebev_inverse_own and native rows 0..51). On x:
-  frcnn    torchvision fasterrcnn_resnet50_fpn_v2 COCO_V1, defaults (min 800 / max 1333, score 0.05, NMS 0.5, 100 dets)
-  dfine    D-FINE-X Objects365+COCO (robustness only): 640x640 bilinear, post_process_object_detection(0.05), top 100
+Every arm becomes uint8 [32, 6, 3, 256, 448] camera views of the camera-space protocol as in cam_band_feats.py
+(latents: decode, stitch and resample; recband: recorded canvas resampled; views: six-camera run, resized to 256x448
+if needed), then x = u8 / 255 with x = 0.5 outside the protocol mask. Models run on x:
+  frcnn    torchvision fasterrcnn_resnet50_fpn_v2 COCO_V1 with default settings
+  dfine    D-FINE-X Objects365+COCO: 640x640 bilinear, post_process_object_detection(0.05), top 100
   m2f_cs   Mask2Former Swin-L Cityscapes semantic: 2x bilinear to 512x896, ImageNet mean/std, HF
-           post_process_semantic_segmentation(target 256x448); road = Cityscapes label "road"
-  m2f_mv   Mask2Former Swin-L Mapillary Vistas semantic (robustness only), same input; road = MV road-surface classes
+           post_process_semantic_segmentation (target 256x448); road = Cityscapes label "road"
+  m2f_mv   Mask2Former Swin-L Mapillary Vistas semantic, same input; road = Mapillary road-surface classes
 Detections kept: COCO person / car / bus / truck (torchvision ids 1 / 3 / 6 / 8), all scores >= 0.05.
-Output <out>/<arm>__<det>+<seg>/clipNNN.npz (NNN = Val-150 test_index): det_img (t * 6 + camera), det_label, det_score,
+Output <out>/<arm>__<det>+<seg>/clipNNN.npz (NNN = test_index): det_img (t * 6 + camera), det_label, det_score,
 det_box (xyxy, 256x448 edge coords), road (packed bits [32, 6, 14336]), mask (packed [6, 14336]); resumable.
---unmasked NAME: that arm's networks see the unmasked views (diagnostic G5; scoring still uses the mask).
+--unmasked NAME: that arm's networks see the unmasked views (scoring still uses the mask).
 """
 import argparse
 import json
@@ -30,7 +29,7 @@ import ctrl_common as cc
 from long_feats import I3D
 from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
 
-# Mapillary Vistas v1.2 road-surface classes (robustness segmenter; fixed before any result was seen)
+# Mapillary Vistas v1.2 road-surface classes
 MV_ROAD = ("road", "crosswalk - plain", "lane marking - crosswalk", "lane marking - general", "manhole", "pothole",
            "service lane", "bike lane")
 

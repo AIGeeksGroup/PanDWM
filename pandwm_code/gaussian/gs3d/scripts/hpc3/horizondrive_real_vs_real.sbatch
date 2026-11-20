@@ -6,6 +6,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
 #SBATCH --output=%x_%j.log
+# Real-vs-real FID/FVD reference on random half splits of the 149 common clips.
+# Usage: SOURCE_JOB=.. [SPLIT_REPEATS=20] [SPLIT_SEED=..] sbatch horizondrive_real_vs_real.sbatch
 set -euo pipefail
 
 SOURCE_JOB=${SOURCE_JOB:?set SOURCE_JOB to the generation job directory}

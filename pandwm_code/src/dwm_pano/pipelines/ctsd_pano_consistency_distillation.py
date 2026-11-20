@@ -1,10 +1,8 @@
-"""
-OpenDWM pano adaptation of Causal Forcing++ consistency distillation.
+"""Panoramic adaptation of Causal Forcing consistency distillation.
 
-The algorithm follows the official Causal-Forcing implementation
-(https://github.com/thu-ml/Causal-Forcing).  This module keeps the
-OpenDWM CTSD data path, VAE, SD3 text/layout conditions, pano view dimension,
-and temporal causal mask behavior from ``ctsd_pano.PanoCrossviewTemporalSD``.
+Follows the official Causal-Forcing implementation. Data path, VAE, SD3
+text/layout conditions, panorama view dimension and temporal causal mask come
+from ``ctsd_pano.PanoCrossviewTemporalSD``.
 """
 
 import copy
@@ -31,11 +29,9 @@ def corrupt_reference_context(
     noise: torch.Tensor,
     std: float,
 ) -> torch.Tensor:
-    """Perturb only visible historical latents, preserving all future tokens.
+    """Add Gaussian noise to the visible history latents; future tokens are unchanged.
 
-    This is an optional robustness proxy for prefix corruption, not a claim of
-    full on-policy context-matched distillation.  ``std=0`` returns the exact
-    input object so the established Stage-2 recipe remains unchanged.
+    ``std=0`` returns the input unchanged.
     """
     if std == 0.0:
         return latents
@@ -51,11 +47,10 @@ def corrupt_reference_context(
 
 
 class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
-    """Causal consistency distillation for the OpenDWM pano CTSD model.
+    """Causal consistency distillation for the panoramic CTSD model.
 
-    This is the OpenDWM equivalent of Causal-Forcing++ Stage 2.  The trainable
-    generator is the normal ``PanoCrossviewTemporalSD`` model loaded from a
-    causal 50-step checkpoint.  A frozen causal teacher advances one adjacent
+    The trainable generator is a ``PanoCrossviewTemporalSD`` model loaded from
+    a causal 50-step checkpoint. A frozen causal teacher advances one adjacent
     FlowMatch step, and a frozen EMA copy provides the consistency target.
     """
 
@@ -222,15 +217,10 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
             ema_start_step if ema_start_step is not None else
             (consistency_ema_start_step if consistency_ema_start_step is not None else 0))
 
-        # The frozen teacher and EMA are built from the *student's* model
-        # config, so any conditioning switch flipped for an experiment is
-        # silently flipped for them too. That is wrong whenever the switch
-        # changes the input distribution: in a Plucker arm the teacher would be
-        # fed moments it never saw in training, so the consistency target it
-        # defines is itself out of distribution and a negative result cannot be
-        # attributed to the student. These overrides pin the auxiliaries to a
-        # fixed configuration so both arms of a paired run share one clean
-        # target. Absent (the default) the behaviour is bit-identical to before.
+        # The frozen teacher and EMA are built from the student's model
+        # config. These optional per-model overrides ("teacher", "ema") pin
+        # them to a fixed configuration, e.g. when a conditioning switch
+        # changes the student's input distribution.
         self.auxiliary_model_config_overrides = \
             auxiliary_model_config_overrides or {}
         _unknown = set(self.auxiliary_model_config_overrides) - {"teacher", "ema"}
@@ -257,9 +247,9 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
             role="teacher")
 
         # On resume, load EMA from the matching `<resume_from>_ema.pth`. The
-        # path must be passed in BEFORE FSDP wrap (inside `_build_auxiliary_model`)
-        # because post-wrap the module's parameters become `_flat_param` and
-        # raw-key state dicts no longer load with strict=True.
+        # path must be passed in before FSDP wrapping (inside
+        # `_build_auxiliary_model`), because afterwards the parameters become
+        # `_flat_param` and raw-key state dicts no longer load with strict=True.
         ema_load_path = (
             os.path.join(output_path, "checkpoints", f"{resume_from}_ema.pth")
             if resume_from is not None else ema_checkpoint
@@ -416,10 +406,9 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
 
     def save_checkpoint(self, output_path: str, steps: int, upload: bool = True,
                         keep_last_n: int = 0):
-        # Save model + optimizer (no upload yet), then EMA, then upload+prune
-        # in one cycle so the EMA file is included alongside the main ckpt.
-        # When `upload=False`, skip the HF upload/prune so the caller (e.g.,
-        # train.py with save→eval→upload sequencing) can run eval first.
+        # Save model + optimizer, then EMA, then upload and prune in one cycle
+        # so the EMA file is included. With `upload=False` the upload/prune is
+        # skipped so the caller can run evaluation first.
         super().save_checkpoint(output_path, steps, upload=False)
 
         if torch.distributed.is_initialized():
@@ -442,10 +431,9 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
     def evaluate_4step_ema_pipeline(
         self, global_step, dataset_length, dataloader, datasampler
     ):
-        # Eval with EMA weights + 4-step inference (matches distilled regime).
-        # Snapshot pipeline state, swap model_wrapper → ema_model_wrapper +
-        # monkey-patch inference_pipeline → 4-step, run base evaluate_pipeline,
-        # restore. Reuses helpers from `dwm_pano.evaluate_4step`.
+        # Evaluate with EMA weights and 4-step inference: temporarily swap in
+        # the EMA model wrapper and a 4-step inference pipeline (helpers from
+        # `dwm_pano.evaluate_4step`), run the base evaluation, then restore.
         from dwm_pano.evaluate_4step import (
             compute_denoising_sigmas, make_4step_inference)
 
@@ -463,7 +451,7 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
             self.inference_pipeline = _orig_inference_pipeline
 
     def _training_reference_context(self, latents, reference_mask):
-        """Optional detached replacement for GT history; baseline uses GT."""
+        """Optional detached replacement for the ground-truth history; None keeps ground truth."""
         return None
 
     def train_step(self, batch: dict, global_step: int):
@@ -579,8 +567,8 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
 
             reference_mask = reference_frame_indicator.view(
                 *latents.shape[:3], 1, 1, 1).to(latents.device)
-            # A subclass may provide a detached, self-generated prefix. The
-            # default remains the original GT reference behavior.
+            # A subclass may provide a detached, self-generated prefix;
+            # by default the ground-truth history is used.
             supplied_context = self._training_reference_context(
                 latents, reference_mask)
             if supplied_context is not None:
@@ -608,9 +596,9 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
             if history_sigma_max > 0 and prefix_corruption_std > 0:
                 raise ValueError("choose one history corruption method")
             if history_sigma_max > 0:
-                # Independent RNG keeps dataset/timestep sampling paired with
-                # the no-noise control arm. All views/frames in one clip share
-                # one labeled corruption level, but receive independent noise.
+                # Independent RNG so dataset/timestep sampling does not depend
+                # on the corruption setting. All views/frames in one clip share
+                # one corruption level but receive independent noise.
                 noise_seed = int(self.training_config.get(
                     "history_flow_noise_seed", 0)) + 1000003 * global_step
                 history_rng = torch.Generator(device="cpu").manual_seed(
@@ -781,14 +769,9 @@ class PanoCrossviewTemporalConsistencyDistillation(PanoCrossviewTemporalSD):
             loss_report.update(track_report)
         self.loss_report_list.append(loss_report)
 
-        # GPU memory probe (DWM_MEM_PROBE_STEP, default 10), same format as the
-        # parent `ctsd_pano.CrossviewTemporalSD.train_step`. The parent's probe
-        # never fires on this path because this class overrides `train_step`
-        # entirely, which is why the peak memory of the CD / task-matched
-        # workload had never been measured -- and why the launcher's 70 GB
-        # `MIN_FREE_MB` is an inherited guess from the single-GPU eval scenario
-        # rather than a measurement. Printed BEFORE backward as well as after,
-        # since the backward pass is where activations peak.
+        # GPU memory probe (DWM_MEM_PROBE_STEP, default 10), same format as
+        # the one in `ctsd_pano.CrossviewTemporalSD.train_step`. Printed before
+        # and after backward, where activation memory peaks.
         _mem_probe_step = int(os.environ.get("DWM_MEM_PROBE_STEP", "10"))
 
         def _mem_probe(tag):

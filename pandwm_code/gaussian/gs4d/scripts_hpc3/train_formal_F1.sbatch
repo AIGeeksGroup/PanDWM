@@ -9,8 +9,8 @@
 #SBATCH --mem=240G
 #SBATCH --time=10:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-# formal depth-supervised 4D decoder: configs/gs4dd_hpc3_F1.json (make_formal_config.py)
-# for STEPS (default 5000) steps into $RUNS/${TAG:-formal_F1}, checkpoints every 500 steps, all kept.
+# Train the depth-supervised 4D decoder (config from make_formal_config.py)
+# for STEPS (default 5000) steps into $RUNS/${TAG:-formal_F1}; checkpoints every 500 steps, all kept.
 set -uo pipefail
 STEPS=${STEPS:-5000}
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh

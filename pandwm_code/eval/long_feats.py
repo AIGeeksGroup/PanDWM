@@ -1,17 +1,14 @@
-"""Per-frame Inception and per-window pano-patch I3D features of long-rollout videos (a diagnostic).
+"""Per-frame Inception and per-window pano-patch I3D features of long-rollout videos.
 
-long_fid.py gives one FID per arm and half, which cannot say how much of the early -> late rise is real loss of image
-quality and how much is the model inventing other, plausible content than the one recorded (the late real frames show
-places the first 3 frames never showed).  long_analyze.py needs the features per video and frame to split that, to
-bootstrap over scenes and to compute FVD per time bucket, so this only extracts and saves them:
-  - inc_*: torchmetrics FrechetInceptionDistance(normalize=True) features (2048) of every stitched-pano frame, the same
-    instrument as long_fid.py and the 149-clip FID (uint8 video -> /255 -> the metric's own *255 .byte());
+Extracts and saves the features needed to compute FID / FVD per time bucket and to bootstrap over scenes
+(see long_analyze2.py):
+  - inc_*: torchmetrics FrechetInceptionDistance(normalize=True) features (2048) of every stitched-pano frame;
   - i3d_*: PanoPatchFrechetVideoDistance features (6 Voronoi camera patches x 400 I3D logits) of every 16-frame window,
-    the same cut, resize and I3D weights as the 149-clip FVD (patches cut exactly as in fvd_pano.update).
+    with the same cut, resize and I3D weights as the 149-clip FVD.
 gt_vs_generated.mp4 holds the real pano on top of the generated one, 16 frames per window from --first-window on.
   python3 long_feats.py <out_dir> --arm TAG=ROOT [...] --scenes 0 14 ... --seeds 42 43 [--first-window 7]
-Writes <out_dir>/feats_<TAG>.npz (float32 features; scenes, seeds, first_window, windows).  Existing files are kept.
-Pool mode: the REAL half of 149-clip eval videos (<dir>/clipNNN/gt_vs_generated.mp4, 32 frames = 2 windows) as an
+Writes <out_dir>/feats_<TAG>.npz (float32 features; scenes, seeds, first_window, windows). Existing files are kept.
+Pool mode: the real half of 149-clip eval videos (<dir>/clipNNN/gt_vs_generated.mp4, 32 frames = 2 windows) as an
 unpaired real reference from many scenes:
   python3 long_feats.py <out_dir> --pool NAME=<eval arm dir> --pool-clips <json list or split file key>
 """
@@ -80,7 +77,7 @@ def self_check(fvd, fid, real_u8, dev):
     clip_a = torch.from_numpy(real_u8[:16]).to(dev).permute(0, 3, 1, 2).float().div(255.0)[None]
     if len(real_u8) >= 32:
         clip_b = torch.from_numpy(real_u8[16:32]).to(dev).permute(0, 3, 1, 2).float().div(255.0)[None]
-    else:   # a one-window video : the same window reversed in time is another clip
+    else:   # a one-window video: the same window reversed in time is another clip
         clip_b = clip_a.flip(1)
     m = PanoPatchFrechetVideoDistance(I3D, sequence_count=16).to(dev)
     m.update(clip_a, real=True)

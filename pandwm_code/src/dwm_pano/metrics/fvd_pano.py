@@ -1,23 +1,14 @@
-"""Pano-patch FVD for V=1 stitched panorama (W=4114).
+"""Pano-patch FVD for a single-view stitched panorama (4114 px wide).
 
-Cuts the stitched pano into 6 cam-aligned Voronoi patches and runs
-standard TATS FVD on the pooled patch features. Each cam patch
-contributes one sample to the same Frechet distance pool — mirrors
-the official 6-view pattern in `dwm.pipelines.ctsd:1962-1980`
-(`einops.rearrange("b t v c h w -> (b v) t c h w")` flattens views
-into batch).
+Cuts the stitched pano into six camera-aligned Voronoi patches and runs standard TATS FVD on the pooled
+patch features. Each patch contributes one sample to the same Frechet distance pool (views are flattened
+into the batch, as in the multi-view FVD of the base pipeline).
 
-Patch boundaries derived from PanDWM
-`omninwm/utils/pano_hardseam.py:22` Voronoi cuts on the 9600-wide
-source pano, mapped to V=1 4114-wide after the LEFT-half LANCZOS
-resize + RIGHT-half LANCZOS resize + 494-px dedup overlap drop in
-`ctsd_pano.py:_stitch_pano`.
+Patch boundaries are the Voronoi cuts of the 9600-wide source pano, mapped to the 4114-wide stitched
+canvas (two resized halves with a 494-px overlap dropped, see `ctsd_pano.py:_stitch_pano`).
 
-CAM_BACK is wrap-merged (RIGHT tail + LEFT head concat'd) so all 6
-cams remain whole; alternative split-wrap would over-weight CAM_BACK.
-CAM_FRONT inherits the LEFT/RIGHT half seam internally (at V=1 col
-2304) — this is a real model-output property; FVD will reflect any
-seam artifact symmetrically for real and fake.
+CAM_BACK is wrap-merged (right tail + left head) so all six cameras stay whole. CAM_FRONT contains the
+left/right half seam (column 2304); it affects real and generated frames alike.
 """
 import torch
 import torch.distributed
@@ -45,20 +36,20 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
     target_resolution = (224, 224)
     i3d_min = 10
 
-    # V=1 stitched pano width after `ctsd_pano.py:_stitch_pano`
+    # Stitched pano width after `ctsd_pano.py:_stitch_pano`
     # (= 2 * 2304 - _PANO_OVERLAP_W (494) = 4114).
     PANO_W_V1 = 4114
 
-    # 6 inner Voronoi cuts on V=1 4114, mapping
-    # `VORONOI_BOUNDARIES = [1229, 2625, 4069, 5557, 7038, 8421]` (on 9600)
-    # via the two-segment LEFT/RIGHT half resize geometry.
+    # Inner Voronoi cuts on the 4114 axis, mapped from the boundaries
+    # [1229, 2625, 4069, 5557, 7038, 8421] (on the 9600 axis) through the
+    # two-segment left/right half resize geometry.
     # Cam ranges (each `[lo, hi)` on the 4114 axis):
     #   CAM_BACK         = [3609, 4114) U [0, 527)   wrap-concat, W=1032
     #                      (505 + 527; the six widths sum to 4114)
     #   CAM_BACK_LEFT    = [527,  1125)              W= 598
     #   CAM_FRONT_LEFT   = [1125, 1744)              W= 619
-    #   CAM_FRONT        = [1744, 2381)              W= 637  (crosses LEFT/RIGHT
-    #                                                          seam at V=1 col 2304)
+    #   CAM_FRONT        = [1744, 2381)              W= 637  (crosses the left/right
+    #                                                          seam at column 2304)
     #   CAM_FRONT_RIGHT  = [2381, 3016)              W= 635
     #   CAM_BACK_RIGHT   = [3016, 3609)              W= 593
     PANO_PATCH_COLS = [527, 1125, 1744, 2381, 3016, 3609]
@@ -74,13 +65,10 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
     ):
         super().__init__(**kwargs)
 
-        # Instrument control, default off. Every nuScenes camera owns a
-        # different azimuth wedge, so the six Voronoi patches have different
-        # widths (CAM_BACK 1032 vs CAM_BACK_RIGHT 593) and therefore reach
-        # 224 through a different horizontal squeeze (4.61x vs 2.65x). That
-        # makes the per-camera values incomparable ACROSS cameras. Setting
-        # this center-crops every patch to one common width so the six become
-        # geometrically identical. 0 keeps the historical behaviour bit-exact.
+        # Optional (0 = off): the six patches have different widths, so they
+        # reach 224 px through different horizontal squeezes and per-camera
+        # values are not comparable across cameras. If set, every patch is
+        # center-cropped to this common width.
         self.equal_patch_width = int(equal_patch_width)
 
         self.inception = pytorch_i3d.InceptionI3d(num_classes)
@@ -111,10 +99,9 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
             "fake_features_num_samples", torch.tensor(0).long(),
             dist_reduce_fx="sum")
 
-        # Per-camera accumulators, kept ALONGSIDE the pooled ones above so the
-        # pooled number stays bit-identical to every previously reported run.
-        # A pooled Gaussian over all six patches is not the same object as six
-        # per-patch Gaussians, so these cannot be derived from each other.
+        # Per-camera accumulators, kept alongside the pooled ones: a pooled
+        # Gaussian over all six patches cannot be derived from six per-patch
+        # Gaussians.
         cam_count = len(self.CAM_NAMES)
         for side in ("real", "fake"):
             self.add_state(
@@ -144,9 +131,9 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
 
         assert frames.shape[1] >= self.i3d_min
 
-        # Cut 6 cam-aligned patches by Voronoi boundaries on the V=1 axis.
-        # CAM_BACK wraps across the panorama seam (cols 0 and PANO_W_V1),
-        # so its head and tail are concat'd into one whole-cam patch.
+        # Cut six camera-aligned patches by the Voronoi boundaries.
+        # CAM_BACK wraps across the panorama seam (columns 0 and PANO_W_V1),
+        # so its head and tail are concatenated into one patch.
         b0, b1, b2, b3, b4, b5 = self.PANO_PATCH_COLS
         W = self.PANO_W_V1
         patches = [
@@ -174,12 +161,10 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
     def _accumulate_patches(self, patches, real):
         """Feed an already-cut list of six views into the shared I3D path.
 
-        Split out of :meth:`update` so a sibling metric that obtains its six
-        views some other way -- e.g. the real-camera protocol bridge, which
-        resamples them out of the pano instead of slicing columns -- reuses
-        byte-identical normalization, resize, I3D weights and Frechet math.
-        Anything that bypasses this method is a different instrument and its
-        numbers are not comparable (see the change log's metric-naming rule).
+        Split out of :meth:`update` so that a sibling metric that obtains its
+        six views differently (e.g. by resampling them out of the pano instead
+        of slicing columns) reuses the same normalization, resize, I3D weights
+        and Frechet computation.
         """
         # Per-patch normalize + bilinear resize to (224, 224), then stack
         # into one (6*B, T, C, 224, 224) tensor so I3D forward runs once.
@@ -245,11 +230,10 @@ class PanoPatchFrechetVideoDistance(torchmetrics.Metric):
     def compute_per_camera(self):
         """FVD computed separately inside each of the six Voronoi cam patches.
 
-        Same I3D features and same Frechet formula as `compute`, but each
-        camera region gets its own Gaussian instead of one pooled over all
-        six. Use this to ask *where* a pooled FVD change came from; the
-        per-camera values are not expected to average to the pooled one
-        (a pooled Gaussian is a different object).
+        Same I3D features and Frechet formula as `compute`, but each camera
+        region gets its own Gaussian instead of one pooled over all six. Use it
+        to see where a pooled FVD change comes from; the per-camera values do
+        not average to the pooled value.
 
         Returns:
             dict mapping camera name -> float FVD, in `CAM_NAMES` order.

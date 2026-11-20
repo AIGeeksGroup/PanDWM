@@ -1,31 +1,23 @@
 """Multi-view consistency of the lateral-shift views, without ground truth.
 
-FID / FVD of the shifted views are unpaired: they reward realistic frames but would not notice two views of the same
-scene that disagree.  The G3b Gaussians give each shifted view a geometry, so the image of view s2 can be warped into
-view s1: every canvas pixel of s1 with Gaussian coverage (alpha > 0.95, 0.5 m < range < 80 m) becomes the 3D point
-origin + direction * range (the exact ray the renderer sampled, calibrated_stitch.sampling_grid_to_ego_rays), is
-projected into the s2 canvas (azimuth / elevation of its direction from each camera centre; a first guess from 1D
-per-column / per-row tables refined by Gauss-Newton on the canvas's own azimuth / elevation maps, because the
-OneBEV canvas is not separable: rows drift by up to ~25 px from a single elevation table; accepted only
-in a column owned by that camera, with a residual below 0.5 px) and kept if s2 sees it (alpha > 0.95, range within 5 % + 0.2 m).  The same mask is used for every image kind, so the
-kinds differ only in their pixels:
+The Gaussians give each shifted view a geometry, so the image of view s2 can be warped into view s1. Every canvas
+pixel of s1 with Gaussian coverage (alpha > 0.95, 0.5 m < range < 80 m) becomes the 3D point origin + direction *
+range (the exact ray the renderer sampled), is projected into the s2 canvas (azimuth / elevation of its direction from
+each camera centre, refined by Gauss-Newton on the canvas's own azimuth / elevation maps; accepted only in a column
+owned by that camera, with a residual below 0.5 px), and is kept if s2 sees it (alpha > 0.95, range within 5 % + 0.2 m).
+The same mask is used for every image kind, so the kinds differ only in their pixels:
 
-    raw       the G3b render at s1 vs the warped G3b render at s2 (consistent by construction: the ceiling)
-    d2f       the D2-refined view at s1 vs the warped refined view at s2
-    vid_raw   the generated video (0 m only) vs the warped G3b render at s2     (pairs with s1 = 0)
-    vid_d2f   the generated video vs the warped refined view at s2              (does the refined view show the
-                                                                                 generated scene?)
-    d2m       d2v2_eval's mask-only composite (refined inside the dilated / feathered fixmask, render elsewhere)
+    raw       the Gaussian render at s1 vs the warped render at s2
+    d2f       the refined view at s1 vs the warped refined view at s2
+    vid_raw   the generated video (0 m only) vs the warped render at s2     (pairs with s1 = 0)
+    vid_d2f   the generated video vs the warped refined view at s2
+    d2m       mask-only composite (refined inside the dilated / feathered fixmask, render elsewhere)
     vid_d2m   the generated video vs the warped d2m view
-    d2f_x     (with --refined2, a second refinement with another seed) the refined view at s1 vs the warped SECOND
-              refinement at s2; at s1 = s2 the floor two samples of the same view reach
+    d2f_x     (with --refined2, a second refinement with another seed) the refined view at s1 vs the warped second
+              refinement at s2
 
-
-PSNR on the masked pixels at full resolution, after 4 x 4 average pooling (less sensitive to sharpness differences:
-a sharper image pays more for the same sub-pixel misregistration; also 8 x 8), and on the near pixels (range
-< 20 m).  Pair "0:0" of raw checks the warp itself (should be near-lossless, about 64 dB); "0:0" of vid_raw /
-vid_d2f is the same-view difference between the generated video and the G3b render / the refined 0 m view, the floor
-the shifted pairs of that kind start from.  Shards write jsonl rows; --merge averages them.
+PSNR is computed on the masked pixels at full resolution, after 4 x 4 and 8 x 8 average pooling, and on the near
+pixels (range < 20 m). Pair "0:0" of raw checks the warp itself. Shards write jsonl rows; --merge averages them.
 """
 
 from __future__ import annotations
@@ -74,7 +66,7 @@ def _unwrap(a):
 
 
 def axis_tables(dirs):
-    """(H, W, 3) unit canvas ray directions -> dict with increasing azimuth (per column) and elevation (per row)
+    """(H, W, 3) unit canvas ray directions to a dict with increasing azimuth (per column) and elevation (per row)
     tables and their signs: column c has azimuth az_sign * az[c], row r elevation el_sign * el[r]."""
     az = torch.atan2(dirs[..., 1], dirs[..., 0]).median(dim=0).values
     el = torch.atan2(dirs[..., 2], torch.linalg.norm(dirs[..., :2], dim=-1)).median(dim=1).values
@@ -109,7 +101,7 @@ def canvas_maps(dirs, tables):
 
 
 def project(points, centres, owner, tables, maps, iters=5, tol_px=0.5):
-    """(N, 3) points -> (row, col) fractional canvas coordinates, range from the owning camera centre and a found
+    """(N, 3) points to (row, col) fractional canvas coordinates, range from the owning camera centre and a found
     flag, for the rig whose six camera centres are `centres` (6, 3).  owner (W,) is the camera of each column; a
     point belongs to camera k only if its direction from k lands, within tol_px after `iters` Gauss-Newton steps on
     `maps` (canvas_maps), inside the band in a column owned by k."""
@@ -145,7 +137,7 @@ def project(points, centres, owner, tables, maps, iters=5, tol_px=0.5):
 
 
 def sample(img, row, col):
-    """Bilinear samples of (C, H, W) at fractional (row, col) (N,) -> (C, N)."""
+    """Bilinear samples of (C, H, W) at fractional (row, col) (N,), giving (C, N)."""
     h, w = img.shape[-2:]
     grid = torch.stack([(col + 0.5) / w * 2 - 1, (row + 0.5) / h * 2 - 1], dim=-1).view(1, 1, -1, 2)
     return F.grid_sample(img[None].float(), grid.to(img.device).float(), mode="bilinear", padding_mode="border",

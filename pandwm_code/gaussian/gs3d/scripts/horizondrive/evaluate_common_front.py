@@ -1,9 +1,7 @@
-"""Score lossless HorizonDrive dumps with PanDWM's CAM_FRONT-band metric.
+"""Compute front-camera-band FVD and FID on a dump with real/ and fake/ uint8 tensors.
 
-This intentionally imports the existing TATS-I3D implementation instead of
-the StyleGAN-V FVD bundled with HorizonDrive.  A result from this script is
-comparable only to a PanDWM nusc6band per-camera score produced with the same
-frame count, sample count, I3D checkpoint and uint8 quantisation.
+Uses the TATS I3D implementation of the PanDWM metrics, so scores are comparable
+only to PanDWM scores computed with the same frame count, clip count and I3D checkpoint.
 """
 from __future__ import annotations
 
@@ -64,9 +62,8 @@ def load_future(path: Path, start: int, frames: int):
 def main():
     args = parse_args()
     pairs = paired_files(Path(args.dump), args.expected_clips)
-    # _accumulate_patches is the single shared normalize/resize/I3D path used
-    # by both PanoPatch-FVD and nusc6band.  Supplying one patch here means one
-    # CAM_FRONT-band sample per clip, with no panorama column slicing.
+    # Feeding one patch per clip through _accumulate_patches gives one front-band
+    # sample per clip, with no panorama column slicing.
     metric = PanoPatchFrechetVideoDistance(
         inception_3d_checkpoint_path=args.i3d,
         sequence_count=-1).to(args.device)

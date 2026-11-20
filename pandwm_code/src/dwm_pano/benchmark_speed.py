@@ -1,14 +1,9 @@
-"""Segmented latency benchmark for the 3+16 PanDWM inference path.
+"""Segmented latency benchmark for the 3+16 frame inference path.
 
-The benchmark intentionally separates the two products of the video model:
-
-* pixel-video route: context VAE encode -> denoising -> VAE decode;
-* Gaussian route: context VAE encode -> 4-step denoising -> Gaussian head ->
-  six-view gsplat rendering.
-
-The 50-step arm uses the same Stage-2 EMA weights as the 4-step arm and only
-restores the inherited 50-step sampler.  It is therefore a controlled speed
-comparison, not a valid quality evaluation of the distilled checkpoint.
+Times the two outputs of the video model separately: the pixel-video route (context VAE encode, denoising, VAE decode)
+and the Gaussian route (context VAE encode, 4-step denoising, Gaussian head, six-view gsplat rendering). The 50-step
+arm uses the same weights as the 4-step arm and only restores the 50-step sampler, so it is a speed comparison and
+not a quality evaluation of the distilled checkpoint.
 """
 
 from __future__ import annotations
@@ -47,9 +42,9 @@ def parse_args() -> argparse.Namespace:
         "--disable-50step-cfg",
         action="store_true",
         help=(
-            "Disable classifier-free guidance for the inherited 50-step "
-            "sampler. This makes the 50-step and 4-step arms both use one "
-            "denoiser input batch and isolates the NFE reduction."),
+            "Disable classifier-free guidance for the 50-step sampler so both "
+            "samplers use one denoiser input batch and only the number of "
+            "function evaluations differs."),
     )
     parser.add_argument("--clip-index", type=int, default=0)
     parser.add_argument("--warmup", type=int, default=1)
@@ -165,11 +160,10 @@ def measure(
 
 @contextlib.contextmanager
 def skip_vae_decode(pipeline: Any):
-    """Keep the exact sampler but replace its terminal VAE decode.
+    """Keep the sampler but replace its terminal VAE decode with a stub.
 
-    Both the inherited 50-step function and the 4-step helper decode before
-    returning their latents.  A tiny stand-in lets us time latent generation
-    without duplicating either denoising loop in this benchmark.
+    Both the 50-step function and the 4-step helper decode before returning latents; the stub lets latent generation be
+    timed without duplicating either denoising loop.
     """
     original_decode = pipeline.vae.decode
 
@@ -215,8 +209,7 @@ def make_sampler_call(
         finally:
             if disable_cfg and guidance_scale is not missing:
                 pipeline.inference_config["guidance_scale"] = guidance_scale
-        # Always pin the clean context explicitly.  This matches the G1
-        # provider and makes the output layout identical for both samplers.
+        # pin the clean context frames so both samplers return the same layout
         return torch.cat([
             context_latents,
             output["latents"][:, reference_frame_count:],

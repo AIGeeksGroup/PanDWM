@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Run official Vista sampling on the frozen PanDWM common clips.
+"""Run Vista sampling on the 149 common clips and dump uint8 tensors.
 
-Only the data loop and lossless tensor dump are project-side.  Model loading,
-conditioning, sampler construction, and denoising all call Vista's pinned
-official implementation.
+Only the data loop and the tensor dump are new; model loading, conditioning,
+sampler and denoising use the official Vista code.
 """
 from __future__ import annotations
 
@@ -64,7 +63,7 @@ def main():
     sys.path.insert(0, str(vista_root))
     os.chdir(vista_root)
 
-    # Imported from the official pinned checkout, after fixing import/CWD.
+    # Imported from the Vista checkout, after setting the path and working directory.
     from sample import load_img
     from sample_utils import (
         do_sample,
@@ -137,9 +136,8 @@ def main():
         paths = [Path(frame["path"]) for frame in record["frames"]]
         if len(paths) != 25 or not all(path.is_file() for path in paths):
             raise FileNotFoundError("incomplete 25-frame input for {}".format(name))
-        # Match Vista's official IMG branch exactly: path_list contains the
-        # same condition image 25 times.  Future GT is loaded separately only
-        # for metric export, so it can never enter the model encoder.
+        # As in Vista's image branch, the condition image is repeated 25 times.
+        # Future ground truth is loaded separately and never enters the model.
         condition_frame = load_img(str(paths[0]), 576, 1024)
         images = condition_frame[None].repeat(25, 1, 1, 1)
         value_dict = dict(value_dict_base)

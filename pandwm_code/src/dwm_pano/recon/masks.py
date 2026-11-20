@@ -1,15 +1,14 @@
-"""Band and sky masks of the tab:gs_recon targets.
+"""Band and sky masks for the reconstruction targets.
 
-* band: recon/band.py (exact inverse of the OneBEV legacy warp) once per distinct rig (sensor2ego + K of the six
-  cameras) and resolution -> <out>/band_<rig>_<H>x<W>.npz {"valid": (6, H, W) bool}; <out>/rigs.json maps
-  "<test_index>/<target>" to its rig id.
-* sky: DA3METRIC-LARGE sky probability of every recorded target image (1600x900 -> 392x700, ImageNet-normalised),
-  resized bilinearly to each resolution -> <out>/sky_<test_index>.npz {"<target>_<H>x<W>": (6, H, W) uint8 x 255}.
-  A pixel is sky where the probability >= 0.3 (dwm_pano_4d.da3_depth.SKY_THRESHOLD).
-Camera order = targets.json cam_order (pano_projection.CAM_ORDER).
+* band: recon/band.py, computed once per distinct rig (sensor2ego + K of the six cameras) and resolution, saved as
+  <out>/band_<rig>_<H>x<W>.npz {"valid": (6, H, W) bool}; <out>/rigs.json maps "<test_index>/<target>" to its rig id.
+* sky: DA3 metric-model sky probability of every recorded target image (1600x900 resized to 392x700, ImageNet
+  normalised), resized bilinearly to each resolution and saved as <out>/sky_<test_index>.npz
+  {"<target>_<H>x<W>": (6, H, W) uint8 x 255}. A pixel is sky where the probability is at least 0.3.
+Camera order follows targets.json cam_order (pano_projection.CAM_ORDER).
 
     python -m dwm_pano.recon.masks --targets targets.json --out-dir masks --resolutions 224x400,352x640
-        --da3-src <repo/src> --da3-metric <DA3METRIC-LARGE> [--band-only]
+        --da3-src <repo/src> --da3-metric <DA3 metric checkpoint> [--band-only]
 """
 
 from __future__ import annotations

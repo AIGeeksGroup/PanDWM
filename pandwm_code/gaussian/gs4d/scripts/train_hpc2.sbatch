@@ -6,7 +6,7 @@
 #SBATCH --mem=120G
 #SBATCH --time=3-00:00:00
 #SBATCH --output=%x_%j.log
-# Long run. RUN_TAG names the run dir; RESUME_FROM=<step> continues it.
+# Train the 4D GS decoder. RUN_TAG names the run dir; RESUME_FROM=<step> continues it.
 set -euo pipefail
 source $HOME/pandwm_code/gaussian/gs4d/scripts/common_env.sh
 OUT=$RUNS/${RUN_TAG:-train_v1}

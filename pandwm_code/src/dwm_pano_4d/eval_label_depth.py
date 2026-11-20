@@ -1,30 +1,17 @@
-"""Can better depth fix the off-rig GS renders?
+"""Compare GS renders with Gaussians placed at the decoder's range, a depth label, or an estimated depth.
 
-Feasibility test on labelled TRAINING frames (the G2 depth subset p2).  The same decoded Gaussians are placed either
-at the decoder's own predicted range ("pred") or at the DAC depth label ("label": means moved along each pixel's ray
-to the label range with the xyz offset dropped, scales multiplied by label / pred; pixels without a label below
---far-cut keep the decoder geometry).  Both are scored like evaluate_4d.py: frames (a, t, b) = (0, gap, 2 gap),
-frame t rendered at its own six cameras from the static Gaussians of a ("single") or a + b ("pooled"), static
-covered pixels only, plus the round trip "own".  The "*_edge" variants also drop the depth-edge pixels exactly like
-export_gs_v2_clips.py (0.1 / 0.3, dilate 1, on that variant's range image).
+Runs on labelled training frames. The same decoded Gaussians are placed either at the decoder's own predicted range
+("pred") or at the depth label ("label": means moved along each pixel's ray to the label range, scales multiplied by
+label / pred; pixels without a label below --far-cut keep the decoder geometry). Variants are scored like
+evaluate_4d.py: frames (a, t, b) = (0, gap, 2 gap), frame t rendered at its own six cameras from the static Gaussians
+of a ("single") or a + b ("pooled"), static covered pixels only, plus the round trip "own". The "*_edge" variants also
+drop depth-edge pixels as in export_gs_v2_clips.py.
 
-For the first --video-clips clips it also renders the review views of frame t's own Gaussians, top = pred,
-bottom = label: views_*.mp4 = near-rig chase | sweep | pan (960 x 256 each), far_*.mp4 = export_gs_batch149's far
-chase | sweep (1280 x 640 each); *_raw = no fixes (holes black), *_v2 = edge filter + push-pull hole fill.
-
-The labels come with the pano data (HF dataset zeyuren2002/nuscene-360_train, source-camera z); the decoder trained
-on these scenes, so "pred" is if anything better here than on generated frames.
-
-v2: with --dac-weights, adds "dac" / "dac_edge": the range estimated by DAC
-(dac_depth.py) on the VAE round trip of the frame (encode + decode, what a generated frame looks like to DAC), used
-as the range along the exact rays; DAC on the original 600 x 9600 jpg is scored against the label too (geometry
-stats only).  Videos then have three rows: pred / label / dac.
-
-v3: with --da3-anyview, adds "da3" / "da3_edge": Depth Anything 3 (da3_depth.py)
-on the VAE round trip, the six cameras of frames (0, gap, 2 gap) reconstructed together with their known
-intrinsics, rig extrinsics and ego poses; the ground-plane scale is the primary range (the pose and
-metric-model scales and DA3 on the original, not round-tripped, frame are scored against the label too).  Pixels DA3 calls sky keep the decoder
-geometry, like pixels without a DA3 range below --far-cut.  Video frames use the window (t - gap, t, t + gap).
+--dac-weights adds "dac" / "dac_edge" (DAC range from dac_depth.py on the VAE round trip of the frame);
+--da3-anyview adds "da3" / "da3_edge" (Depth Anything 3 from da3_depth.py, scale chosen by --da3-scale). Pixels DA3
+calls sky keep the decoder geometry. For the first --video-clips clips it also renders review videos, one row per
+variant (views_*.mp4 near-rig, far_*.mp4 far chase and sweep; *_raw has no fixes, *_v2 uses the edge filter and
+push-pull hole fill).
 """
 
 from __future__ import annotations
@@ -82,14 +69,14 @@ def parse_args():
     p.add_argument("--dac-root", default="")
     p.add_argument("--dac-config", default="")
     p.add_argument("--dac-weights", default="")
-    p.add_argument("--da3-src", default="", help="Depth-Anything-3 repo src/ (v3)")
-    p.add_argument("--da3-anyview", default="", help="DA3-LARGE-1.1 folder (config.json + model.safetensors)")
-    p.add_argument("--da3-metric", default="", help="DA3METRIC-LARGE folder")
+    p.add_argument("--da3-src", default="", help="Depth-Anything-3 repo src/")
+    p.add_argument("--da3-anyview", default="", help="DA3 any-view folder (config.json + model.safetensors)")
+    p.add_argument("--da3-metric", default="", help="DA3 metric model folder")
     p.add_argument("--da3-scale", choices=["ground", "pose", "metric"], default="ground",
                    help="DA3 scale used to place the Gaussians (ground)")
     p.add_argument("--da3-relabel-mode", choices=["ray", "scale"], default="ray",
                    help="ray: move along the pixel ray, offset dropped; scale: about the ray "
-                        "origin, footprint kept (C1b)")
+                        "origin, footprint kept")
     return p.parse_args()
 
 
@@ -182,7 +169,7 @@ def main():
             dac = DacRanger(args.dac_root, args.dac_config, args.dac_weights, device)
             print(f"[labeldepth] DAC loaded ({dac.config['model_name']})", flush=True)
         da3 = None
-        if args.da3_anyview:                                               # v3
+        if args.da3_anyview:
             from dwm_pano_4d.da3_depth import Da3Ranger
             from dwm_pano_4d.dac_depth import relabel_gaussians
             da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
@@ -197,7 +184,7 @@ def main():
             dirs = pipe.pixel_directions.reshape(-1, 3).float()
             content = pipe.pixel_content_ray_valid.reshape(-1)
             e2g = batch["ego_transforms"][0, :, 0].to(device, dtype=torch.float32)
-            da3_cache = {}                                                 # v3: frame -> DA3 maps
+            da3_cache = {}                                                 # frame -> DA3 maps
             clip_frames = batch["vae_images"].shape[1]
 
             def da3_window(frame_list, store, round_trip=True):
@@ -223,7 +210,7 @@ def main():
                     da3_cache.update(da3_window(window, {t}))
                 return da3_cache[t]
 
-            if da3 is not None:                                            # the scored frames, together
+            if da3 is not None:                                            # the scored frames together
                 scored = [0, args.gap, 2 * args.gap]
                 da3_cache.update(da3_window(scored, set(scored)))
 
@@ -284,7 +271,7 @@ def main():
                                                       shape[1], shape[2], device)
                         stats.update(log_stats("dac_jpg_vs_label", r_jpg, label, lab_mask))
                     stats["edge_fraction_dac"] = float(1 - keep_dac.float().mean())
-                if da3 is not None:                                        # v3
+                if da3 is not None:
                     shape = tuple(rng.shape)
                     maps = da3_maps(t)
                     r_da3, sky = maps[f"range_{args.da3_scale}"].float(), maps["sky"].float()

@@ -1,12 +1,11 @@
-"""Val-150 features of a six-camera baseline run, with the paper's instrument (runs on HPC3).
+"""Val-150 features of a six-camera baseline run, with the paper's instrument.
 
-Input: a run directory with clipNNN/{fake.pt, calib.pt, meta.json} (run_unimlvg_clips.py layout): uint8 six views
-[T, 6, 3, h, w] in OpenDWM camera order and the clip's rig calibration. Each clip's frames 3..34 are stitched into
-the 256x4114 panorama canvas with stitch_views.stitch_six (OneBEV hard seam, validated on recorded frames) and passed
-through clip_feats.features, the function that produced every other arm's Val-150 features: per-frame Inception
-(torchmetrics FID path) and pano-patch I3D on the two 16-frame windows. Output npz has clip_feats.py's fields, with
-test_index = Val-150 position (Dev-149 test_index, scene-0018 = 149), so tests_analyze.py can pair it with the
-recorded Val-150 features.
+Input: a run directory with clipNNN/{fake.pt, calib.pt, meta.json}: uint8 six views [T, 6, 3, h, w] in OpenDWM camera
+order and the clip's rig calibration. Each clip's frames 3..34 are stitched into the 256x4114 panorama canvas with
+stitch_views.stitch_six (OneBEV hard seam) and passed through clip_feats.features, the function that produced every
+other arm's Val-150 features: per-frame Inception (torchmetrics FID path) and pano-patch I3D on the two 16-frame
+windows. The output npz has clip_feats.py's fields, with test_index = Val-150 position, so tests_analyze.py can pair
+it with the recorded Val-150 features.
   python3 baseline_feats.py --runs RUN --map val150_scene_map.json --out feats_val150/<name>.npz
 """
 import argparse

@@ -1,16 +1,12 @@
-"""Formal depth-supervised 4D decoder config for HPC3.
+"""Build the depth-supervised 4D decoder config from the depth pilot config.
 
-Base: configs/gs4dd_hpc3_D1.json (the depth pilot arm D1: coverage recipe + metre L1 0.002 / 0.002 + log-depth L1
-0.1 / 0.1, class dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline).  Changes, nothing else:
-  * warm start from the pilot's D1 step 1000 (init/gs4dd_D1_1000.pth, md5 7ed1d4f8);
+Starts from the pilot config (coverage recipe, metre L1 0.002 / 0.002, log-depth L1 0.1 / 0.1, class
+dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline) and changes:
+  * warm start from the pilot decoder checkpoint (init/gs4dd_D1_1000.pth);
   * gs4d_depth.depth_optional = true: depth terms only on batches whose frames all have a label;
-  * training data = ConcatDataset of
-      - the full 700-scene training set minus the 5 held-out labelled scenes (data/..._train_minus_holdout5.pkl,
-        695 scenes; the same rgb_dir as the coverage run), and
-      - the labelled p2 subset (80 scenes) repeated P2_REPEAT times,
-    so roughly 40 % of the batches carry depth (the 81 labelled scenes inside the full set + the p2 copies).
-    The 5 held-out scenes (full-set indices 16, 23, 43, 106, 108; data/..._train_holdout5.pkl) are seen by neither.
-  python3 make_formal_config.py   -> configs/gs4dd_hpc3_F1.json
+  * training data = ConcatDataset of the full training set minus the 5 held-out labelled scenes (695 scenes) and the
+    labelled p2 subset repeated P2_REPEAT times, so a sizeable share of the batches carries depth.
+Usage: python3 make_formal_config.py
 """
 import json
 from pathlib import Path

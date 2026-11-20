@@ -1,8 +1,8 @@
-"""Controllability ground truth per Val-150 clip.
+"""Controllability ground truth per validation clip.
 
 For every clip, clip frame 3..34 and camera (cam_band_feats.CAM_ORDER), and for each timing source
-  band     the 12 Hz info of the clip frame (LIDAR_TOP-synced): our band, recband, MagicDrive-V2
-  opendwm  the camera sweep the OpenDWM loader picked for that camera (rec448, UniMLVG), by its sample_data token
+  band     the 12 Hz info of the clip frame (LIDAR_TOP-synced)
+  opendwm  the camera sweep the OpenDWM loader picked for that camera, by its sample_data token
            in opendwm_val_items_official.json (the image filename is asserted as well)
 the image is scored against the annotations of the info that holds that camera sweep:
   * boxes: pkl gt_boxes (LiDAR frame, (w, l, h), ccw yaw) -> camera with cams[c].sensor2lidar (includes the ego motion
@@ -11,7 +11,7 @@ the image is scored against the annotations of the info that holds that camera s
   * road: per pixel ray (native K, cams[c].sensor2ego, cams[c].ego2global) hits the world plane z = 0; GT road = hit
     inside the map-expansion drivable_area raster (exterior minus holes, 0.05 m); region = protocol mask & hit within
     50 m & not inside the hull of any annotated box within 60 m. near = region pixels within 20 m.
-Output: <out>/<timing>/clipNNN.npz (NNN = Val-150 test_index), resumable (existing files are kept).
+Output: <out>/<timing>/clipNNN.npz (NNN = test_index), resumable (existing files are kept).
   python3 ctrl_gt.py --base-config cd_eval_frozen149_hpc3.json --out-dir GT --timings band,opendwm
 """
 import argparse

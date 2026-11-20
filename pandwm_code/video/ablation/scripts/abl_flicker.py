@@ -1,14 +1,11 @@
-"""Flicker of the ablation arms on Dev-78 from flicker_stats.py outputs . Pure numpy.
+"""Flicker of the ablation arms on Dev-78 from flicker_stats.py outputs. Pure numpy.
 
-Definitions = flicker_analyze.py, applied to the
-78 Dev-78 clips:
-  c = mean absolute grey-level change over the 30 within-window steps of the 32 generated frames (stats win.full);
-  ONE recorded reference for every arm: the recorded (top) half of the Dev-149 eval run of v84i4250 seed 42
-    (pandwm_runs/eval149_hpc3_v83/v84i4250, the reference of the Val-150 flicker column);
-  r_i = c_gen,i / c_ref,i;  static (dev rule) = clips with c_ref <= the 1/3 quantile of c_ref over the 78 clips;
-  flicker = mean of r_i over the static clips (the table column);  also: pooled ratio over all clips, sharpness ratio;
-  per arm: per-seed values, mean over seeds; 95% interval = mean +- 1.96 SE, delete-one-scene jackknife of the seed
-  mean (Dev-78 has one clip per scene), static membership fixed;  pairs A:B = mean_A - mean_B with its jackknife.
+Definitions follow flicker_analyze.py, applied to the 78 Dev-78 clips: c is the mean absolute grey-level change over
+the 30 within-window steps of the 32 generated frames. One recorded reference (the recorded half of a fixed eval run)
+is used for every arm. r_i = c_gen,i / c_ref,i; static clips are those with c_ref at or below the 1/3 quantile of
+c_ref; flicker is the mean of r_i over the static clips (also reported: pooled ratio over all clips, sharpness ratio).
+Per arm: per-seed values and their mean with a 95% interval (mean +- 1.96 SE, delete-one-scene jackknife); pairs A:B
+give mean_A - mean_B with its jackknife.
   python3 abl_flicker.py --manifest dev78.json --ref stats_ref.json --arm A=s42.json,s1000.json ... \
       --pair A:B ... --out flicker.json
 """
@@ -87,7 +84,7 @@ def main():
             se = jack(lambda keep, k=k: seed_mean(tag, keep, k))
             row[k] = {"per_seed": per, "mean": m, "sd": float(np.std(per, ddof=1)) if len(per) > 1 else None,
                       "se_jackknife": se, "ci95": [m - 1.96 * se, m + 1.96 * se]}
-        # check: own recorded half instead of the fixed reference (should differ by codec noise only)
+        # own recorded half instead of the fixed reference (expected to differ by codec noise only)
         own = [float((g["c"] / g["own_ref_c"])[sets["static_dev"]].mean()) for g in gs]
         row["flicker_static_dev_own_ref"] = own
         out["arms"][tag] = row

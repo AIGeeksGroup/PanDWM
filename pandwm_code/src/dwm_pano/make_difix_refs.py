@@ -1,14 +1,13 @@
 """Reference frames for Difix on the GS review videos.
 
-For every review camera of export_gs_v3_clips.py (near rig views chase / sweep / pan, the 3 m compare camera, the far
-chase 4 m behind / 2.5 m up and the +/-2 m sweep), the clip's own generated pano frame (VAE decode of latents.pt) is
-sampled along that camera's pixel rays from the rig centre (the ideal band mapping of the pano canvas).  Pixels whose
-ray leaves the +/-16.7 deg band are black.  These are the "same direction, original position" reference images that
-difix_ref conditions on; they are never shown in the review package.
+For every review camera of export_gs_v3_clips.py (near rig views, compare camera, far chase and sweep), the clip's own
+generated pano frame (VAE decode of latents.pt) is sampled along that camera's pixel rays from the rig centre (the
+ideal band mapping of the pano canvas). Pixels whose ray leaves the +/-16.7 deg band are black. These are the "same
+direction, original position" reference images that difix_ref conditions on.
 
-  <out-root>/clipNNN/ref_views.mp4    3 panels (chase | sweep | pan), 960 x 256 each   (for 3d_views, 4d_clean_views)
-  <out-root>/clipNNN/ref_compare.mp4  1 panel, 960 x 368                               (for both 4d_clean_compare panels)
-  <out-root>/clipNNN/ref_far.mp4      2 panels (far chase | far sweep), 1280 x 640 each (for 3d_far_views)
+  <out-root>/clipNNN/ref_views.mp4    3 panels (chase | sweep | pan), 960 x 256 each
+  <out-root>/clipNNN/ref_compare.mp4  1 panel, 960 x 368
+  <out-root>/clipNNN/ref_far.mp4      2 panels (far chase | far sweep), 1280 x 640 each
 """
 
 from __future__ import annotations

@@ -1,15 +1,14 @@
-"""Configs for the D2 refiner.
+"""Config generator for the D2 refiner.
 
-Base: the HPC3 teacher v3 control config (PanDWM-teacher-v3/configs/teacher_v3_control.json: Stage-1
-causal teacher stage1_causal_20000.pth, 8-GPU FSDP, full fine-tuning, lr 1e-5, the 700-scene train set).
-Changes:
-  pipeline   dwm_pano_d2.pipeline.PanoD2RefinerSD (robust_config -> d2_config), strict=False load (the only
-             missing keys must be render_embed.*), generation_task_ratio 0.3 (no-history windows),
-             3D-box / HD-map condition ratio 0.5 (inference drops both)
-  model      dwm_pano_d2.model.D2RenderDiT, 17 render channels, scale 10
-  data       D2RenderDataset over the train set in 35-frame clips, one start every 2 s ([[10, 2.0]])
-    python3 make_d2_config.py --out configs/d2_pilot_hpc3_8gpu.json
-    python3 make_d2_config.py --out configs/d2_full_hpc3_8gpu.json --min-items 300 --render-init-prob 0.5
+Starts from the teacher v3 control config (Stage-1 causal teacher, 8-GPU FSDP, full fine-tuning, lr 1e-5, the
+train scenes) and changes:
+  pipeline  dwm_pano_d2.pipeline.PanoD2RefinerSD, non-strict load (the only missing keys are render_embed.*),
+            generation_task_ratio 0.3 (no-history windows), 3D-box / HD-map condition ratio 0.5
+  model     dwm_pano_d2.model.D2RenderDiT, 17 render channels, scale 10
+  data      D2RenderDataset over the train set in 35-frame clips, one start every 2 s
+
+    python3 make_d2_config.py --out configs/d2_pilot_8gpu.json
+    python3 make_d2_config.py --out configs/d2_full_8gpu.json --min-items 300 --render-init-prob 0.5
 """
 
 import argparse

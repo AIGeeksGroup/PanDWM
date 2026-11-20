@@ -1,13 +1,9 @@
-"""Band mask of a real nuScenes camera at any resolution (tab:gs_recon).
+"""Band mask of a real nuScenes camera at any output resolution.
 
-The camera pixels whose content the panoramic band holds: the exact inverse of the OneBEV legacy warp that made the
-recorded panoramas, i.e. eval/cam_band_feats.py LegacyInverseGeometry (md5 993f0eef; validated
-against the recorded views: own-column MAE ~1/255, shift 0), with the output size a parameter instead of
-the fixed 256 x 448.  For every output pixel q (native OpenCV index coordinates u = (j + 0.5) * 1600 / W - 0.5,
-v likewise) Newton finds the pano point camera c's legacy warp sends to q, started at the ideal calibrated-sphere
-solution of dwm_pano.nuscenes6_bridge; mask = converged, in front of the camera and inside the band (pre-crop pano
-row centre in [149.5, 749.5)).  Camera order: nuscenes6_bridge.CAM_ORDER.  The code of _legacy_pixels and of the
-solve is copied from cam_band_feats.py; band_geometry(..., (256, 448)) must equal it bit for bit (check_against).
+Marks the camera pixels whose content is held by the panoramic band, i.e. the inverse of the legacy panorama
+warp used to produce the recorded panoramas (see eval/cam_band_feats.py, from which the warp and solve are copied).
+For every output pixel a Newton solve finds the panorama point that the camera's legacy warp maps to that pixel;
+the mask is converged, in front of the camera and inside the band. Camera order: nuscenes6_bridge.CAM_ORDER.
 """
 
 from __future__ import annotations
@@ -26,7 +22,7 @@ CANVAS_HW = (256, 4114)
 
 
 def _legacy_pixels(T, Km, c, rows, cols, crop=None):
-    """OneBEV legacy camera pixel (OpenCV index coords at 900x1600) of pano points (pre-crop row, 9600 column)."""
+    """Legacy warp: camera pixel (OpenCV index coords at 900x1600) of panorama points (pre-crop row, 9600 column)."""
     from dwm_pano.calibrated_stitch import (
         ONEBEV_BACK_FOV_DEG, ONEBEV_OTHER_FOV_DEG, PANO_H_PRE_CROP, PANO_W, VERT_FOV_HALF_RAD, _onebev_angles)
     source_height, source_width = 900, 1600
@@ -73,8 +69,9 @@ def _legacy_pixels(T, Km, c, rows, cols, crop=None):
 
 
 def band_geometry(c2e, K, size, out_hw):
-    """c2e (6, 4, 4) camera-to-ego, K (6, 3, 3) at native 1600x900, size (6, 2) (w, h) -> dict of (6, H, W) arrays:
-    valid (bool band mask), grids (canvas grid_sample coords), owner (canvas-column camera)."""
+    """c2e (6, 4, 4) camera-to-ego, K (6, 3, 3) at native 1600x900, size (6, 2) (w, h).
+    Returns a dict of (6, H, W) arrays: valid (bool band mask), grids (canvas grid_sample coords), owner (canvas-column camera).
+    """
     from dwm_pano.calibrated_stitch import _onebev_legacy_grid_for_camera, prepare_gsplat_intrinsics
     from dwm_pano.datasets.pano_projection import PANO_CROP_TOP
     if any(tuple(int(v) for v in s) != (1600, 900) for s in size):

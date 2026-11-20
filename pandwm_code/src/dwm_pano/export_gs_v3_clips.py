@@ -1,13 +1,12 @@
-"""v3 review renders of the 149 eval clips.
+"""Review renders of the 149 eval clips using the scene from gs_scene_v3.SceneBuilder.
 
-The four videos of export_gs_v2_clips.py with the same names, views and finishing (depth-edge filter, max-scale
-cap, nearby-frame static fill, --bg-fill sky / ground colours, push-pull hole fill), but the scene comes from
-gs_scene_v3.SceneBuilder, so the v3 switches apply: --ownership (B1), --da3-relabel (C1), --sky-layer (B2).
-With the switches off the scene is v2's.
+Produces the same four videos as export_gs_v2_clips.py (same views and finishing: depth-edge filter, max-scale cap,
+nearby-frame static fill, sky / ground background colours, push-pull hole fill). With all switches off the scene is
+the v2 scene; --ownership, --da3-relabel and --sky-layer enable the v3 options.
 
---sky-layer also gives the pinhole review views a sky behind the Gaussians: along each pixel's ray direction, the
-frame's own decoded pano where DA3 calls the pixel sky (inside the +/-16.7 deg band), and above the band a
-continuation of the band's top rows (horizontally blurred) fading to the frame's mean sky colour 10 deg higher.
+--sky-layer also gives the pinhole views a sky behind the Gaussians: along each pixel's ray, the frame's own
+decoded pano where DA3 marks the pixel as sky (inside the +/-16.7 deg band), and above the band a continuation of
+the band's top rows (horizontally blurred) fading to the frame's mean sky colour 10 deg higher.
 
   <out-root>/clipNNN/4d_clean_compare.mp4   camera 3 m behind: per-frame 3D | 4D filled
   <out-root>/clipNNN/4d_clean_views.mp4     4D filled, near-rig views (chase, sweep, pan)
@@ -61,11 +60,11 @@ def parse_args():
     p.add_argument("--ownership", action="store_true")
     p.add_argument("--da3-relabel", action="store_true")
     p.add_argument("--sky-layer", action="store_true")
-    p.add_argument("--da3-mode", choices=["ray", "scale"], default="ray", help="scale = C1b")
+    p.add_argument("--da3-mode", choices=["ray", "scale"], default="ray", help="how the DA3 relabel is applied: per-ray or by scale")
     p.add_argument("--fill-mode", choices=["pushpull", "bgrow"], default="pushpull",
-                   help="bgrow = background row fill first, push-pull for the rest (B3)")
+                   help="bgrow = background row fill first, push-pull for the rest")
     p.add_argument("--drop-bottom-rows", type=int, default=0,
-                   help="drop the Gaussians of the lowest N decoder rows (C2's band-edge line)")
+                   help="drop the Gaussians of the lowest N decoder rows (band-edge line)")
     p.add_argument("--da3-src", default="")
     p.add_argument("--da3-anyview", default="")
     p.add_argument("--da3-metric", default="")
@@ -142,14 +141,14 @@ def render_clip(pipe, batch, infos, latents, args, opts, device, out_dir, da3):
         return rgb.clamp(0, 1), alpha, depth
 
     def finish(rgb, alpha, t, K, c2w, width, height, env, depth=None):
-        if env is not None:                                                       # B2: sky behind the Gaussians
+        if env is not None:                                                       # sky behind the Gaussians
             sky_rgb, sky_mask = env(ray_directions(c2w, K, width, height))
             rgb, alpha = composite(rgb, alpha, sky_rgb * sky_mask[:, None], sky_mask)
         sky, ground = scene.colours[t]
         rgb = torch.stack([x + (1.0 - a.clamp(0, 1))[None] * background(x.shape[1], x.shape[2], float(k[1, 2]),
                                                                        sky, ground, x.device)
                            for x, a, k in zip(rgb, alpha, K)])
-        if args.fill_mode == "bgrow" and depth is not None:                       # B3
+        if args.fill_mode == "bgrow" and depth is not None:
             pairs = [background_row_fill(x, a, d) for x, a, d in zip(rgb, alpha, depth)]
             rgb, alpha = torch.stack([p[0] for p in pairs]), torch.stack([p[1] for p in pairs])
         return torch.stack([pushpull_fill(x, a) for x, a in zip(rgb.cpu(), alpha.cpu())]).clamp(0, 1)

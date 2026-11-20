@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# generate a manifest of 35-frame clips (Test-S, Dev-78, Dev-149) with run_clips_videos.py, one model per
+# Generates the 35-frame clips of a manifest with run_clips_videos.py, one model per
 # job, array task i = manifest positions [i*CHUNK, (i+1)*CHUNK).  Finished clips are skipped, so a rerun resumes.
 # Output: $OUT/<TAG>_s<SEED>/clipNNN/{latents.pt,gt_vs_generated.mp4,summary.json} (NNN = test_index).
-#   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch          (Test-S, student)
+#   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch          (student)
 #   TAG=teacher50 CKPT=<stage1> ENGINE=teacher CHUNK=4 sbatch --array=0-53%4 --time=03:00:00 scripts/tests_gen.sbatch
 #   TAG=stage0_50 CKPT=<stage0> ENGINE=teacher BIDIR=1 ...                                         (bidirectional)
-#   TAG=v84i4250G HISTORY=none MANIFEST=dev78_manifest.json STRIDE=20 ...                  (setting G)
-# Paper settings: stochastic 4-step sampler, steps [1000, 750, 500, 250], blend 128.
+#   TAG=v84i4250G HISTORY=none MANIFEST=dev78_manifest.json STRIDE=20 ...                  (no history conditioning)
+# Default settings: stochastic 4-step sampler, steps [1000, 750, 500, 250], blend 128.
 #SBATCH --job-name=pandwm_tgen
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

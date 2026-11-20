@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Test-L analysis: long_feats.py
-# features of every listed arm (71 test scenes, windows 1-12 from the scene start), then long_analyze2.py with the
-# Test-L buckets (windows 1-2 are the Dev-149 clip and are reported for reference only) and the split-half reference.
+# Long-video analysis: long_feats.py features of every listed arm (windows 1-12 from the scene start), then
+# long_analyze2.py with window buckets (windows 1-2 are the standard evaluation clip and are reported for
+# reference only) and the split-half reference.
 #   ARMS="v84i4250" SEEDS="42" OUTNAME=testl_v84_s42 sbatch scripts/testl_analyze.sbatch
 # Feature files are per (arm, seed set): $FD/feats_<arm>.npz under FD=$LV/feats_s<seeds joined by _>.
 #SBATCH --job-name=pandwm_tlan

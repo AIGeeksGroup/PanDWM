@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Validate the immutable inputs needed by HorizonDrive evaluation.
+"""Preflight check of the HorizonDrive repository, model weights and nuScenes data.
 
-This preflight mirrors the paths used by the upstream dataset instead of only
-checking that a top-level directory exists.  It deliberately does not create,
-download, or rewrite any data.
+Checks the files the upstream dataset reads, not only the top-level directories.
+Read-only: nothing is created, downloaded or modified.
 """
 from __future__ import annotations
 

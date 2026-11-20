@@ -7,6 +7,7 @@
 #SBATCH --mem=160G
 #SBATCH --time=00:30:00
 #SBATCH --output=%x_%j.log
+# Check that the official GEM checkpoint matches the model definition.
 set -euo pipefail
 
 H=/path/to/pandwm_root

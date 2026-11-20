@@ -9,11 +9,11 @@
 #SBATCH --mem=110G
 #SBATCH --time=02:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/logs/%x_%j.log
-# GS-side tasks on HPC3 for the 149 review clips of v84i4250:
-#   MODE=refs      dwm_pano.make_difix_refs            -> pandwm_runs/difix/refs
-#   MODE=d1render  dwm_pano.export_shift_pano_latents  -> pandwm_runs/d1_sdedit/renders
-#                  (C2 step 3000 + DA3 scale relabel + 2 bottom rows dropped, as the v4 far views)
-#   MODE=refs CLIPS=2,3,4 sbatch gs_review_tasks.sbatch ;  MODE=d1render CLIPS=2,60 SHIFTS=0,1,2 sbatch ...
+# GS-side tasks for the review clips:
+#   MODE=refs      dwm_pano.make_difix_refs            writes pandwm_runs/difix/refs
+#   MODE=d1render  dwm_pano.export_shift_pano_latents  writes pandwm_runs/d1_sdedit/renders
+#                  (DA3 scale relabel, 2 bottom rows dropped)
+#   MODE=refs CLIPS=2,3,4 sbatch <script> ;  MODE=d1render CLIPS=2,60 SHIFTS=0,1,2 sbatch <script>
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize the three official GEM common149 seed evaluations."""
+"""Aggregate the GEM FID/FVD results of the three seeds into a JSON summary and a Markdown row."""
 
 from __future__ import annotations
 

@@ -2,12 +2,13 @@
 #SBATCH --job-name=epona_summary
 #SBATCH --partition=<partition>
 #SBATCH --nodes=1
-# The cluster requires a GPU request even though this aggregation is CPU-only.
+# A GPU is requested for scheduling only; this aggregation is CPU-only.
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 #SBATCH --time=00:10:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# Aggregate per-seed metrics of all methods into one result table.
 set -euo pipefail
 
 H=/path/to/pandwm_root

@@ -8,6 +8,7 @@
 #SBATCH --time=02:00:00
 #SBATCH --array=0-2
 #SBATCH --output=%x_%A_%a.log
+# Export the GEM outputs of one seed (array task) as a metric dump and compute FID/FVD.
 set -euo pipefail
 
 H=/path/to/pandwm_root

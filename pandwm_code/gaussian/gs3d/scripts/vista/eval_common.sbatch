@@ -7,7 +7,7 @@
 #SBATCH --mem=160G
 #SBATCH --time=12:00:00
 #SBATCH --output=%x_%j.log
-# Submit only after the official sample.py smoke passes, for example:
+# Vista sampling on one shard of the 149 common clips (1 context frame, 25 output frames, 50 steps).
 #   sbatch --export=ALL,SEED=0,SHARDS=5,SHARD=0 eval_common.sbatch
 set -euo pipefail
 
@@ -25,8 +25,7 @@ EXPECTED_COMMIT=cc9821b4253ca7987c32757613d2fc2448fa9f5d
 EXPECTED_SHA256=1b267bb753aa5c5e4d363f6e4c864dd4e343996dedc18b5ab20af6d20be34b98
 EXPECTED_OPENCLIP_SHA256=9a78ef8e8c73fd0df621682e7a8e8eb36c6916cb3c16b291a082ecd52ab79cc4
 
-# Some compute nodes do not expose git in PATH.  The checkout is shared and was
-# audited clean before submission, so verify its pinned branch ref without git.
+# Check the expected commit by reading the git refs directly (git may not be in PATH).
 test "$(sed -n '1p' "$VISTA/.git/HEAD")" = "ref: refs/heads/main"
 test "$(sed -n '1p' "$VISTA/.git/refs/heads/main")" = "$EXPECTED_COMMIT"
 test -f "$INPUT"

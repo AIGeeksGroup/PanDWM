@@ -1,4 +1,4 @@
-"""ASCII table of the ablation from tests_analyze.py and abl_flicker.py outputs .
+"""ASCII table of the ablation from tests_analyze.py and abl_flicker.py outputs.
   python3 abl_table.py analysis.json flicker.json CONTROL > TABLE.txt
 Pairs are CONTROL:variant, i.e. control minus variant (negative = control lower).
 """

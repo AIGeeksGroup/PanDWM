@@ -1,10 +1,10 @@
-"""One-clip manifest for scene-0018's scene-start clip, completing Dev-149 to the 150 nuScenes val scenes .
+"""One-clip manifest for the scene-start clip of scene-0018, completing the 149 eval clips to all 150 val scenes.
 
-Built on the frozen eval dataset with relaxed_sync.install() (stride 20 s, one clip per scene).  Checks that the relaxed
-dataset has exactly the 149 Dev-149 clips (same scene tokens and anchor timestamps) plus scene-0018 and nothing else.
-The new clip gets test_index 149, so it never collides with a Dev-149 clip index; dataset_index refers to the relaxed
-dataset (150 clips), so runs and feature extraction of this manifest must also go through relaxed_sync.py.
-  python3 build_val150_manifest.py --base-config cd_eval_frozen149_hpc3.json --dev149 dev149_manifest.json \
+Built on the frozen eval dataset with relaxed_sync.install() (stride 20 s, one clip per scene). Checks that the relaxed
+dataset has exactly the 149 clips of the dev149 manifest (same scene tokens and anchor timestamps) plus scene-0018.
+The new clip gets test_index 149; dataset_index refers to the relaxed dataset (150 clips), so runs and feature
+extraction of this manifest must also go through relaxed_sync.py.
+  python3 build_val150_manifest.py --base-config <eval config json> --dev149 dev149_manifest.json \
       --output scene0018_manifest.json
 """
 import argparse

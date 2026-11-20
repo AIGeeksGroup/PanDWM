@@ -1,7 +1,7 @@
-#: Depth Anything 3 runtime on HPC3, sourced after common_env_hpc3.sh.
-# Code: pandwm_code/third_party/depth_anything_3/repo (ByteDance-Seed/Depth-Anything-3 @ 3d835ec1, Apache-2.0).
-# Weights: .../weights/DA3-LARGE-1.1 (CC BY-NC 4.0) and .../weights/DA3METRIC-LARGE (Apache-2.0).
-# Extra pure-python packages (omegaconf 2.3.0, antlr4 4.9.3, addict 2.4.0) live in pandwm_da3_pkgs/site only.
+# Depth Anything 3 runtime, sourced after the common env script.
+# Code: pandwm_code/third_party/depth_anything_3/repo (Depth-Anything-3, Apache-2.0).
+# Weights: weights/DA3-LARGE-1.1 (CC BY-NC 4.0) and weights/DA3METRIC-LARGE (Apache-2.0).
+# Extra pure-python packages (omegaconf, antlr4, addict) are installed in pandwm_da3_pkgs/site only.
 DA3_HOME=$DR/pandwm_code/third_party/depth_anything_3
 DA3_SRC=$DA3_HOME/repo/src
 DA3_ANYVIEW=$DA3_HOME/weights/DA3-LARGE-1.1

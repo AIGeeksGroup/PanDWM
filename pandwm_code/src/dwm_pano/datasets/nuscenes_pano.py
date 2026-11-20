@@ -1,33 +1,17 @@
-"""PanoNuScenesDataset — 2-pano driving dataset for OpenDWM CTSD pipeline.
+"""PanoNuScenesDataset: 2-pano driving dataset for the OpenDWM CTSD pipeline.
 
-Standalone torch Dataset (NOT subclass of MotionDataset) because we work off
-pre-stitched pano jpg/h5/png files + a 12Hz interpolation pkl, rather than
-raw nuScenes keyframe sensor data.
+A standalone torch Dataset (not a MotionDataset subclass) that works off pre-stitched pano jpg/png files and a 12 Hz
+interpolation pkl instead of raw nuScenes sensor data. Each clip returns the OpenDWM batch schema:
+  - images, 3dbox_images, hdmap_images: [t, v=2] PIL panos (each half 448x4032, a slice of the 9600x600 pano)
+  - camera_transforms [t, 2, 4, 4]: virtual cam2ego (yaw only); camera_intrinsics [t, 2, 3, 3]: pseudo K
+  - image_size [t, 2, 2] (W, H); ego_transforms [t, 1, 4, 4] ego2global
+  - pano_camera_translations [t, 6, 3], pano_camera_transforms [t, 6, 4, 4], pano_camera_intrinsics [t, 6, 3, 3],
+    pano_camera_image_size [t, 6, 2]: the real six-camera calibration (sensor-to-ego, OpenCV K, native size)
+  - image_description [t, 2] caption strings; fps scalar; pts [t, 2] relative timestamps in ms
 
-Produces batches matching OpenDWM's expected schema
-(see `src/dwm/datasets/README.md`):
-  - images:            [t, v=2] PIL RGB panos (each 448×4032, slice of 9600×600 stitched)
-  - 3dbox_images:      [t, v=2] PIL, same size, colored bbox wireframes on black
-  - hdmap_images:      [t, v=2] PIL, same size, colored HD-map polygon outlines
-  - camera_transforms: [t, v=2, 4, 4] virtual cam2ego (identity for pano)
-  - camera_intrinsics: [t, v=2, 3, 3] pseudo K (based on pano half resolution)
-  - image_size:        [t, v=2, 2] (W, H) per view
-  - ego_transforms:    [t, 1, 4, 4] ego2global
-  - pano_camera_translations: [t, 6, 3] calibrated camera origins in ego
-  - pano_camera_transforms: [t, 6, 4, 4] real sensor-to-ego c2w
-  - pano_camera_intrinsics: [t, 6, 3, 3] raw nuScenes/OpenCV per-camera K
-  - pano_camera_image_size: [t, 6, 2] native (W, H), normally 1600x900
-  - image_description: [t, v=2] caption strings
-  - fps:               (1,) float tensor
-  - pts:               [t, v=2] relative timestamps (ms)
-
-Pano half slicing (matches pano_projection.PANO_HALF_*_RANGE):
-  - left half  = pano[:, 0:5376]       (covers ~202° centered on CAM_BACK)
-  - right half = pano[:, 4224:9600]    (covers ~202° centered on CAM_FRONT)
-  - 1152 px overlap around CAM_FRONT
-
-Output resolution per half (configurable):
-  - default 448×4032 (H=448, aspect 9:1 to preserve pano geometry)
+Pano half slicing (matches pano_projection.PANO_HALF_*_RANGE): left half = pano[:, 0:5376] (about 202 degrees
+centered on CAM_BACK), right half = pano[:, 4224:9600] (centered on CAM_FRONT), 1152 px overlap around CAM_FRONT.
+The output size per half is configurable (default 448x4032).
 """
 from __future__ import annotations
 
@@ -54,15 +38,16 @@ from dwm_pano.datasets.pano_via_stitch import (
 from dwm_pano.calibrated_stitch import camera_records_to_arrays
 
 
-# Default output resolution per pano half
+# Default output resolution per pano half.
 DEFAULT_HALF_SIZE = (4032, 448)   # (W, H)
-# (BBOX_COLORS, EDGES now live in pano_via_stitch.py; imported by the renderer)
 
 
 def _render_bboxes_on_full_pano(info, pen_width=3, bbox_dir: Optional[str] = None):
-    """Returns PIL 9600×600 bbox wireframe pano.
-    If `bbox_dir` is set AND `{bbox_dir}/{ts}.png` exists, LOAD from disk (fast).
-    Otherwise render on-the-fly via 6-cam pinhole + stitch_hardseam (slow, ~15s)."""
+    """Return the 9600x600 PIL bbox wireframe pano.
+
+    If `bbox_dir` is set and `{bbox_dir}/{ts}.png` exists it is loaded from disk, otherwise it is rendered on the fly
+    with the six pinhole cameras and the hard-seam stitch (slow).
+    """
     if bbox_dir:
         ts = int(info["timestamp"])
         path = os.path.join(bbox_dir, f"{ts}.png")
@@ -72,9 +57,7 @@ def _render_bboxes_on_full_pano(info, pen_width=3, bbox_dir: Optional[str] = Non
 
 
 def _render_hdmap_on_full_pano(info, pen_width=2, hdmap_dir: Optional[str] = None):
-    """Returns PIL 9600×600 hdmap polygon pano.
-    If `hdmap_dir` is set AND `{hdmap_dir}/{ts}.png` exists, LOAD from disk.
-    Otherwise render on-the-fly."""
+    """Return the 9600x600 PIL hdmap polygon pano, loaded from `hdmap_dir` if available, else rendered on the fly."""
     if hdmap_dir:
         ts = int(info["timestamp"])
         path = os.path.join(hdmap_dir, f"{ts}.png")
@@ -88,8 +71,7 @@ def _render_hdmap_on_full_pano(info, pen_width=2, hdmap_dir: Optional[str] = Non
 
 
 def _slice_full_pano_to_halves(full_img, out_w, out_h):
-    """Slice 9600×600 PIL to 2 halves and resize each to (out_w, out_h).
-    Returns (left, right) PIL images."""
+    """Slice a 9600x600 PIL pano into two halves and resize each to (out_w, out_h). Returns (left, right)."""
     left_full = full_img.crop((PANO_HALF_LEFT_RANGE[0], 0,
                                PANO_HALF_LEFT_RANGE[1], PANO_H))
     right_full = full_img.crop((PANO_HALF_RIGHT_RANGE[0], 0,
@@ -100,7 +82,7 @@ def _slice_full_pano_to_halves(full_img, out_w, out_h):
 
 
 def _slice_full_pano_to_halves_nearest(full_img, out_w, out_h):
-    """Same but NEAREST resize — used for bbox/hdmap overlays to keep lines sharp."""
+    """Same as above with NEAREST resize, used for bbox/hdmap overlays to keep lines sharp."""
     left_full = full_img.crop((PANO_HALF_LEFT_RANGE[0], 0,
                                PANO_HALF_LEFT_RANGE[1], PANO_H))
     right_full = full_img.crop((PANO_HALF_RIGHT_RANGE[0], 0,
@@ -111,8 +93,7 @@ def _slice_full_pano_to_halves_nearest(full_img, out_w, out_h):
 
 
 def _make_virtual_pano_K(half_w, half_h):
-    """Pseudo K for a pano half. Values not physically pinhole-correct; implicit
-    conditioning just embeds these numbers as 'pano-half signature'."""
+    """Pseudo intrinsics for a pano half. Not physically pinhole-correct; the conditioning only uses them as a per-half signature."""
     fx = float(half_w) / 2.0
     fy = float(half_h) / 2.0
     cx = float(half_w) / 2.0
@@ -125,28 +106,19 @@ def _make_virtual_pano_K(half_w, half_h):
 
 def _make_virtual_pano_extrinsics(half_idx: int):
     """Virtual cam2ego 4x4 for each pano half.
-    Half 0 (left, covers CAM_BACK..CAM_FRONT_LEFT) — cam pose = ego origin looking
-      towards the CENTER of left half's Voronoi range (roughly ~-80° from +X_ego).
-    Half 1 (right, covers CAM_FRONT..CAM_BACK_RIGHT) — centered at ~+80° from +X.
-    For simplicity and stability: virtual cam at ego origin, rotation = yaw only
-    toward half center. Half center angle in pano = (half_range_center - PANO_W/2) / PANO_W * 2π.
 
-    Left half center (TX=2688): angle ≈ -80.4°
-    Right half center (TX=6912): angle ≈ +80.4°
+    The virtual camera sits at the ego origin with a yaw-only rotation toward the center of the half (left half about
+    -80.4 degrees from +X_ego, right half about +80.4 degrees). The center angle is
+    (half_range_center - PANO_W / 2) / PANO_W * 2 * pi.
     """
     if half_idx == 0:
         center_tx = (PANO_HALF_LEFT_RANGE[0] + PANO_HALF_LEFT_RANGE[1]) / 2.0
     else:
         center_tx = (PANO_HALF_RIGHT_RANGE[0] + PANO_HALF_RIGHT_RANGE[1]) / 2.0
     ang_rad = (center_tx - PANO_W / 2.0) / PANO_W * 2.0 * np.pi
-    # Rotate around z by -ang_rad (camera +z should point to the half's center
-    # direction in ego frame; camera frame +z is forward)
     cos, sin = np.cos(ang_rad), np.sin(ang_rad)
     T = np.eye(4, dtype=np.float32)
-    # Rotate such that camera +z (forward-looking in cam frame) points to angle ang_rad in ego
-    # In ego frame, direction at angle ang_rad (measured from +X CCW toward +Y in pano
-    # coord) is approximately (cos(ang_rad)*X + sin(ang_rad)*(-Y)) where pano +x = ego -y.
-    # To keep things simple and deterministic: just encode a yaw rotation.
+    # Yaw rotation about z toward the half center (pano +x corresponds to ego -y).
     T[:3, :3] = np.array([
         [ cos, -sin, 0.0],
         [ sin,  cos, 0.0],
@@ -155,13 +127,9 @@ def _make_virtual_pano_extrinsics(half_idx: int):
     return T
 
 
-# -----------------------------------------------------------------------------
-# Main Dataset class
-# -----------------------------------------------------------------------------
+# Main dataset class
 def _load_token_to_scene(meta_dir: str) -> dict:
-    """Build sample_token → scene_token map from raw nuScenes JSON tables.
-    `meta_dir` should be the v1.0-trainval directory containing sample.json.
-    """
+    """Build a sample_token to scene_token map from the raw nuScenes JSON tables (`meta_dir` is the v1.0-trainval directory containing sample.json)."""
     import json
     with open(os.path.join(meta_dir, "sample.json"), "r") as f:
         samples = json.load(f)
@@ -170,21 +138,15 @@ def _load_token_to_scene(meta_dir: str) -> dict:
 
 def _group_infos_by_scene(infos, token2scene: Optional[dict] = None,
                           strict: bool = True):
-    """Group pkl infos by **official nuScenes scene_token**.
+    """Group pkl infos by the official nuScenes scene_token.
 
-    Strategy (verified 100% recovery on 12Hz ASAP-interp pkls):
-      - 32-char tokens are real nuScenes sample_tokens → direct lookup
-      - 33-char tokens are synthetic ASAP-interp tokens of form
-        `<source_keyframe_token>+suffix`; the first 32 chars are the parent
-        sample_token. So `token[:32]` always lands in `token2scene`.
+    32-char tokens are real nuScenes sample tokens (direct lookup). 33-char tokens are synthetic interpolated tokens
+    `<source_keyframe_token>+suffix` whose first 32 chars are the parent sample token, so `token[:32]` always lands in
+    `token2scene`.
 
-    `strict=True` (default): raise on any unrecovered token. This is the
-    safe default — silent fallback to `description` would mask metadata
-    misconfiguration and silently degrade clip quality (description is
-    not unique per scene; the train pkl has 2 colliding pairs).
-
-    `strict=False`: try `description` then `(location, 20s_bucket)` as
-    fallback. Only use this for legacy pkls without official metadata.
+    `strict=True` (default) raises on any unrecovered token, because falling back to `description` would silently degrade
+    clip quality (descriptions are not unique per scene). `strict=False` falls back to `description`, then to
+    `(location, 20 s bucket)`, for legacy pkls without official metadata.
     """
     by_scene = {}
     unrecovered = []
@@ -202,11 +164,7 @@ def _group_infos_by_scene(infos, token2scene: Optional[dict] = None,
                 loc = info.get("location", "unknown")
                 bucket = int(info["timestamp"]) // 20_000_000
                 s = f"{loc}_{bucket}"
-        # Persist the recovered scene_token back into the info dict so
-        # downstream code (e.g. clips[idx][0]["scene_token"] in preview
-        # debug CSV / held-out validation) can access it
-        # directly. Without this, recovered tokens live only as by_scene
-        # keys and get lost in `_enumerate_pano_clips`.
+        # Store the recovered scene_token in the info dict so that it survives `_enumerate_pano_clips`.
         info["scene_token"] = s
         by_scene.setdefault(s, []).append(info)
 
@@ -225,48 +183,29 @@ def _group_infos_by_scene(infos, token2scene: Optional[dict] = None,
 
 def _enumerate_pano_clips(scene_infos, sequence_length, fps_stride_tuples,
                           emit_failures=False, bad_timestamps_us=None):
-    """Timestamp-based multi-fps clip enumeration aligned with official
-    OpenDWM `MotionDataset.enumerate_segments` (fps>0 branch, see
-    `src/dwm/datasets/nuscenes.py:270-330`).
+    """Timestamp-based multi-fps clip enumeration, aligned with OpenDWM `MotionDataset.enumerate_segments`.
 
-    Algorithm (per (fps, stride) tuple, per scene):
-      1. anchor t0 (seconds) starts at scene's first frame timestamp,
-         advances by `stride` seconds, until `t0 + sequence_duration <=
-         scene_end_ts`, where `sequence_duration = sequence_length / fps`.
-      2. target_times[i] = t0 + i / fps   (in seconds; converted to us)
-      3. for each target, find_nearest pkl frame in the scene's timestamp
-         list (bisect, tie-break left like official find_nearest).
-      4. validate the clip:
-         - max_time_error <= 0.5e6 / fps  (microseconds; tolerance ↑ as fps↓)
-         - indices strictly monotonic increasing
-         - len(set(indices)) == sequence_length  (no duplicate frames)
-      5. yield (clip_info_list, audit_meta) for valid clips.
+    Per (fps, stride) tuple and per scene:
+      1. the anchor t0 (seconds) starts at the scene's first frame timestamp and advances by `stride` seconds while
+         `t0 + sequence_length / fps <= scene_end_ts`;
+      2. target_times[i] = t0 + i / fps (converted to microseconds);
+      3. each target is matched to the nearest pkl frame of the scene (bisect, ties go left like the official
+         find_nearest);
+      4. the clip is valid if max_time_error <= 0.5e6 / fps microseconds, the indices are strictly increasing and
+         there are `sequence_length` distinct frames;
+      5. valid clips are yielded as (clip_info_list, audit_meta).
 
-    When `emit_failures=True`, also yields `(None, audit_meta_with_reason)`
-    for every rejected anchor; lets the audit script count failure modes
-    without re-running enumeration.
+    With `emit_failures=True`, rejected anchors are also yielded as `(None, audit_meta_with_reason)`.
 
-    Why timestamp-based and NOT index-based round(native_fps/target_fps) skip:
-      native_fps=12, target_fps=5: round(12/5)=2 → effective 6Hz, NOT 5Hz.
-      target_fps=10: round(12/10)=1 → effective 12Hz, NOT 10Hz.
-      Only target_fps=2 works correctly (round(12/2)=6 → 2Hz exact).
-      Index-based skip silently aliases mid-fps targets to wrong frequencies.
-      Timestamp-based with find_nearest + tolerance respects the actual target
-      fps regardless of pkl native rate.
+    Sampling by timestamp rather than by skipping round(native_fps / target_fps) frames keeps the effective rate exact
+    (for a 12 Hz source, index skipping would turn 5 Hz into 6 Hz and 10 Hz into 12 Hz).
 
-    Audit metadata per clip:
-      - fps:                actual fps the clip was sampled at
-      - stride_s:           stride for this anchor walk
-      - max_time_error_us:  max abs(target_us - nearest_actual_us) over clip frames
-      - actual_duration_us: timestamps[indices[-1]] - timestamps[indices[0]]
-      - scene_token, indices, valid, reason (latter only when invalid)
+    Audit metadata per clip: fps, stride_s, max_time_error_us, actual_duration_us (last minus first timestamp),
+    scene_token, indices, valid, and reason (only when invalid).
     """
     import bisect
 
-    # Bad-timestamp blacklist: any clip whose actual sampled frames
-    # (sdl[indices[*]]["timestamp"]) intersects this set is rejected
-    # with reason="bad_timestamp_in_window". Filtering uses len(indices)
-    # (== sequence_length post-validation) — no hardcoded window length.
+    # Clips containing any blacklisted timestamp are rejected with reason="bad_timestamp_in_window".
     bad_set = set(int(ts) for ts in (bad_timestamps_us or []))
 
     for fps, stride in fps_stride_tuples:
@@ -313,8 +252,7 @@ def _enumerate_pano_clips(scene_infos, sequence_length, fps_stride_tuples,
                     for i in range(sequence_length)
                 ]
 
-                # find_nearest indices via bisect (matches dwm.datasets.common.find_nearest:
-                # tie-break left, clamp to valid range)
+                # Nearest frame via bisect (ties go left, indices clamped to the valid range).
                 indices = []
                 for tgt in target_us:
                     idx = bisect.bisect_left(timestamps_us, tgt)
@@ -350,8 +288,7 @@ def _enumerate_pano_clips(scene_infos, sequence_length, fps_stride_tuples,
                 }
 
                 if max_err_us <= tolerance_us and monotonic and no_dup:
-                    # Bad-timestamp filter: walks all len(indices) sampled
-                    # frame ts (NOT a hardcoded 16); reject if any in bad_set.
+                    # Reject clips with any blacklisted frame timestamp.
                     clip_ts = [int(timestamps_us[i]) for i in indices]
                     if bad_set and any(ts in bad_set for ts in clip_ts):
                         if emit_failures:
@@ -383,8 +320,7 @@ _RAIN_RE = re.compile(r"\brain(?:y|ing)?\b", re.IGNORECASE)
 
 
 def scene_time_weather(description: str):
-    """(time, weather) for the text condition from an official nuScenes
-    scene description: ("night" | "day", "rainy" | "clear")."""
+    """(time, weather) for the text condition from an official nuScenes scene description: ("night" | "day", "rainy" | "clear")."""
     description = description or ""
     time = "night" if _NIGHT_RE.search(description) else "day"
     weather = "rainy" if _RAIN_RE.search(description) else "clear"
@@ -392,17 +328,17 @@ def scene_time_weather(description: str):
 
 
 class PanoNuScenesDataset(torch.utils.data.Dataset):
-    """2-pano dataset for OpenDWM CTSD. Reads pre-stitched pano jpg + 12Hz pkl.
+    """2-pano dataset for OpenDWM CTSD. Reads pre-stitched pano jpg files and a 12 Hz pkl.
 
     Args:
-        pkl_path: path to interpolated 12Hz pkl (train or val).
-        rgb_dir: directory with {timestamp}.jpg pano RGBs (full 9600×600).
+        pkl_path: path to the interpolated 12 Hz pkl (train or val).
+        rgb_dir: directory with {timestamp}.jpg pano RGBs (full 9600x600).
         depth_dir, seg_dir: optional, same keyed-by-timestamp layout.
-        sequence_length: frames per clip (e.g., 9).
+        sequence_length: frames per clip (e.g. 9).
         fps_stride_tuples: iterable of (fps, stride_seconds). Default [(2.0, 2.0)]:
-            sample at 2 Hz (every 6th frame of 12Hz), 2s stride between clips.
+            sample at 2 Hz (every 6th frame of 12 Hz), 2 s stride between clips.
         half_size: (W, H) of each pano half after resize.
-        split: label for debugging (e.g., 'train' / 'val').
+        split: label for debugging (e.g. 'train' / 'val').
     """
     def __init__(
         self,
@@ -410,8 +346,8 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
         rgb_dir: str,
         depth_dir: Optional[str] = None,
         seg_dir: Optional[str] = None,
-        bbox_dir: Optional[str] = None,       # NEW: if set, read precomputed PNG
-        hdmap_dir: Optional[str] = None,      # NEW: if set, read precomputed PNG
+        bbox_dir: Optional[str] = None,       # if set, read precomputed PNG
+        hdmap_dir: Optional[str] = None,      # if set, read precomputed PNG
         sequence_length: int = 9,
         fps_stride_tuples: list = ((2.0, 2.0),),
         half_size: tuple = DEFAULT_HALF_SIZE,
@@ -421,8 +357,8 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
         enable_camera_transforms: bool = True,
         enable_ego_transforms: bool = True,
         enable_description: bool = True,
-        hdmap_pen_width: int = 2,     # matches scripts/precompute_bbox_hdmap_pano.py default
-        bbox_pen_width: int = 3,      # matches precompute default
+        hdmap_pen_width: int = 2,     # default of the bbox/hdmap precompute script
+        bbox_pen_width: int = 3,      # default of the bbox/hdmap precompute script
         nuscenes_meta_dir: Optional[str] = "/path/to/pandwm_root/nuscenes/v1.0-trainval",
         stub_key_data_dict: Optional[dict] = None,
         output_fps: Optional[float] = None,
@@ -434,14 +370,10 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
         instance_track_excluded_classes: tuple = ("barrier", "traffic_cone"),
         time_weather_source: str = "fixed",
     ):
-        # output_fps: scalar fps reported in result["fps"] (used by model
-        # added_time_ids). If None, derive from fps_stride_tuples[0][0].
-        # Avoid hardcoding 2.0 — must match the actual sampling rate of the
-        # clip (e.g. 12.0 for our 12Hz DFoT clips). Wrong fps silently hurts
-        # generation quality via wrong condition embedding.
-        # stub_key_data_dict: per OpenDWM convention, inject extra fields the
-        # pipeline expects but this dataset doesn't naturally produce (e.g.
-        # crossview_mask = [[1,1],[1,1]] for 2-pano).
+        # output_fps: scalar fps reported in result["fps"] (used for the model's added_time_ids); if None it is
+        # derived from fps_stride_tuples[0][0]. It must match the actual sampling rate of the clip.
+        # stub_key_data_dict: extra fields the pipeline expects but this dataset does not produce, injected per
+        # OpenDWM convention (e.g. crossview_mask = [[1,1],[1,1]] for 2-pano).
         with open(pkl_path, "rb") as f:
             pkl = pickle.load(f)
         self.infos = pkl["infos"]
@@ -485,19 +417,14 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
         token2scene = _load_token_to_scene(nuscenes_meta_dir)
         scene_infos = _group_infos_by_scene(
             self.infos, token2scene=token2scene, strict=True)
-        # Multi-fps timestamp-based enumeration; each clip carries its own
-        # `fps` (in audit meta) for per-clip __getitem__ exposure to the model.
+        # Multi-fps timestamp-based enumeration; each clip carries its own fps in the audit meta.
         _pairs = list(_enumerate_pano_clips(
             scene_infos, sequence_length, fps_stride_tuples,
             bad_timestamps_us=bad_timestamps_us))
         self.clips = [p[0] for p in _pairs]
         self.clip_audit = [p[1] for p in _pairs]
-        # teacher v3: the text used to start with a hard-coded
-        # "day, clear" for every clip, night and rain included.  With
-        # "scene_description" the time and weather come from the official
-        # nuScenes scene description (scene.json; test-time metadata, the
-        # text other driving world models use as prompt): "night" if it says
-        # night, "rainy" if it says rain.  "fixed" keeps the old text.
+        # time_weather_source: "fixed" uses "day, clear" for every clip; "scene_description" takes the time and
+        # weather from the official nuScenes scene description ("night" if it says night, "rainy" if it says rain).
         if time_weather_source not in ("fixed", "scene_description"):
             raise ValueError(f"time_weather_source {time_weather_source!r}")
         self.time_weather_source = time_weather_source
@@ -585,10 +512,9 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
                 T_e2g[:3, 3] = ego_t
                 ego_transforms.append(T_e2g[None, :, :])  # (1, 4, 4), 1 sensor
 
-            # Full real-camera calibration in the exact hard-seam camera
-            # order.  Keep the legacy translations key for existing decoder
-            # configs; the new c2w/K keys let a calibrated target render and
-            # differentiable OneBEV stitch share one authoritative packing.
+            # Full real-camera calibration in the hard-seam camera order. The translations key is kept for
+            # existing decoder configs; the c2w/K keys let a calibrated target render and the differentiable
+            # stitch share one packing.
             real_c2w, real_k, real_image_size = camera_records_to_arrays(
                 info["cams"], camera_order=CAM_ORDER)
             pano_camera_transforms.append(real_c2w)
@@ -603,7 +529,7 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
 
             # --- description ---
             if self.enable_description:
-                # Scene-level text from pkl metadata. Upgrade later to DriveMLM caption.
+                # Scene-level text from pkl metadata.
                 time = "day"
                 weather = "clear"
                 if self.time_weather_source == "scene_description":
@@ -635,35 +561,25 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
             np.stack(pano_camera_image_size))
         if self.enable_description:
             result["image_description"] = descriptions
-        # scalar (shape) per sample → DataLoader collate → (B,) per batch.
-        # Pipeline expects (B,)-shape: ctsd.py:329 does fps.unsqueeze(-1)×3 + repeat
-        # which assumes (B,) input. Don't wrap in [list] (would give (1,) → (B,1)).
-        # Per-clip fps from audit metadata (multi-fps support); falls back to
-        # self.output_fps for clips with no audit (defensive).
+        # A scalar per sample, collated to (B,); the pipeline expects a (B,)-shaped fps, so do not wrap it in a list.
+        # Per-clip fps comes from the audit metadata, falling back to self.output_fps.
         _clip_fps = self.clip_audit[idx]["fps"] if hasattr(self, "clip_audit") \
             and idx < len(self.clip_audit) else self.output_fps
         result["fps"] = torch.tensor(_clip_fps, dtype=torch.float32)
         result["pts"] = torch.tensor(pts, dtype=torch.float32)
-        # Exact frame file-name timestamps (pts floors us->ms, irreversible).
+        # Exact frame file-name timestamps (pts floors us to ms and cannot be inverted).
         result["frame_timestamps_us"] = torch.tensor(
             frame_timestamps, dtype=torch.int64)
         # Identification fields for preview/debug:
-        #   dataset_index: __getitem__ argument. Under torch.utils.data.Subset,
-        #     this is the ORIGINAL index into the base PanoNuScenesDataset
-        #     clip enumeration (Subset(ds, [0,1,50])[2] calls ds.__getitem__(50)).
-        #   anchor_timestamp_us: window[0]["timestamp"] of the clip — fully
-        #     unique per clip, survives any sub-batching, useful in preview CSV.
+        #   dataset_index: the __getitem__ argument (under torch.utils.data.Subset this is the original index into
+        #     the base dataset's clip enumeration).
+        #   anchor_timestamp_us: window[0]["timestamp"] of the clip, unique per clip.
         result["dataset_index"] = torch.tensor(idx, dtype=torch.int64)
         result["anchor_timestamp_us"] = torch.tensor(
             int(self.clips[idx][0]["timestamp"]), dtype=torch.int64)
-        # scene_token (string) — set by `_group_infos_by_scene` and persisted
-        # back into info dict. Critical for held-out scene verification (Phase
-        # 1.6 A4) and preview CSV. Default-collated to List[str] of len B.
+        # scene_token (string): set by `_group_infos_by_scene`; collated to a list of B strings.
         result["scene_token"] = self.clips[idx][0].get("scene_token", "")
-        # split (string: "train" / "val") — disambiguates train pkl vs val pkl
-        # within a ConcatDataset preview pool. Without this, two clips
-        # from different splits with the same dataset_index would be visually
-        # ambiguous in preview_debug.csv.
+        # split ("train" / "val"): distinguishes clips of different splits inside a ConcatDataset.
         result["split"] = self.split
         if self.emit_instance_tracks:
             from dwm_pano.datasets.instance_tracks import \
@@ -686,7 +602,7 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
 
 
 if __name__ == "__main__":
-    # Smoke test both train and val
+    # Smoke test on the train and val splits.
     PKL_BASE = "/path/to/pandwm_root/workspace/OpenDWM/data/pickle"
     TEST_CASES = [
         ("val", f"{PKL_BASE}/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",

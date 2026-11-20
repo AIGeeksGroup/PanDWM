@@ -7,6 +7,7 @@
 #SBATCH --mem=16G
 #SBATCH --time=00:20:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# Check that the Epona, canonical and PanDWM ground-truth targets are aligned.
 set -euo pipefail
 
 H=/path/to/pandwm_root

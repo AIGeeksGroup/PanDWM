@@ -1,18 +1,15 @@
-"""OpenDWM pano adaptation of Causal-Forcing++ Stage 3 (Asymmetric DMD).
+"""Panoramic adaptation of Causal-Forcing asymmetric distribution matching distillation (DMD).
 
 Three DiT instances (all `DiTCrossviewTemporalConditionModel`):
-  generator   — trainable, AR causal mask, init from a Stage 2 ckpt
-  real_score  — frozen bidirectional teacher (NO causal mask), init from a
-                Stage 0 bidirectional ckpt; provides the "what's good" signal
-  fake_score  — trainable critic, AR causal mask, init from a Stage 2 ckpt;
-                tracks the generator's current distribution for DMD's KL grad
+  generator   - trainable, causal mask, initialized from the consistency-distilled checkpoint
+  real_score  - frozen bidirectional teacher (no causal mask)
+  fake_score  - trainable critic, causal mask by default; tracks the
+                generator's current distribution for the DMD gradient
 
-Each `train_step` does 1 critic update; every `dfake_gen_update_ratio` calls
-also do 1 generator update with the DMD pseudo-loss. The math mirrors
-`externals/Causal-Forcing/model/dmd.py` and `trainer/distillation.py`.
-
-Simplifications vs official: no I2V, no KV cache, fixed 19-frame block, full
-OpenDWM conditioning (text+3dbox+hdmap+camera) routed through all three nets.
+Each `train_step` does one critic update; every `dfake_gen_update_ratio` calls
+it also does one generator update with the DMD pseudo-loss. Follows the
+official Causal-Forcing DMD trainer, without image-to-video conditioning or a
+KV cache, and with a fixed 19-frame block.
 """
 import copy
 import os
@@ -32,7 +29,7 @@ from dwm_pano.pipelines.ctsd_pano import CrossviewTemporalSD, PanoCrossviewTempo
 
 
 class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
-    """Causal-Forcing++ Stage 3 — Asymmetric Distribution Matching Distillation."""
+    """Asymmetric distribution matching distillation with a causal generator."""
 
     def __init__(
         self,
@@ -98,43 +95,40 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         self.num_train_timestep = num_train_timestep
         self.timestep_shift = timestep_shift
         self.max_norm_for_critic_grad_clip = max_norm_for_critic_grad_clip
-        # Whether the fake_score (critic) attends causally. Official DMD runs
-        # fake_score bidirectional (`is_causal=False`, base.py:51). Default True
-        # preserves the legacy causal-critic behavior; set False in config to
-        # match official (must pair with a bidirectional fake_score init).
+        # Whether the fake_score (critic) attends causally. Set False to use a
+        # bidirectional critic (requires a bidirectional fake_score init).
         self.fake_score_causal = self.training_config.get(
             "fake_score_causal", True)
-        # Random-exit backward simulation in `_run_generator` (official
-        # Self-Forcing `last_step_only=false`). False = legacy last-step only.
+        # Random-exit backward simulation in `_run_generator`; False always
+        # exits at the last step.
         self.random_exit_step = self.training_config.get(
             "random_exit_step", True)
 
-        # Few-step denoising schedule (same as Stage 2): the 4 timesteps the
-        # generator is trained to predict x0 directly at.
+        # Few-step denoising schedule: the timesteps at which the generator
+        # predicts x0 directly.
         raw_steps = denoising_step_list or [1000, 750, 500, 250]
         self.denoising_step_list = self._make_official_denoising_step_list(
             raw_steps, warp_denoising_step, num_train_timestep)
         self.denoising_sigmas = self._compute_denoising_sigmas()
 
-        # Training-time scheduler with `num_train_timestep` discrete timesteps.
-        # Used to sample arbitrary t for DMD KL grad noise injection and
-        # critic flow-match loss.
+        # Training-time scheduler with `num_train_timestep` discrete
+        # timesteps, used to sample t for the DMD noise injection and the
+        # critic flow-matching loss.
         _train_sched = copy.deepcopy(self.test_scheduler)
         _train_sched.set_timesteps(num_train_timestep, self.device)
         self.train_ts = _train_sched.timesteps.to(self.device)
         self.train_sigmas = _train_sched.sigmas.to(self.device)
 
-        # Build real_score (bidirectional teacher, frozen). Loaded before
-        # FSDP wrap inside `_build_auxiliary_model`.
+        # Build real_score (frozen bidirectional teacher); loaded before FSDP
+        # wrapping inside `_build_auxiliary_model`.
         self.real_score, self.real_score_wrapper = self._build_auxiliary_model(
             checkpoint_path=real_teacher_checkpoint_path,
             model_load_state_args=model_load_state_args,
             requires_grad=False,
             role="real_score")
 
-        # Build fake_score (causal critic, trainable). On resume, swap the
-        # init path to the saved critic ckpt; otherwise use the configured
-        # init (typically the same Stage 2 ckpt as the generator).
+        # Build fake_score (trainable critic). On resume, use the saved
+        # critic checkpoint; otherwise the configured init path.
         fake_init = fake_score_checkpoint_path or model_checkpoint_path
         if resume_from is not None:
             fake_init = os.path.join(
@@ -147,8 +141,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         if critic_gradient_checkpointing:
             self.fake_score.enable_gradient_checkpointing()
 
-        # Critic optimizer (separate Adam group from the generator's
-        # `self.optimizer` created by the parent).
+        # Critic optimizer, separate from the generator's `self.optimizer`
+        # created by the parent.
         self.critic_optimizer = torch.optim.AdamW(
             self.fake_score_wrapper.parameters(),
             lr=lr_critic,
@@ -161,16 +155,14 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
                 os.path.join(output_path, "optimizer"),
                 f"{resume_from}_critic")
 
-        # Cache for the last generator-step metrics so non-gen steps still emit
-        # the same row schema in `loss_report_list` (base `log()` averages over
-        # row[0].keys() and would KeyError on the first non-gen row otherwise).
-        # Holding the last value (rather than 0-padding) keeps the running mean
-        # representative instead of diluted by 1/dfake_gen_update_ratio.
+        # Last generator-step metrics, repeated on critic-only steps so every
+        # row in `loss_report_list` has the same keys (the base `log()`
+        # averages over the keys of row 0).
         self._last_gen_loss = 0.0
         self._last_dmd_grad_norm = 0.0
 
-        # EMA on generator full state_dict. Built lazily once we cross
-        # `ema_start_step`. On resume past that step, restore from saved.
+        # EMA of the generator's full state_dict, created once `ema_start_step`
+        # is reached; restored from the saved file when resuming past it.
         self.ema_state = None
         if resume_from is not None and resume_from >= ema_start_step:
             ema_path = os.path.join(
@@ -178,13 +170,13 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
             if os.path.exists(ema_path):
                 self.ema_state = CrossviewTemporalSD.load_state(ema_path)
 
-    # ----- Helpers (copied from CD pipeline patterns) -----
+    # ----- Helpers -----
 
     def _make_official_denoising_step_list(
         self, denoising_step_list, warp_denoising_step, num_train_timestep
     ):
-        # Warp raw [1000, 750, 500, 250] through the FlowMatch scheduler so
-        # the timesteps actually match scheduler.timesteps at inference.
+        # Warp the raw steps (e.g. [1000, 750, 500, 250]) through the FlowMatch
+        # scheduler so they match scheduler.timesteps at inference.
         raw_steps = torch.tensor(
             denoising_step_list, dtype=torch.long, device=self.device)
         if not warp_denoising_step:
@@ -199,8 +191,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         return timesteps[indices]
 
     def _compute_denoising_sigmas(self):
-        # Look up FlowMatch sigma at each denoising step so generator forwards
-        # can convert velocity → x0 via `x0 = noisy + (-sigma) * velocity`.
+        # FlowMatch sigma at each denoising step, used to convert velocity to
+        # x0 via `x0 = noisy + (-sigma) * velocity`.
         lookup = copy.deepcopy(self.test_scheduler)
         lookup.set_timesteps(self.num_train_timestep, self.device)
         lookup_t = lookup.timesteps.to(self.device)
@@ -252,7 +244,7 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
             **self.common_config["ddp_wrapper_settings"])
 
     def _add_temporal_attention_mask(self, model_conditions: dict, latent_shape):
-        # Causal BlockMask — only applied to generator and fake_score
+        # Causal BlockMask, applied to the generator and fake_score only
         # (real_score stays bidirectional).
         tam_setting = self.training_config.get("temporal_attention_mask")
         if tam_setting is None:
@@ -327,18 +319,13 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         self, latent_shape, cond, image_latents=None,
         reference_frame_count: int = 0, grad_on_last: bool = True,
     ):
-        # 4-step AR backward simulation over `denoising_step_list`. The rollout
-        # EXITS at a step `exit_idx` and returns that step's x0 prediction; the
-        # gradient-carrying forward runs only at the exit step (when
+        # Autoregressive backward simulation over `denoising_step_list`. The
+        # rollout exits at step `exit_idx` and returns that step's x0
+        # prediction; only the exit step carries gradients (when
         # `grad_on_last`), earlier steps re-noise under no_grad. `_critic_step`
-        # calls with `grad_on_last=False` to get the SAME exit sample no_grad.
-        #
-        # `random_exit_step` (default) picks a RANDOM exit step (official
-        # Self-Forcing `last_step_only=false`: `self_forcing_training.py:48-66`
-        # `generate_and_sync_list` + `:182-228` break-at-exit). This is what
-        # lets the critic see the generator's x0 across all noise levels (not
-        # only the near-clean last step). `random_exit_step=false` reproduces
-        # the legacy always-last-step behavior.
+        # calls with `grad_on_last=False` to get the same exit sample without
+        # gradients. With `random_exit_step` the exit step is random (as in
+        # Self-Forcing), so the critic sees x0 predictions at all noise levels.
         if grad_on_last:
             self.model_wrapper.train()
         else:
@@ -351,11 +338,9 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         self._add_temporal_attention_mask(cond_gen, latent_shape)
 
         n_steps = len(self.denoising_step_list)
-        # One exit index shared across ranks — required so every FSDP rank runs
-        # the same number of forwards and the grad step lands on the same index
-        # (else the all-gather / reduce-scatter collectives desync). Matches
-        # official `same_step_across_blocks=true` + `dist.broadcast`. Sampled
-        # off `self.generator` so the per-step noise stream is unaffected.
+        # One exit index shared across ranks, so every FSDP rank runs the same
+        # number of forwards and the collectives stay in sync. Sampled outside
+        # `self.generator` so the per-step noise stream is unaffected.
         if self.random_exit_step:
             exit_idx = torch.randint(0, n_steps, (1,), device=self.device)
             torch.distributed.broadcast(exit_idx, src=0)
@@ -401,20 +386,13 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
     # ----- DMD timestep sampling -----
 
     def _sample_dmd_timestep(self, shape, dtype):
-        # Match `model/dmd.py:158-172`: uniform int t in
-        # [min_score_timestep, num_train_timestep), apply timestep shift,
-        # clamp to [min_step, max_step], snap to nearest scheduler step for
-        # sigma lookup. `ts_schedule=False` semantics — we don't narrow the
-        # range to the generator's last-step denoised window.
+        # Uniform integer t in [min_score_timestep, num_train_timestep), with
+        # timestep shift, clamped to [min_step, max_step] and snapped to the
+        # nearest scheduler step for the sigma lookup.
         #
-        # ONE t per sample, broadcast across frames/views (uniform_timestep).
-        # The frozen real_score teacher, the critic init, the generator, and
-        # inference (`inference_pipeline` uses `torch.full(latent_shape[:3])`)
-        # are all trained/run with `frame_prediction_style="ctsd"` = one shared
-        # t per video. Sampling per-frame/per-view t here queries the FROZEN
-        # bidirectional teacher out-of-distribution → corrupted `real_x0` DMD
-        # target. Matches official `uniform_timestep = not is_causal`
-        # (`wan_wrapper.py:134`) for the non-causal score networks.
+        # One t per sample, broadcast across frames and views, because all
+        # networks (and inference) use `frame_prediction_style="ctsd"`, i.e.
+        # one shared t per video.
         t_raw = torch.randint(
             self.min_score_timestep, self.num_train_timestep,
             (shape[0], 1, 1), device=self.device
@@ -438,9 +416,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
     def _compute_kl_grad(
         self, noisy_x0, ts, sigmas_b, x0_pred_detached, cond, cond_cfg
     ):
-        # Fake score (no CFG: fake_guidance_scale=0 by default). Causal mask
-        # only when `fake_score_causal` (default True); official runs it
-        # bidirectional.
+        # Fake score (no CFG by default). Causal mask only when
+        # `fake_score_causal`.
         cond_fake = dict(cond)
         if self.fake_score_causal:
             self._add_temporal_attention_mask(cond_fake, noisy_x0.shape)
@@ -450,9 +427,10 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         fake_v = fake_out[0]
         fake_x0 = noisy_x0.float() + (-sigmas_b).float() * fake_v.float()
 
-        # Real score (bidirectional, CFG): forward the 2B uncond+cond stack
-        # once. `cond_cfg` from `get_conditions(..., CFG=True)` is uncond-then-cond.
-        # Strip the causal mask key — bidirectional teacher must NOT see it.
+        # Real score (bidirectional, with CFG): one forward over the stacked
+        # uncond+cond batch; `cond_cfg` from `get_conditions(..., CFG=True)` is
+        # uncond first, then cond. The causal mask key is removed because the
+        # teacher is bidirectional.
         noisy_cfg = torch.cat([noisy_x0, noisy_x0], dim=0)
         ts_cfg = torch.cat([ts, ts], dim=0)
         sigmas_cfg = torch.cat([sigmas_b, sigmas_b], dim=0)
@@ -467,7 +445,7 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         real_x0_uncond, real_x0_cond = real_x0_cfg.chunk(2, dim=0)
         real_x0 = real_x0_cond + (real_x0_cond - real_x0_uncond) * self.real_guidance_scale
 
-        # DMD eq 7 with per-sample normalization (eq 8).
+        # DMD gradient with per-sample normalization.
         grad = fake_x0 - real_x0
         p_real = x0_pred_detached.float() - real_x0
         normalizer = p_real.abs().mean(
@@ -490,7 +468,7 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
             grad = self._compute_kl_grad(
                 noisy_x0, ts, sigmas_b, x0_det, cond, cond_cfg)
 
-        # Pseudo-loss: grad flows ONLY through x0_pred. d(loss)/d(x0_pred) = grad.
+        # Pseudo-loss whose gradient w.r.t. x0_pred equals `grad`; only x0_pred carries gradients.
         target = (x0_det.double() - grad.double()).detach()
         diff = x0_pred.double() - target
         if gradient_mask is not None:
@@ -554,7 +532,7 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
 
         noise = torch.randn_like(x0_pred)
         noisy = sigmas_b * noise + (1.0 - sigmas_b) * x0_pred
-        # Flow-match velocity target: v = noise − x0.
+        # Flow-match velocity target: v = noise - x0.
         target_v = noise - x0_pred
 
         cond_critic = dict(cond)
@@ -597,10 +575,9 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         view_count = batch["vae_images"].shape[2]
         latent_shape = self._get_latent_shape(batch, seq_len, view_count)
 
-        # Reference frames (clean latents to seed the AR). Mirrors Stage 2's
-        # `generate_frames_for_reference=false` behavior — VAE-encode the
-        # first `reference_frame_count` real frames; the 4-step loop injects
-        # them at every step with t=0.
+        # Reference frames (clean latents seeding the autoregression): the
+        # first `reference_frame_count` real frames are VAE-encoded and
+        # injected at every step with t=0.
         image_latents = None
         ref_count = self.inference_config.get("reference_frame_count", 0)
         if (
@@ -609,8 +586,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         ):
             image_latents = self._vae_encode(batch["vae_images"][:, :ref_count])
 
-        # Build conditioning twice: single-B for generator/fake_score, CFG-2B
-        # (uncond+cond stack) for real_score CFG forward.
+        # Build conditioning twice: plain for generator/fake_score, and the
+        # stacked uncond+cond version for the real_score CFG forward.
         with torch.no_grad(), self.get_autocast_context():
             cond = CrossviewTemporalSD.get_conditions(
                 self.model, self.text_encoders, self.tokenizers,
@@ -647,8 +624,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
 
     @torch.no_grad()
     def _ema_update(self):
-        # EMA on the generator's FULL state_dict (rank0 gathered, CPU-offloaded)
-        # — cheap to save/load, decoupled from FSDP shard layout.
+        # EMA of the generator's full state_dict (gathered on rank 0 and
+        # offloaded to CPU), independent of the FSDP shard layout.
         if torch.distributed.is_initialized():
             options = torch.distributed.checkpoint.state_dict.StateDictOptions(
                 full_state_dict=True, cpu_offload=True)
@@ -665,33 +642,29 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
                     self.ema_state[k].mul_(self.ema_decay).add_(
                         v.detach(), alpha=1.0 - self.ema_decay)
 
-        # Drain the full-mesh all_gather kicked off by `get_model_state_dict`
-        # before train_step returns — otherwise its residual stream state
-        # trips the next save's optim plan-gather on the shard subgroup.
-        # All ranks must reach this barrier (no early-return above).
+        # Wait for the all_gather started by `get_model_state_dict` before
+        # returning, so it does not interfere with the next checkpoint save.
+        # All ranks must reach this barrier.
         if torch.distributed.is_initialized():
             torch.cuda.synchronize()
             torch.distributed.barrier()
 
     def save_checkpoint(self, output_path: str, steps: int, upload: bool = True,
                         keep_last_n: int = 0):
-        # Drain in-flight NCCL collectives before the first gather.
+        # Wait for in-flight collectives before the first gather.
         if torch.distributed.is_initialized():
             torch.cuda.synchronize()
             torch.distributed.barrier()
 
-        # Optimizer states are NOT persisted — distcp's per-rank torch.save
-        # trips WekaFS-zipfile EOF mismatches (`unexpected pos X vs Y`) on
-        # this cluster. DMD is short (~1K steps per CF README); on resume
-        # Adam momentum rebuilds in ~100 steps. Save model/critic/ema only.
-        # `CKPT_OUT_DIR` env redirects writes to compute-node local disk
-        # (`/local`, 6.9 TB, no shared-FS quota); rank 0 only writes, then
-        # `_upload_and_prune` uploads from same dir + prunes locally.
+        # Only the generator, critic and EMA weights are saved; optimizer
+        # states are not persisted and are rebuilt on resume. The `CKPT_OUT_DIR`
+        # environment variable redirects writes to another directory; rank 0
+        # writes, then `_upload_and_prune` uploads from the same directory.
         ckpt_dir = os.environ.get("CKPT_OUT_DIR") \
             or os.path.join(output_path, "checkpoints")
         os.makedirs(ckpt_dir, exist_ok=True)
 
-        # 1. Generator state (full state dict, rank-0 writes file).
+        # 1. Generator state (full state dict, written by rank 0).
         if torch.distributed.is_initialized():
             options = torch.distributed.checkpoint.state_dict.StateDictOptions(
                 full_state_dict=True, cpu_offload=True)
@@ -699,11 +672,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
                 self.model_wrapper, options=options)
         elif self.should_save:
             gen_sd = self.model.state_dict()
-        # Legacy pickle serialization for all 3 torch.save calls below:
-        # PyTorch 2 default `new_zipfile_serialization=True` does a strict
-        # `write_end_of_file()` size check on context exit. WekaFS on `/data`
-        # intermittently drops ~100 bytes at the end of large writes, raising
-        # `unexpected pos X vs Y`. Legacy pickle is streaming + no EOF check.
+        # The torch.save calls below use legacy (non-zipfile) serialization,
+        # which streams the file and has no end-of-file size check.
         if self.should_save:
             torch.save(
                 gen_sd, os.path.join(ckpt_dir, f"{steps}.pth"),
@@ -733,12 +703,11 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
     def evaluate_4step_ema_pipeline(
         self, global_step, dataset_length, dataloader, datasampler
     ):
-        # Eval with EMA weights. DMD's `inference_pipeline` is already 4-step
-        # (no monkey-patch needed, unlike CD). Snapshot main generator full
-        # state, load self.ema_state into model_wrapper, run base
-        # evaluate_pipeline (routes to native 4-step), restore main.
+        # Evaluate with EMA weights. `inference_pipeline` is already 4-step
+        # here: save the generator state, load `self.ema_state` into
+        # model_wrapper, run the base evaluate_pipeline, then restore.
         if self.ema_state is None:
-            # Pre-ema_start_step: main is the only meaningful state.
+            # Before `ema_start_step` there is no EMA; evaluate the generator.
             self.evaluate_pipeline(
                 global_step, dataset_length, dataloader, datasampler)
             return
@@ -750,9 +719,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         # Snapshot main (rank 0 gets full dict, other ranks get {}).
         main_state = get_model_state_dict(self.model_wrapper, options=options)
 
-        # Load EMA into model_wrapper. ema_state lives only on rank 0 (per
-        # `_ema_update` early-return); non-rank-0 passes {} and lets the
-        # FSDP-aware set handle the broadcast internally.
+        # Load EMA into model_wrapper. ema_state lives only on rank 0; other
+        # ranks pass {} and the FSDP-aware setter broadcasts internally.
         ema_to_load = self.ema_state if self.should_save else {}
         set_model_state_dict(
             self.model_wrapper, ema_to_load, options=options)
@@ -771,9 +739,8 @@ class PanoCrossviewTemporalDMD(PanoCrossviewTemporalSD):
         reference_frame_count: int = 0, start_timestep: int = 0,
         stop_timestep=None, take_time: int = 0,
     ):
-        # 4-step path mirroring `_run_generator` + VAE decode. The parent's
-        # `autoregressive_inference_pipeline` (called by `preview_pipeline`
-        # and the evaluation loop) goes through this transparently.
+        # 4-step path mirroring `_run_generator`, followed by VAE decode. The
+        # parent's `autoregressive_inference_pipeline` calls it transparently.
         self.model_wrapper.eval()
 
         latents = torch.randn(

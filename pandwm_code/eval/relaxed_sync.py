@@ -1,10 +1,10 @@
-"""Admit scene-0018's scene-start clip into the 150-scene val protocol .
+"""Relax the clip time-sync check so one extra scene-start clip is admitted to the 150-scene val protocol.
 
 The frozen loader (dwm_pano.datasets.nuscenes_pano._enumerate_pano_clips) rejects a clip when any 10 Hz target time is
-more than 50 ms (half a frame) from the nearest 12 Hz frame.  Of the 150 nuScenes val scenes only scene-0018 fails at
-its scene start: one of 35 frames is 50.49 ms off (the worst accepted scene-start clip is 49.53 ms off), because its
-interpolated frames are 108.5 ms apart for 0.6 s.  This patch accepts clips that fail ONLY on that check and are at
-most LIMIT_US off; clips are still required to be monotonic and duplicate-free, and every other clip is unchanged.
+more than 50 ms (half a frame) from the nearest 12 Hz frame. Only scene-0018 fails at its scene start, by 50.49 ms for
+one of 35 frames, because its interpolated frames are 108.5 ms apart for 0.6 s. This patch accepts clips that fail only
+on that check and are at most LIMIT_US off; clips must still be monotonic and duplicate-free, and every other clip is
+unchanged.
 
   python3 relaxed_sync.py <script.py> <its arguments...>     (e.g. lowmem_launch.py run_clips_videos.py ...)
   import relaxed_sync; relaxed_sync.install()                 (before the dataset is built)

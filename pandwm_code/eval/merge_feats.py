@@ -1,4 +1,4 @@
-"""Concatenate clip_feats.py feature files of disjoint clip sets, e.g. Dev-149 + scene-0018 = 150-scene val .
+"""Concatenate clip_feats.py feature files of disjoint clip sets.
   python3 merge_feats.py OUT.npz A.npz B.npz [...]
 All parts must come from the same seed (or all be real features); test indices must not repeat.
 """

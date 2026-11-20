@@ -9,8 +9,8 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-# multi-view consistency of the lateral-shift views:
-#   [SET=test] [TAG=v1_4000_D] [OUT_DIR=..] [REFINED2=<dir>] [EXTRA=..] sbatch --array=0-3 consist_hpc3.sbatch ; MERGE=1 ...
+# Multi-view consistency of the lateral-shift views.
+#   [SET=test] [TAG=v1_4000_D] [OUT_DIR=..] [REFINED2=<dir>] [EXTRA=..] sbatch --array=0-3 <script> ; MERGE=1 ...
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

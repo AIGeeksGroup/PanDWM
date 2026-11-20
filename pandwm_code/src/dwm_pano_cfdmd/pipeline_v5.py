@@ -1,33 +1,19 @@
-"""v5: history-blind discriminator + per-rank noise (pipeline.py / _v2 / _v4 / _resumable are untouched).
+"""Context-Forced DMD with a history-blind discriminator and per-rank noise.
 
-Problems found on the run (paused at step 1609):
+Changes relative to the resumable pipeline:
+- Every discriminator input (real and fake, generator and critic step) replaces the 3 history slots with pure
+  noise at the first 4-step timestep, so the discriminator only sees the 16 target frames and cannot separate
+  real from generated clips by the history alone. DMD scores and the critic flow-matching loss still use the
+  clean student history.
+- After the models and discriminator head are built, torch / CUDA / the pipeline generator are reseeded with
+  seed + 1009 * rank so ranks do not share rollout noise and timesteps.
+- Student weights of every `milestone_steps`-th committed checkpoint are hard-linked into <run>/milestones so
+  they survive checkpoint rotation.
+- EMA is skipped when the GradScaler skipped the student step, and dmd_grad_norm averages over the target
+  frames only. Skipped generator steps are counted cumulatively and stored as log/v5_counters_<step>.json.
 
-1. History shortcut.  The GAN real sample is (GT history, GT target) and the fake one is (generated history,
-   generated target).  The 3 clean history slots reach the target tokens through the causal temporal blocks
-   before the block-12 feature, so the head can tell real from fake by the history alone.  The history is
-   detached, so the generator cannot change that cue and the adversarial gradient carries little about the
-   target.  Logged symptom: both disc accuracies ~1.0 from step ~900, adv_gen rising 0.7 -> 5-7.
-   Fix: every discriminator input (real and fake, generator step and critic step) replaces the 3 history slots
-   by pure noise at the first 4-step timestep, so D only sees the 16 target frames.  The DMD scores and the
-   critic flow-matching loss still use the clean student history (context forcing is unchanged).
-2. Identical noise on all ranks.  train.py seeds every rank with generator_seed, so all 8 samples of a step
-   share the rollout noise, the DMD timestep and every GAN timestep.  Fix: after the models and the
-   discriminator head are built (they must stay identical across ranks), reseed torch / CUDA / the pipeline
-   generator with seed + 1009 * rank.  Control-flow randomness (exit step, context forcing) is already
-   broadcast from rank 0.
-3. Rotation keeps only the last 3 checkpoints.  Fix: hard-link the student weights of every
-   `milestone_steps`-th committed checkpoint into <run>/milestones before they can rotate out.
-4. Small bookkeeping: EMA is skipped when the GradScaler skipped the student step, and dmd_grad_norm now
-   averages over the 16 target frames only.  Skipped student steps are counted cumulatively: each skip prints
-   `GEN_STEP_SKIPPED global_step=.. total=..`, the total is written next to every committed checkpoint as
-   log/v5_counters_<step>.json and restored on resume.  It is deliberately NOT a per-step loss key: the trainer
-   averages every key over the logged rows, and only every 5th row is a student step (a per-step key that
-   only generator steps return crashed a job with KeyError at the first log, step 10).
-
-Critic step (three backward passes, one fake-score graph alive at a time, like v4):
-  backward 1: flow-matching loss on (clean student history, noised student target)
-  backward 2: w * softplus(D(noise history, noised student target))
-  backward 3: w * softplus(-D(noise history, noised GT target))
+Critic step (three backward passes, one fake-score graph alive at a time): flow matching on the clean student
+history; softplus(D(noise history, noised student target)); softplus(-D(noise history, noised GT target)).
 """
 import os
 from pathlib import Path
@@ -96,8 +82,7 @@ class PanoContextForcedDMDv5(PanoContextForcedDMDResumable):
 
     # ------------------------------------------------------------------
     def _generator_step_cf(self, latent_shape, cond, cond_cfg, history, target_mask):
-        # Same as pipeline.py except the adversarial input (history-blind) and the
-        # EMA gate (skip EMA when the scaler skipped the student step).
+        # As in the base pipeline, but with a history-blind adversarial input.
         self._touch_fake_output = True
         try:
             x0_pred = self._run_generator(latent_shape, cond, image_latents=history,
@@ -150,7 +135,6 @@ class PanoContextForcedDMDv5(PanoContextForcedDMDResumable):
         self._last_dmd_grad_norm = float((grad * mask.to(grad.dtype)).abs().sum().item()
                                          / mask.expand_as(grad).sum().clamp(min=1.0).item())
         self._last_adv = float(adv.item())
-        # Same keys as the cached generator metrics in pipeline.train_step, so every log row matches.
         return {"gen_loss": self._last_gen_loss, "dmd_grad_norm": self._last_dmd_grad_norm,
                 "adv_gen": self._last_adv}
 
@@ -194,7 +178,7 @@ class PanoContextForcedDMDv5(PanoContextForcedDMDResumable):
         backward(critic_loss)
         del out, err, critic_loss
 
-        # 2) and 3) history-blind discriminator; the v2 switch keeps FSDP's backward hooks firing.
+        # 2) and 3) history-blind discriminator; the touch switch keeps FSDP's backward hooks firing.
         self._touch_fake_output = True
         try:
             fake_noisy, fake_ts = self._disc_input(x0)

@@ -1,22 +1,11 @@
-"""4-step distilled FID/FVD evaluation for a Stage 3 (Asymmetric DMD) ckpt.
+"""4-step distilled FID/FVD evaluation for a DMD-distilled checkpoint.
 
-Unlike `evaluate_4step.py` for Stage 2 CD, no `inference_pipeline` monkey-patch
-is needed — `PanoCrossviewTemporalDMD.inference_pipeline` IS the 4-step impl
-(see `ctsd_pano_dmd.py:inference_pipeline`). The base
-`autoregressive_inference_pipeline` polymorphically routes through it.
+Unlike evaluate_4step.py (consistency distillation), no inference_pipeline patch is needed: the DMD pipeline's own
+inference_pipeline is the 4-step sampler, and the base autoregressive_inference_pipeline routes through it.
 
-DMD-specific quirks handled here:
-  - --ema: override `model_checkpoint_path` to `<step>_ema.pth` and skip
-    `resume_from` so we don't need critic / optimizer artifacts.
-  - non-ema (default): override to `<step>.pth` likewise.
-Either way the critic stays loaded from the config's
-`fake_score_checkpoint_path` (only used for training KL grad — irrelevant
-for inference). The bidirectional `real_score` teacher is also unused for
-4-step generation but the DMD pipeline ctor still builds it; it's loaded
-from the config and held frozen.
-
-Launched via:
-    scripts/eval_ctsd_unimlvg_stage3_tirda_causal_nwa_dmd_4step.sh
+The checkpoint is selected by overriding model_checkpoint_path with <step>.pth (or <step>_ema.pth with --ema) and
+skipping resume_from, so no critic or optimizer state is loaded. The critic and the real-score teacher that the DMD
+constructor builds are not used for generation.
 """
 import argparse
 import json
@@ -32,16 +21,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, required=True)
     parser.add_argument("-r", "--run", type=str, required=True,
-                        help="Stage 3 DMD run dir containing checkpoints/<step>.pth")
+                        help="DMD run dir containing checkpoints/<step>.pth")
     parser.add_argument("-s", "--step", type=int, required=True)
     parser.add_argument("--ema", action="store_true",
                         help="Use <step>_ema.pth as generator weights")
     args = parser.parse_args()
 
     config = json.loads(open(args.config).read())
-    # Mesh override: training config targets 2 nodes; this script defaults to
-    # the 1-node auxiliary alloc to avoid stealing GPUs from the live train
-    # job. Bump to [2, 4] in the config if you launch on the main 2-node alloc.
+    # the training config targets 2 nodes; this script uses a single-node mesh
     config["global_state"]["device_mesh"]["mesh_shape"] = [1, 4]
 
     local_rank = int(os.environ["LOCAL_RANK"])
@@ -52,12 +39,7 @@ def main():
     for k, v in config["global_state"].items():
         dwm.common.global_state[k] = dwm.common.create_instance_from_config(v)
 
-    # Override model_checkpoint_path to the requested step's weights and skip
-    # resume_from. Skipping resume_from avoids:
-    #   - loading optimizer state for gen + critic (irrelevant for eval)
-    #   - DMD ctor's critic ckpt redirect to `<step>_critic.pth` (we leave
-    #     the config's `fake_score_checkpoint_path` instead — critic is
-    #     unused in inference anyway).
+    # load the requested step's weights directly; skipping resume_from avoids loading optimizer / critic state
     suffix = "_ema" if args.ema else ""
     ckpt_path = os.path.join(
         args.run, "checkpoints", f"{args.step}{suffix}.pth")

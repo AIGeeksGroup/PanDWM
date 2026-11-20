@@ -6,7 +6,7 @@ held-out slice of the same split), renders the pipeline's target cameras for
 one frame per clip, and reports PSNR against the canvas-resampled ground
 truth. The first clip's comparison grid is saved to --out-dir.
 
-Run (GPU node that holds /local data):
+Run:
     PYTHONPATH=src python src/dwm_pano/eval_pano_gs_decoder.py \
         --config configs/ctsd/pandwm/..._gs_decoder.json \
         --checkpoint <run>/checkpoints/<step>.pth \

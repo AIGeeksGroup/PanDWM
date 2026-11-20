@@ -1,11 +1,10 @@
 """Feed-forward Gaussian decoder for the 2-half pano latent (WorldSplat-style).
 
 `MultiViewAttnProcessor` and the `GSDecoder` UNet are copied from worldsplat
-`gs_decoder/gs_head.py` (cross-view attention runs over the 2 pano halves);
-the per-pixel head follows `gs_decoder/pixel_decoder.py` but back-projects
-along pano unit rays with a range residual on top of a metric range prior:
-    range = clamp(prior_range + disparity, min=near)
-    means = ray_origin + unit_direction * range + xyz_offset
+`gs_decoder/gs_head.py` (cross-view attention runs over the 2 pano halves).
+The per-pixel head follows `gs_decoder/pixel_decoder.py` but back-projects
+along pano unit rays: range = clamp(prior_range + disparity, min=near) and
+means = ray_origin + unit_direction * range + xyz_offset.
 The returned gaussians tensor [B, N, 14] = [means(3), rgb(3), opacity(1),
 rotation(4), scale(3)] matches the gsplat.rasterization layout.
 """
@@ -26,10 +25,10 @@ GAUSSIAN_PARAMETER_SPLIT = (3, 1, 1, 3, 4, 3, 2)
 class TemporalDeltaAdapter(nn.Module):
     """Causal latent adapter conditioned on the immediately previous frame.
 
-    The final convolution is zero initialized so enabling this module on top
-    of a spatial-only checkpoint preserves that checkpoint's exact function
-    at step zero.  The adapter is deliberately frame local: it consumes only
-    ``z[t]`` and ``z[t - 1]`` and therefore cannot leak future information.
+    The final convolution is zero initialized, so adding this module to a
+    spatial-only checkpoint leaves its output unchanged at initialization. The
+    adapter only consumes ``z[t]`` and ``z[t - 1]``, so it cannot leak future
+    information.
     """
 
     def __init__(self, latent_channels: int, hidden_channels: int = 32):
@@ -274,9 +273,8 @@ class PanoGaussianDecoder(nn.Module):
                 latent_channels, temporal_delta_hidden_channels)
         else:
             self.temporal_delta_adapter = None
-        # Preserve the legacy [latent, direction] prefix.  Plucker mode adds
-        # origin and moment (origin x direction), so an old checkpoint can be
-        # migrated exactly by zero-padding only the six new input channels.
+        # The first input channels are [latent, direction]; Plucker mode
+        # appends origin and moment (origin x direction).
         ray_channels = 3 if ray_embedding_mode == "direction" else 9
         self.decoder = GSDecoder(
             in_channels=latent_channels + ray_channels,
@@ -289,9 +287,9 @@ class PanoGaussianDecoder(nn.Module):
     def migrate_input_checkpoint(self, state_dict):
         """Zero-pad a legacy direction-only ``conv_in`` checkpoint.
 
-        ``load_state_dict(strict=False)`` still rejects tensor shape changes.
-        This explicit migration keeps every legacy weight bit-identical and
-        makes the new origin/moment channels initially have no effect.
+        ``load_state_dict(strict=False)`` still rejects tensor shape changes,
+        so this keeps the legacy weights and zero-initializes the new
+        origin/moment input channels.
         """
         key = "decoder.conv_in.weight"
         if key not in state_dict:
@@ -379,8 +377,8 @@ class PanoGaussianDecoder(nn.Module):
         opacity = torch.sigmoid(opacity)
         scales = torch.exp(scales) * self.scale_base
         if self.scale_max is not None:
-            # Unbounded exp lets an untrained head emit screen-covering
-            # splats whose gsplat tile-intersection buffers exhaust VRAM.
+            # Bound the exponent: unbounded exp can emit screen-covering
+            # splats whose gsplat buffers exhaust GPU memory.
             scales = scales.clamp(max=self.scale_max)
         rotations = F.normalize(rotations, dim=-1)
 

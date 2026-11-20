@@ -4,8 +4,8 @@
 #SBATCH --mem=48G
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_recon_g3b/logs/%x_%A_%a.log
-# G3b tab:gs_recon scores: gs_recon_ext249/scripts/ext_score.sbatch with this run's job file, the
-# unchanged scorer (snapshot score.py, md5 3bc20a25...) on CPU.   JOBFILE=<file> sbatch --array=0-11 g3b_score.sbatch
+# Score rendered reconstruction targets on CPU with recon/score.py; one job-file line per array task.
+#   JOBFILE=<file> sbatch --array=0-11 g3b_score.sbatch
 set -uo pipefail
 source $HOME/pandwm_env.sh
 X=$HOME/pandwm_runs/gs_recon_ext249

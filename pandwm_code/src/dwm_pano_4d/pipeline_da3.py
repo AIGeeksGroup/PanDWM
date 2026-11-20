@@ -1,24 +1,19 @@
 """4D GS decoder trained with Depth Anything 3 pseudo-depth on every batch.
 
-Section 38 (F1) supervised depth only on the 80 training scenes with downloaded labels; the decoder's depth error on
-held-out scenes stalled at ~0.21.  Section 40 showed DA3 (ground scale) reaches 0.239 against those labels and, used
-at render time (C1b), removes most of the far-view ripples.  Here the depth labels of
-PanoGaussianDecoder4DDepthPipeline come from DA3 run online on the step's own frames instead of label files, so all
-695 training scenes get depth:
+The depth labels of PanoGaussianDecoder4DDepthPipeline come from DA3 run online on the step's own frames instead of
+label files, so every training scene gets depth:
 
-* the step's frames (frames_per_step, stride 2-4 at 10 fps) are reconstructed together by da3_depth.Da3Ranger: the six
-  cameras cut back out of the stitched real pano, with the known intrinsics, rig extrinsics and ego poses; any-view
-  depth scaled to the metric model and then to the ego ground plane (scale "ground");
-* range = DA3's Euclidean range along every decoder pixel's exact content ray (the decoder's own range convention);
-* sky (DA3 sky >= sky_threshold) and DA3 range >= far_cut_m get sky_fill_m and stay valid, like the 100 m fill of the
-  downloaded labels: the metre terms pull them to 100 m, the log terms skip them (they are >= far_cut_m);
+* the step's frames are reconstructed together by da3_depth.Da3Ranger: the six cameras cut back out of the stitched
+  real pano, with the known intrinsics, rig extrinsics and ego poses; the any-view depth is scaled to the metric
+  model and then to the ego ground plane (scale "ground");
+* range is DA3's Euclidean range along every decoder pixel's content ray (the decoder's own range convention);
+* sky pixels (DA3 sky at or above sky_threshold) and pixels with DA3 range at or above far_cut_m get sky_fill_m and
+  stay valid;
 * ranges at or below min_range_m (or not finite) are invalid.
 If the ground scale is not finite (no road pixels) the metric scale is used and the step logs da3_fallback = 1.
 
-The DA3 networks are built lazily on the first step, frozen, and never enter the decoder, its optimizer or its
-checkpoints.  Losses, weights, frame choice and the RNG stream are the parent's (depth_optional must stay false:
-every batch has labels).  The step report gains da3_scale, da3_fallback, da3_ground_over_metric, da3_sky_fraction,
-da3_near_fraction and da3_seconds.
+The DA3 networks are built lazily on the first step and frozen; they never enter the decoder, its optimizer or its
+checkpoints. Losses, weights, frame choice and the RNG stream are the parent's (depth_optional must stay false).
 """
 
 from __future__ import annotations

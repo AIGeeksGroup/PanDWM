@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 150-scene val protocol (Dev-149 + scene-0018) for the main table: merge the per-part features and run
-# tests_analyze.py on ours (setting P, 3 seeds) and ours-G (setting G, 3 seeds).
+# 150-scene validation set: merge the per-part features and run tests_analyze.py on ours (3 seeds) and
+# ours-G (3 seeds, no history conditioning).
 #SBATCH --job-name=pandwm_v150an
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

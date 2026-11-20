@@ -1,14 +1,10 @@
 """Magnification culling of shifted-view renders.
 
-Near-object collapse at large lateral shifts: a pixel-aligned Gaussian
-seen from a camera several metres away can cover many times the screen area it covered in its own source view, as a
-stretched smear (near content magnified, needles seen side-on, depth-edge curtains).  Here every Gaussian's angular
-size is measured from both viewpoints: the largest standard deviation of its covariance across the viewing ray
-(the max eigenvalue of the covariance projected on the plane normal to the ray), divided by the distance.  A Gaussian
-whose angular size at the target camera exceeds k_mag times the one at its source camera, and is larger than
-min_rad at the target, is dropped, so the area becomes a hole for the push-pull fill (or a repair model) instead of a
-smear.  Camera centres are approximated by the rig centre (ego origin raised by RIG_HEIGHT_M; the six cameras sit
-within ~1 m of it).
+A pixel-aligned Gaussian seen from a camera several metres away can cover many times the screen area it covered in its
+own source view, which shows up as a stretched smear. Every Gaussian's angular size is measured from both viewpoints
+(largest standard deviation of its covariance across the viewing ray, divided by the distance). A Gaussian whose
+angular size at the target camera exceeds k_mag times the one at its source camera, and is larger than min_rad at the
+target, is dropped, leaving a hole for the push-pull fill. Camera centres are approximated by the rig centre.
 """
 
 from __future__ import annotations

@@ -1,7 +1,7 @@
-"""Print the training dataset length and the per-rank DistributedSampler length for a config .
+"""Print the training dataset length and the per-rank DistributedSampler length for a config.
 
   python3 scripts/dataset_len.py <config.json> [world_size=8] [step]
-With a step, also prints the --resume-data-offset vendor_snapshot/train.py accepts for it (step % sampler length).
+With a step, also prints the --resume-data-offset that vendor_snapshot/train.py accepts (step % sampler length).
 """
 import json
 import math

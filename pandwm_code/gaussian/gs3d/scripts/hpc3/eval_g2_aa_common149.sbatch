@@ -9,14 +9,10 @@
 #SBATCH --time=12:00:00
 #SBATCH --output=%x_%j.log
 
-# Matched one-GPU common149 assessment of the final AA-compatible G2 head.
-# This does not evaluate FID/FVD: it feeds the same frozen Stage-2 4-step
-# latents through VAE and GS outputs and scores RGB reconstruction.  Inference
-# uses 19 frames (the trained DiT context) but selects the exact 149 anchors
-# from the canonical 35-frame common149 enumeration.  The validation package
-# has no aligned dense-depth targets, so depth is explicitly disabled rather
-# than silently substituting training-set depth.
-# The original PanDWM checkout and all checkpoints are read-only.
+# RGB reconstruction evaluation of the Gaussian decoder on the 149 common clips (one GPU).
+# The same frozen 4-step latents are decoded by the VAE and by the Gaussian head.
+# Inference uses 19-frame windows at the 149 anchors of the 35-frame clip enumeration.
+# Depth is not evaluated because the validation data has no aligned dense depth.
 set -euo pipefail
 
 H=/path/to/pandwm_root
@@ -153,8 +149,6 @@ base=(
   --expected-clip-count 149 --rgb-only
 )
 
-# The smoke uses the exact same common149-anchor/19-frame-inference path and
-# fails fast before committing the full 149-clip run.  The full result remains
-# the only report.
+# One-clip smoke test first, then the full run.
 "${base[@]}" --clip-limit 1 --out "$RUN/smoke1"
 "${base[@]}" --clip-limit 0 --out "$RUN/common149"

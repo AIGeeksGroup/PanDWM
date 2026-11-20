@@ -1,21 +1,18 @@
-"""Lateral-shift FID / FVD of the D2 refiner outputs.
+"""Lateral-shift FID / FVD of the refiner outputs.
 
-The eval_gs_shift.py protocol (FreeVS / WorldSplat / DiST-4D novel trajectory, unpaired against the real frames of
-the original trajectory; FID-torchmetrics-stitched-pano over the 32 generated frames, FVD-I3D-sector-6-16 over
-generated frames 0-15; +d and -d pooled, the real frames added once per side), but every arm is a set of LATENT
-files decoded with the SD3.5 VAE and stitched with stitch_pano_halves (PANDWM_PANO_BLEND_W, 128 in the sbatch)
-like the video model's own outputs:
+Follows the eval_gs_shift.py protocol (novel lateral trajectory, unpaired against the real frames of the original
+trajectory; FID on stitched panos over the 32 generated frames, FVD-I3D on generated frames 0-15; +d and -d pooled).
+Every arm is a set of latent files decoded with the video VAE and stitched with stitch_pano_halves
+(PANDWM_PANO_BLEND_W), like the video model's own outputs:
 
     --arm in=<review_inputs dir>:render     <dir>/clipNNN/render_dy<d>.pt["render"]   (GS render, VAE round trip)
     --arm d2=<refined dir>:latents          <dir>/clipNNN/d2_dy<d>.pt["latents"]      (refiner output)
     --arm Bf=<refined dir>:latents:fuse     the refiner output with its low frequencies (16 x 16 mean, bilinear
-                                            back up) replaced by those of the "in" frames (the
-                                            refiner's detail with the GS render's colours); needs an "in" arm
+                                            back up) replaced by those of the "in" frames; needs an "in" arm
 
-so the refined arm and its own input are measured through the same decode and stitch.  If an arm is named
-"in", every other arm also gets coarse_psnr: PSNR against the "in" frames after a 16 x 16
-average pool (colour / layout agreement with the GS render, blind to the fine artefacts a refiner should fix).  Arm names are
-"<name>_<d>".  States are saved after every clip (--state) and merged with --merge, as in eval_gs_shift.py.
+If an arm is named "in", every other arm also gets coarse_psnr: PSNR against the "in" frames after a 16 x 16 average
+pool. Arm names are "<name>_<d>". States are saved after every clip (--state) and merged with --merge, as in
+eval_gs_shift.py.
 """
 
 from __future__ import annotations

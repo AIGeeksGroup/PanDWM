@@ -1,28 +1,17 @@
-"""Which Stage-2 config keys are recorded and then ignored.
+"""Stage-2 config keys that are accepted and recorded but ignored.
 
-Split out of the pipeline so the declaration and its machine check carry no
-diffusers/einops import: the whole point is that the set stays verifiable
-anywhere, including on a machine that cannot load the model stack.
+Kept free of diffusers/einops imports so the set can be checked anywhere.
 """
-# Keys this pipeline accepts, records, and then never acts on.
+# Keys this pipeline accepts and records but never acts on. The Stage-2 configs
+# follow the official Causal-Forcing Stage-2 trainer, whose argument namespace
+# is wider than what this pipeline implements; the unused keys are kept so the
+# configs still construct. This pipeline implements plain consistency
+# distillation: no critic is built, there is no distribution-matching term, and
+# the reference-context behaviour is controlled by
+# training_config["consistency_prefix_corruption_std"], not by `teacher_forcing`.
 #
-# The Stage-2 configs were written against the official Causal-Forcing Stage-2
-# trainer, whose argument namespace is much wider than what this pipeline
-# implements.  The unused ones are kept as accepted parameters so the existing
-# configs still construct, but reading the config gives a badly wrong picture
-# of the recipe: `distribution_loss="dmd"`, `dfake_gen_update_ratio=5`,
-# `lr_critic`, `beta*_critic` and `real_score/fake_score_fsdp_wrap_strategy`
-# all suggest a distribution-matching objective trained against a critic, and
-# `teacher_forcing=True` suggests the flag does something.  **This pipeline
-# implements plain consistency distillation.  No critic is built, no
-# distribution-matching term exists, and the reference-context behaviour is
-# controlled by `training_config["consistency_prefix_corruption_std"]`, not by
-# `teacher_forcing`.**
-#
-# Derived by AST analysis, not by hand: a key is inert when the constructor
-# parameter has no load outside the bookkeeping dict *and* `self.<key>` is
-# re-derives this set and fails if it drifts, so wiring one of these up is
-# caught rather than silently contradicting this comment.
+# A key is inert when the constructor parameter is never read outside the
+# bookkeeping dict and `self.<key>` is never used.
 INERT_OFFICIAL_STAGE2_KEYS = frozenset({
     "batch_size", "beta1", "beta1_critic", "beta2", "beta2_critic", "causal",
     "data_path", "denoising_loss_type", "dfake_gen_update_ratio",
@@ -36,18 +25,17 @@ INERT_OFFICIAL_STAGE2_KEYS = frozenset({
     "timestep_shift", "total_batch_size", "trainer", "ts_schedule",
 })
 
-# Of the inert keys, the ones whose config value actively misdescribes the
-# training objective. Named separately so the warning leads with them.
+# Inert keys whose config value suggests a different training objective; the
+# warning lists these first.
 _MISLEADING_INERT_KEYS = (
     "distribution_loss", "teacher_forcing", "dfake_gen_update_ratio",
     "lr_critic", "denoising_loss_type", "timestep_shift")
 
 
 def warn_inert_official_stage2_keys(parameters: dict):
-    """Say out loud which recorded parameters this pipeline ignores.
+    """Print which recorded parameters this pipeline ignores.
 
-    Only reports keys the config actually set, because a `None` left at its
-    default misdescribes nothing.
+    Only keys the config actually set (not None) are reported.
     """
     supplied = sorted(
         k for k, v in parameters.items()

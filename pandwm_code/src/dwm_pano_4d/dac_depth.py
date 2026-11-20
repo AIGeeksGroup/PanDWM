@@ -1,13 +1,10 @@
-"""DAC (Depth Any Camera, github yuliangguo/depth_any_camera @ 371ee299, weights dac_swinl_outdoor) metric range
-for the 360 x 33.3 deg pano band, used to place decoder Gaussians.
+"""Metric range from DAC (Depth Any Camera, dac_swinl_outdoor weights) for the 360 x 33.3 degree pano band,
+used to place decoder Gaussians.
 
-The pano inference is dwm_pano/infer_pano_depth_dac.py's: resample to square-angular pixels near DAC's canonical
-density (about 2765 x 256), run 90-degree longitude tiles every 60 degrees, Hann-blend, resize back to 600 x 9600.
-DAC reads RGB, so for a generated frame the latents are VAE-decoded first and the two halves are put back on the
-9600-wide pano grid (the 1152-column overlap is averaged).
-
-The DAC range is the distance from the viewpoint of the pixel's content, so it is used as the range along the
-decoder's exact content ray (from the owning camera's origin); no source-camera-z correction is applied.
+Inference follows dwm_pano/infer_pano_depth_dac.py: resample to square-angular pixels near DAC's canonical density,
+run 90-degree longitude tiles every 60 degrees, Hann-blend, and resize back to 600 x 9600. DAC reads RGB, so for a
+generated frame the latents are VAE-decoded first and the two halves are placed back on the 9600-wide pano grid
+(the overlap is averaged). The range is used along the decoder's content ray from the owning camera's origin.
 """
 
 from __future__ import annotations
@@ -31,8 +28,8 @@ from dwm_pano.infer_pano_depth_dac import (
 
 
 def build_dac(dac_root, config_file, model_file, device):
-    """infer_pano_depth_dac.build_dac_model without the backbone's ImageNet download (the nodes are offline): the
-    encoder is built with pretrained=False and the DAC checkpoint then fills every weight (strict load)."""
+    """Like infer_pano_depth_dac.build_dac_model but without the backbone's ImageNet download: the encoder is built
+    with pretrained=False and the DAC checkpoint then fills every weight."""
     import json
     if dac_root not in sys.path:
         sys.path.append(dac_root)
@@ -109,8 +106,9 @@ def range_to_decoder_grid(range_full, height, width, device):
 
 
 def relabel_gaussians(g, pred_range, new_range, valid, origins, dirs):
-    """Move each Gaussian of a valid pixel along its ray to new_range (xyz offset dropped, scales follow the
-    range ratio).  g (N, 14) in decoder order; pred_range / new_range / valid (V, H, W).  Returns (g', range')."""
+    """Move each Gaussian of a valid pixel along its ray to new_range; scales follow the range ratio.
+
+    g is (N, 14) in decoder order; pred_range, new_range and valid are (V, H, W). Returns (g', range')."""
     use = valid.reshape(-1)
     r_pred, r_new = pred_range.reshape(-1).float(), new_range.reshape(-1).float()
     out = g.clone()

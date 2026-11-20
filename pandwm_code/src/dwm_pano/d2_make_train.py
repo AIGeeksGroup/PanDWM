@@ -1,18 +1,17 @@
-"""Training pairs for the D2 refiner.
+"""Training pairs for the render-conditioned refiner.
 
-Train-split clips of 35 frames at 10 fps (one clip start every --stride seconds, the clip enumeration of the
-video model's PanoNuScenesDataset on the same pkl) are visited in a fixed hash order; array task k of n takes
-positions k, k + n, ... of that order, so any prefix of the work is a near-uniform sample of the train scenes.
-Per clip: the GT halves are VAE-encoded (posterior mean) and decoded into a gs_scene_v3 scene with the v4 far-view
-settings (C2 decoder + DA3 scale relabel + drop the 2 bottom decoder rows; the scene canvases are the GT halves
-themselves), one degradation (mode, dx, dy) = d2_render.draw_degradation(seed, index) is applied to all 35
-frames, and the render condition is written as
+Train-split clips of 35 frames at 10 fps (one clip start every --stride seconds, the clip enumeration of the video
+model's PanoNuScenesDataset on the same pkl) are visited in a fixed hash order; array task k of n takes positions k,
+k + n, ... of that order, so any prefix of the work is a near-uniform sample of the train scenes.
+Per clip: the GT halves are VAE-encoded (posterior mean) and decoded into a gs_scene_v3 scene (DA3 scale relabel, 2
+bottom decoder rows dropped; the scene canvases are the GT halves themselves), one degradation (mode, dx, dy) =
+d2_render.draw_degradation(seed, index) is applied to all 35 frames, and the render condition is written as
 
     <out-root>/clip<NNNNN>.pt    {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8, "meta"}
     <out-root>/clip<NNNNN>.json  meta (scene_token, anchor_timestamp_us, frame_timestamps_us, mode, dx, dy, ...)
 
-The .pt is written first (tmp + rename), then the .json; dwm_pano_d2.data.D2RenderDataset only uses clips that
-have both.  Existing clips are skipped, so tasks can be resubmitted.
+The .pt is written first (tmp + rename), then the .json; dwm_pano_d2.data.D2RenderDataset only uses clips that have
+both. Existing clips are skipped, so tasks can be resubmitted.
 """
 
 from __future__ import annotations

@@ -1,16 +1,12 @@
-"""FlexAttention block-causal mask + AttnProcessor for video temporal attention.
+"""FlexAttention block-causal mask and attention processor for video temporal attention.
 
-Block-causal mask construction copied verbatim from LongLive
-`wan/modules/causal_model.py:_prepare_blockwise_causal_attn_mask` (lines 636-685).
-We removed only the `local_attn_size` sliding-window branch since our use case
-(short clips, T<=21) does not need it.
+The block-causal mask construction is copied from LongLive
+`wan/modules/causal_model.py:_prepare_blockwise_causal_attn_mask`, without the
+`local_attn_size` sliding-window branch.
 
-The AttnProcessor `BlockCausalFlexAttnProcessor` is a forked
-`diffusers.models.attention_processor.AttnProcessor2_0` (verbatim) with one
-swap: when `attention_mask` is a `BlockMask`, dispatch to `flex_attention`
-instead of `F.scaled_dot_product_attention`. All other paths unchanged so it
-is a strict superset of AttnProcessor2_0 and can be used in any Attention
-module without behavior change when no BlockMask is passed.
+`BlockCausalFlexAttnProcessor` is a fork of diffusers' `AttnProcessor2_0`: when
+`attention_mask` is a `BlockMask` it dispatches to `flex_attention`, otherwise
+it behaves exactly like `AttnProcessor2_0`.
 """
 from __future__ import annotations
 
@@ -23,9 +19,7 @@ from torch.nn.attention.flex_attention import (
     BlockMask, create_block_mask, flex_attention,
 )
 
-# Compile flex_attention for speed. Removed mode="max-autotune-no-cudagraphs"
-# (which printed AUTOTUNE benchmark tables for every shape); default mode
-# compiles once with reasonable Triton config and stays quiet.
+# Compiled for speed; the default mode compiles once and stays quiet.
 _compiled_flex_attention = torch.compile(flex_attention, dynamic=False)
 
 
@@ -73,9 +67,10 @@ def make_blockwise_causal_block_mask(
 class BlockCausalFlexAttnProcessor:
     """Forked from `diffusers.models.attention_processor.AttnProcessor2_0`.
 
-    Verbatim copy except the final attention call: when `attention_mask` is a
-    `BlockMask`, dispatch to FlexAttention with right-padding to a multiple of
-    128 (FlexAttention requirement, matches LongLive `causal_model.py:170-194`).
+    Identical except for the final attention call: when `attention_mask` is a
+    `BlockMask`, it dispatches to FlexAttention with right-padding to a
+    multiple of 128 (a FlexAttention requirement, as in LongLive
+    `causal_model.py`).
     """
 
     def __call__(
@@ -140,8 +135,7 @@ class BlockCausalFlexAttnProcessor:
             key = attn.norm_k(key)
 
         if is_block_mask:
-            # FlexAttention path. Pad seq dim to multiple of 128. Matches
-            # LongLive `causal_model.py:170-194`.
+            # FlexAttention path: pad the sequence dim to a multiple of 128.
             seq_len = query.shape[2]
             pad_len = math.ceil(seq_len / 128) * 128 - seq_len
             if pad_len > 0:
@@ -156,7 +150,7 @@ class BlockCausalFlexAttnProcessor:
             if pad_len > 0:
                 hidden_states = hidden_states[:, :, :seq_len, :]
         else:
-            # Default path (verbatim AttnProcessor2_0).
+            # Default path (same as AttnProcessor2_0).
             hidden_states = F.scaled_dot_product_attention(
                 query, key, value, attn_mask=attention_mask,
                 dropout_p=0.0, is_causal=False)

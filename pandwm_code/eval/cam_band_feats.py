@@ -1,53 +1,12 @@
-"""Six-camera band features at 256x448 : the resolution-matched comparison of the paper's evaluation space.
+"""Six-camera band features at 256x448: a resolution-matched comparison in the panoramic evaluation space.
 
-The paper scores every method in its panoramic band; baselines enter it by stitching their six views (OneBEV map). The
-second comparison promised in the paper goes the other way, at UniMLVG's native 256x448 per camera, restricted to the
-camera pixels the band covers: our canvases are resampled into each real camera with the clip's calibration, and the
-native views of the six-camera methods receive the same mask.
-
-Per Val-150 clip (150 scene-start clips, test_index = Val-150 position, scene-0018 = 149), clip frames 3..34:
-  * output grid: the FULL native 1600x900 frame at pixel centres u = (j + 0.5) * 1600 / 448, v = (i + 0.5) * 900 / 256,
-    i.e. exactly the pixel grid of a 1600x900 -> 448x256 resize (= intrinsics scaled with the half-pixel convention);
-    no render at another size, no resize. Calibration: the clip's REAL six-camera rig from the dataset batch
-    (pano_camera_transforms / pano_camera_intrinsics / pano_camera_image_size, frame 0; asserted constant over the clip).
-  * geometry (--geometry, comma list; several share one decode, --out-dir then needs {geometry}):
-      bridge              dwm_pano.nuscenes6_bridge.build_rig_sampling_grids(output_size=(256, 448), band_limit=False,
-                          source_axes=canvas_source_axes): the ideal calibrated sphere. Validation (cam_band_check.py,
-                          ) shows it is misregistered against the recorded views (own-column MAE 13-22/255,
-                          best shift >= 8 px, CAM_BACK ~10% zoom), because the recorded panoramas were made with the
-                          OneBEV legacy warp, not the ideal sphere;
-      onebev_inverse      exact inverse of that OneBEV legacy warp (LegacyInverseGeometry; own-column MAE ~1/255,
-                          best shift 0, zoom 1.00), mask = in-band set;
-      onebev_inverse_own  the same with the mask restricted to pixels whose canvas column the camera owns (drops the
-                          neighbour-owned edge strips, where the canvas holds the neighbour's warp; MAE ~25-38/255).
-  * mask[c] = the geometry's in-band set of camera c (where the resample lands inside the canvas band). One mask per
-    clip and camera, applied to EVERY arm, the recorded reference included: pixels outside it are set to 0.5 gray
-    before Inception / I3D. --mask-top-native-rows 52 also masks MagicDrive-V2's 26 padded rows (all arms).
-  * arm kinds (--arm NAME=KIND[:ARG]):
-      latents:ROOT[+ROOT2...]  our clip runs (clipNNN/latents.pt + summary.json, NNN = test_index): latents decoded
-                               with the configured SD3.5 VAE and stitched exactly as clip_feats.py (blend --blend, the
-                               paper's 128), then resampled into the six cameras;
-      recband                  the recorded canvas of the same clip, exactly as clip_feats.py --real (the paper's
-                               real.npz), resampled the same way -- the resample's cost on our side;
-      views:RUNDIR             a six-camera run (clipNNN/{fake.pt uint8 [T, 6, 3, h, w], calib.pt, meta.json}, NNN =
-                               OpenDWM/MagicDrive val index, mapped by --map; camera order OpenDWM FL, F, FR, BR, B, BL
-                               unless meta.json has "camera_order"); frames picked by meta["generated_frames"]; views
-                               that are not 256x448 are resized with bilinear antialias (MagicDrive-V2 450x800 is
-                               0.5x of 1600x900 including its 26 edge-replicated top rows, so the resize lands on the
-                               same 448x256 pixel grid; 0-2.7% of the masked pixels fall in those rows, see above).
-    calib.pt of a views run must match the batch calibration (camera order check), otherwise the clip fails.
-    --source-ref NAME=npz checks on every clip that the decoded / recorded canvas gives the paper's pano features.
-  * interchange: every arm becomes uint8 [32, 6, 3, 256, 448] (resample output rounded like the saved baseline views),
-    then x = u8 / 255 with x[~mask] = 0.5.
-  * inc [n, 32, 6, 2048]: torchmetrics FrechetInceptionDistance(normalize=True) features of every frame and camera
-    (the metric's own (x * 255).byte() -> Inception), as clip_feats.inc_float;
-  * i3d [n, 2, 6, 400]: TATS I3D-400 logits per camera on windows frames 3-18 / 19-34, through the path of
-    PanoPatchFrechetVideoDistance._accumulate_patches = OpenDWM FrechetVideoDistance (x * 2 - 1, bilinear 224x224
-    squash, I3D); NuScenes6BandFrechetVideoDistance.update gives the same features (self-check).
-  * dataset: frozen eval config + relaxed_sync (150 clips), with the 3D-box / HD-map renders switched off (light).
-Camera axis of inc / i3d: bridge CAM_ORDER (CAM_BACK, CAM_BACK_LEFT, CAM_FRONT_LEFT, CAM_FRONT, CAM_FRONT_RIGHT,
-CAM_BACK_RIGHT). Analyse with cam_band_analyze.py (tests_analyze.py with FID pooled over 6 cameras x frames).
-  python3 cam_band_feats.py --base-config cd_eval_frozen149_hpc3.json --out-dir 'D_{geometry}' \
+Our canvases are resampled into each real camera of the clip's rig (256x448 per camera) and restricted to the camera
+pixels the band covers; native views of six-camera baselines receive the same mask. Scores clip frames 3..34 of each
+Val-150 clip. Arms (--arm NAME=KIND): latents:ROOT (our runs), recband (the recorded canvas), views:RUNDIR (a
+six-camera run). Geometries (--geometry): bridge, onebev_inverse, onebev_inverse_own; several share one decode.
+Outputs per arm: inc [n, 32, 6, 2048] (Inception features per frame and camera) and i3d [n, 2, 6, 400] (I3D logits on
+windows 3-18 and 19-34). Camera axis follows nuscenes6_bridge CAM_ORDER. Analyse with cam_band_analyze.py.
+  python3 cam_band_feats.py --base-config <frozen eval config>.json --out-dir 'D_{geometry}' \
       --geometry bridge,onebev_inverse,onebev_inverse_own --arm rec448=views:RUN --arm recband=recband ...
 Writes D_<geometry>/feats_<NAME>.npz; existing files are kept (arm skipped).
 """
@@ -91,8 +50,8 @@ PROTOCOL = {"name": "nusc6band-256x448-masked", "resolution_hw": list(OUT_HW), "
 def load_val150(base_config, stride=20.0, light=True):
     """The 150-clip val dataset (frozen eval config + relaxed_sync) and the Val-150 rows with their dataset index.
 
-    light: skip the 3D-box and HD-map renders (not used here; they cost ~8 s of the ~11 s per clip); the RGB panorama,
-    its resize to the 256x2304 halves and the camera calibration are untouched (recband is checked against real.npz).
+    light: skip the 3D-box and HD-map renders, which are not used here; the RGB panorama and the camera calibration
+    are unchanged.
     """
     relaxed_sync.install()
     import dwm.common
@@ -164,11 +123,10 @@ class CamGeometry:
 def _legacy_pixels(T, Km, c, rows, cols, crop=None):
     """OneBEV legacy camera pixel (OpenCV index coords at 900x1600) of pano points (pre-crop row, 9600 column).
 
-    The arithmetic of dwm_pano.calibrated_stitch._onebev_legacy_grid_for_camera (the map that made the recorded
-    panoramas and that stitch_views.py uses for the baselines), on 1-D point arrays, returning the raw pixel
-    coordinates (that function replaces invalid points by 2.0, which a Newton solver cannot use) and the warp's crop
-    constants. crop=None computes them from the given points, which must then be the full canvas mesh, as the stitch
-    does. LegacyInverseGeometry checks this copy against the original on the canvas mesh.
+    Same arithmetic as dwm_pano.calibrated_stitch._onebev_legacy_grid_for_camera, on 1-D point arrays. It returns the
+    raw pixel coordinates (the original replaces invalid points by 2.0, which a Newton solver cannot use) and the
+    warp's crop constants. crop=None computes them from the given points, which must then be the full canvas mesh, as
+    the stitch does. LegacyInverseGeometry checks this copy against the original on the canvas mesh.
     """
     import math
     from dwm_pano.calibrated_stitch import (
@@ -220,14 +178,13 @@ class LegacyInverseGeometry(CamGeometry):
     """Exact inverse of the OneBEV legacy stitch (alternative to the nuscenes6_bridge geometry).
 
     The recorded panoramas were made with the OneBEV legacy warp (fixed 110 / 70 degree FOV sphere radius plus a
-    translation heuristic, principal point at the image centre), not with the ideal calibrated sphere the
-    nuscenes6_bridge inverts; on a nuScenes rig the two put the same pano point 20-65 native pixels apart. This finds,
-    for every 256x448 camera pixel q (native OpenCV index coords u = (j + 0.5) * 1600 / 448 - 0.5, v likewise), the
-    pano point that camera c's legacy warp maps to q (Newton on the analytic warp, started at the bridge's ideal
-    solution), and samples the canvas there with the bridge's own canvas-axis inversion and sampler. Mask = converged,
-    in front of the camera and inside the band (pre-crop pano row centre in [149.5, 749.5), the bridge's band rule).
-    Where the solution's canvas column is owned by a neighbour (fixed Voronoi cuts) the canvas holds the neighbour's
-    warp of its own image, so a residue remains there, as with the bridge.
+    translation heuristic, principal point at the image centre), which differs from the ideal calibrated sphere used by
+    nuscenes6_bridge. For every 256x448 camera pixel q (native OpenCV index coords u = (j + 0.5) * 1600 / 448 - 0.5, v
+    likewise), this finds the pano point that camera c's legacy warp maps to q (Newton on the analytic warp, started at
+    the bridge's ideal solution) and samples the canvas there with the bridge's canvas-axis inversion and sampler.
+    Mask = converged, in front of the camera and inside the band (pre-crop pano row centre in [149.5, 749.5)).
+    Where the solution's canvas column is owned by a neighbour (fixed Voronoi cuts), the canvas holds the neighbour's
+    warp of its own image, so a residual mismatch remains there.
     """
 
     def __call__(self, c2e, K, size):
@@ -306,9 +263,7 @@ class LegacyInverseGeometry(CamGeometry):
 class LegacyInverseOwnGeometry(LegacyInverseGeometry):
     """LegacyInverseGeometry with the mask restricted to camera pixels whose canvas column the camera owns itself.
 
-    There the resample is exact (validated: MAE ~1/255 against the recorded views); the neighbour-owned strips at the
-    camera edges hold the neighbour's warp of its own image (MAE ~25-38/255 on recorded data) and are masked for every
-    arm instead.
+    The neighbour-owned strips at the camera edges are masked for every arm.
     """
 
     def __call__(self, c2e, K, size):
@@ -472,7 +427,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-config", required=True)
     ap.add_argument("--out-dir", required=True, help="may contain {geometry}")
-    ap.add_argument("--arm", action="append", required=True, help="NAME=latents:R1[+R2] | NAME=recband | NAME=views:RUN")
+    ap.add_argument("--arm", action="append", required=True,
+                    help="NAME=latents:R1[+R2] | NAME=recband | NAME=views:RUN (RUN holds clipNNN/{fake.pt uint8 "
+                         "[T, 6, 3, h, w], calib.pt, meta.json}; camera order FL, F, FR, BR, B, BL unless meta.json "
+                         "has camera_order)")
     ap.add_argument("--map", default="val150_scene_map.json", help="six-camera run clip index -> Val-150 test_index")
     ap.add_argument("--blend", type=int, default=128, help="stitch cross-fade of our and the recorded canvas (paper 128)")
     ap.add_argument("--source-ref", action="append", default=[], help="NAME=pano feature npz to check the canvas against")
@@ -482,8 +440,8 @@ def main():
                          "calibrated sphere); onebev_inverse = inverse of the OneBEV legacy warp that made the recorded "
                          "panoramas. Several geometries share one decode; --out-dir must then contain {geometry}")
     ap.add_argument("--mask-top-native-rows", type=int, default=0,
-                    help="also mask camera rows whose centre lies in native rows [0, N) for every arm (MagicDrive-V2: "
-                         "52 = its 26 edge-replicated rows at 450x800)")
+                    help="also mask camera rows whose centre lies in native rows [0, N) for every arm (for baselines "
+                         "with padded top rows)")
     a = ap.parse_args()
     geoms = a.geometry.split(",")
     top = ((np.arange(OUT_HW[0]) + 0.5) * 900.0 / OUT_HW[0] < a.mask_top_native_rows)[None, :, None]

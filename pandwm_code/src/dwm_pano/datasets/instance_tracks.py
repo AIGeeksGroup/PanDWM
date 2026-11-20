@@ -1,10 +1,8 @@
 """Geometry-only instance tracks for temporal/cross-view training losses.
 
-nuScenes already assigns a persistent ``gt_box_ids`` token to each annotated
-3D box.  This module projects those boxes onto PanDWM's two overlapping pano
-halves and packs one clip into fixed-size tensors that the normal DataLoader
-can collate.  RGB pixels are deliberately not touched here: the track is a
-piece of supervision, not a new image condition for the frozen teacher.
+nuScenes assigns a persistent ``gt_box_ids`` token to each annotated 3D box. This module projects those boxes onto
+PanDWM's two overlapping pano halves and packs one clip into fixed-size tensors that the normal DataLoader can
+collate. RGB pixels are not touched here: the tracks are supervision only, not an image condition.
 """
 from __future__ import annotations
 

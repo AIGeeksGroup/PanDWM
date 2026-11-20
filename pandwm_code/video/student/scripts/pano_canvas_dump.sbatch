@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# panorama canvases + six-camera grids of selected Dev-149 clips (pano_canvas_dump.py), six-camera figure.
-# ARM/OUT/POSITIONS/FRAMES can be overridden.
+# Panorama canvases and six-camera grids of selected clips (pano_canvas_dump.py).
+# ARM, OUT, POSITIONS and FRAMES can be overridden.
 #SBATCH --job-name=pandwm_canvas
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>

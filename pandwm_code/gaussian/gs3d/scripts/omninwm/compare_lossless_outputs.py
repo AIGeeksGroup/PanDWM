@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare two lossless uint8 OmniNWM outputs from different SP layouts."""
+"""Compare two uint8 OmniNWM outputs (for example from different sequence-parallel layouts): exact match, MAE, PSNR."""
 
 from __future__ import annotations
 

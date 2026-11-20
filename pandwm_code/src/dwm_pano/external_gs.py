@@ -1,21 +1,20 @@
-"""External feed-forward Gaussian models on our generated panoramas.
+"""External feed-forward Gaussian models run on our generated panoramas (baselines).
 
 For frame t of a clip, the decoded panorama (SceneBuilder.canvas) is cut into the six pinhole crops of
-dwm_pano_4d.da3_depth.Da3Ranger (camera k's own optical centre and orientation), resized to long side `long_side`
-(multiples of 14, intrinsics scaled), and reconstructed by
-  "infinisplat"  InfiniSplat v2 (zju3dv/InfiniSplat @ be49948e, provided cameras): Gaussian centres on the frozen DA3
-                 depth; the raw per-pixel Gaussians are taken before its voxel merge, restricted to each crop's owned
-                 patch (the pixels our panorama shows from that camera), then merged with its own merge();
+dwm_pano_4d.da3_depth.Da3Ranger (each with its own camera's optical centre and orientation), resized to long side
+`long_side` (multiples of 14, intrinsics scaled), and reconstructed by
+  "infinisplat"  InfiniSplat (provided cameras): Gaussian centres on the frozen DA3 depth; the raw per-pixel Gaussians
+                 are taken before its voxel merge, restricted to each crop's owned patch (the pixels our panorama
+                 shows from that camera), then merged with its own merge();
   "da3gs"        the Gaussian head of DA3-GIANT-1.1 (pose-conditioned, infer_gs=True), per-pixel Gaussians restricted
                  to the owned patches (no merge).
-Both live in the method's own normalised frame.  They are moved into frame t's ego with a rotation from the six camera
-orientations (polar factor of sum_i R_gt_i R_m_i^T) and a scale = median over trusted owned pixels of our clip-level
-DA3 metric z-depth (clip_da3_cache.py) over the method's own z-depth of its per-pixel centres;
-each camera's Gaussians are re-anchored at that camera's true centre, X = s R (X_m - C_m,i) + C_gt,i (smoke:
-with six nearly co-centred cameras the methods' camera baselines are ill-conditioned, a single similarity left the
-centres 0.85 m off on average).  scale_mode "camera" (diagnostic: InfiniSplat's per-camera depth scales
-differ by up to 1.6x on our crops, within-camera spread 5-40 %) uses each camera's own median ratio s_i instead of s.  Output: (N, 14) Gaussians in our decoder layout (means, rgb = 0.5 +
-C0 * SH DC, opacity, quaternion wxyz, scales) plus alignment stats.
+Both live in the method's own normalised frame. They are moved into frame t's ego with a rotation from the six camera
+orientations (polar factor of sum_i R_gt_i R_m_i^T) and a scale s = median, over trusted owned pixels, of our clip-level
+DA3 metric z-depth (clip_da3_cache.py) over the method's own z-depth of its per-pixel centres. Each camera's Gaussians
+are re-anchored at that camera's true centre, X = s R (X_m - C_m,i) + C_gt,i, because with six nearly co-centred
+cameras the methods' camera baselines are ill-conditioned and a single similarity leaves the centres off.
+scale_mode "camera" (diagnostic) uses each camera's own median ratio s_i instead of s. Output: (N, 14) Gaussians in
+our decoder layout (means, rgb = 0.5 + C0 * SH DC, opacity, quaternion wxyz, scales) plus alignment stats.
 """
 
 from __future__ import annotations
@@ -123,7 +122,6 @@ class ExternalGaussians:
         else:
             raise ValueError(f"external method {method!r}")
 
-    # ------------------------------------------------------------------
     def clip_depth(self, clip_index, t):
         if self._cache_clip != clip_index:
             z = np.load(f"{self.cache_dir}/clip{clip_index:03d}.npz")

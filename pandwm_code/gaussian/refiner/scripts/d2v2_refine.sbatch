@@ -9,10 +9,9 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-# Render refiner inference (d2_refine.py) on exported lateral-shift renders; inputs and outputs under pandwm_runs/d2v2
-# (SET=dev: the 78 GS-Dev clips of the 149-clip protocol; SET=test with MANIFEST=tests213_manifest.json FS=10,5: Test-S).
-#   CK=<ckpt> OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=c2b_drop2]
-#   [NOSTRICT=1 VIDEO=<list>] sbatch --array=0-3 d2v2_refine.sbatch      (array tasks split the clip list)
+# Render refiner inference (d2_refine.py) on exported lateral-shift renders.
+#   CK=<ckpt> OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=...]
+#   [NOSTRICT=1 VIDEO=<list> SET=dev MANIFEST=... FS=10,20] sbatch --array=0-3 d2v2_refine.sbatch   (array tasks split the clip list)
 set -uo pipefail
 DR=/path/to/pandwm_root
 D2=$DR/pandwm_code/gaussian/refiner

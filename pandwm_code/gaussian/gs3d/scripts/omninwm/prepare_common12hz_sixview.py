@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Prepare the frozen common149 clips for official OmniNWM inference.
+"""Prepare the 149 common clips as input for the official OmniNWM inference.
 
-This is a data adapter only. It keeps OmniNWM's model, checkpoint, sampler,
-12 Hz timing, six-view layout, 448x800 resolution, and 33-frame input. The
-source is the same calibrated PanDWM nuScenes panorama cache. Common frame 9
-is the condition; the following native 12 Hz records provide OmniNWM's
-trajectory/ray-map inputs. Exact common target tokens 10..25 are mapped back
-to their native 12 Hz generated indices for later scoring.
+OmniNWM keeps its own model, 12 Hz timing, six-view layout, 448x800 resolution and
+33-frame input. Images come from the panorama cache; common frame 9 is the
+condition and the following native 12 Hz records provide the trajectory and ray-map
+inputs. Common target frames 10 to 25 are mapped to generated frame indices for scoring.
 """
 
 from __future__ import annotations
@@ -100,8 +98,7 @@ def main():
         for token in tokens
     }
 
-    # Reuse the already-audited common clip enumerator instead of reimplementing
-    # its timestamp matching here.
+    # Reuse the common clip enumeration from the Vista scripts.
     vista_script_dir = Path(__file__).resolve().parents[1] / "vista"
     sys.path.insert(0, str(vista_script_dir))
     from audit_common_alignment import load_common_clips
@@ -179,8 +176,8 @@ def main():
             cloned["source_token"] = info["token"]
             cloned["source_timestamp"] = int(info["timestamp"])
             cloned["token"] = synthetic_token
-            # Force globally sorted records to remain contiguous per clip;
-            # camera poses and source timestamps retain the real timing.
+            # Synthetic timestamp keeps the records of a clip contiguous after global sorting;
+            # real timing stays in the poses and source_timestamp.
             cloned["timestamp"] = (
                 10_000_000_000_000_000
                 + clip_index * 10_000_000

@@ -7,6 +7,7 @@
 #SBATCH --mem=32G
 #SBATCH --time=02:00:00
 #SBATCH --output=%x_%j.log
+# Write the Vista inputs and targets for the 149 common clips.
 set -euo pipefail
 
 H=/path/to/pandwm_root

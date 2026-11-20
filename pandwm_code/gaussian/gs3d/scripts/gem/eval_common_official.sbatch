@@ -8,6 +8,8 @@
 #SBATCH --time=02:00:00
 #SBATCH --array=0-14
 #SBATCH --output=%x_%A_%a.log
+# Official GEM sampling on the 149 common clips: 3 seeds x 5 shards (array 0-14), 25 frames, 50 steps.
+# GEM runs from a private copy of the checkout, which is removed on exit.
 set -euo pipefail
 
 H=/path/to/pandwm_root

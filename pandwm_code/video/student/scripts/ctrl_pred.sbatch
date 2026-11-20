@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# controllability predictions.
+# Detection and segmentation predictions for the controllability evaluation (ctrl_predict.py).
 #   ARMS="rec448=views:$B/rec448_val150 recband=recband" [REFS="recband=$FV/real.npz"] [MODELS=frcnn,m2f_cs]
 #   [UNMASKED=rec448u] [GT=1: also build the GT (ctrl_gt.py, CPU) in the background] sbatch scripts/ctrl_pred.sbatch
 # Outputs: $OUT/pred/<arm>__<det>+<seg>/clipNNN.npz, $OUT/gt/<timing>/clipNNN.npz (resumable).

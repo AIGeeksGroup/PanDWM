@@ -1,20 +1,16 @@
-"""FID / FVD of 35-frame clip sets from clip_feats.py features (Test-S main table, ladder, setting G).
+"""FID / FVD of 35-frame clip sets from clip_feats.py features.
 
-Metrics (the frozen-protocol instruments, computed from saved features; with all clips they equal
-compute_eval149_metrics.py up to float rounding):
-  FID   = torchmetrics Frechet distance of Inception features, all 32 generated frames of every clip;
-  FID-1, FID-2 = the same on window 1 (frames 3-18) / window 2 (19-34) only (point values);
-  FVD-1, FVD-2 = PanoPatchFrechetVideoDistance on window 1 / window 2 (6 camera patches x 400 I3D logits, pooled).
+Metrics computed from saved features (equal to compute_eval149_metrics.py up to float rounding when all clips are used):
+  FID           torchmetrics Frechet distance of Inception features, all 32 generated frames of every clip
+  FID-1, FID-2  the same on window 1 (frames 3-18) / window 2 (19-34) only
+  FVD-1, FVD-2  PanoPatchFrechetVideoDistance on window 1 / window 2 (6 camera patches x 400 I3D logits, pooled)
 Per arm: the value of every seed, the mean and SD over seeds, and for FID / FVD-1 / FVD-2 a 95% interval of the seed
-mean, point +- 1.96 SE from a delete-one-scene jackknife (all clips of a scene left out together; generated and
-recorded frames alike).  Pairs A:B: paired difference of the seed means with its jackknife interval, and P(A - B < 0)
-from a paired bootstrap over scenes (--boot draws; 0 skips it).
-Why not bootstrap intervals (before any test result): resampling scenes with replacement duplicates clips,
-which biases Frechet distances upwards; on Dev-149 the locked model's FID is 10.13 but its 1000-draw percentile
-interval was [13.5, 15.6].  The jackknife has no such bias; in a paired difference the bias largely cancels, so the
-bootstrap is kept only for the sign probability.
-Floor: the scenes are split in random halves (--splits); recorded half 1 vs recorded half 2, and each arm's half-1
-clips vs recorded half 2 (and vice versa), the same n; excess = arm - floor.
+mean (point +- 1.96 SE from a delete-one-scene jackknife, leaving out all clips of a scene together). For pairs A:B: the
+paired difference of the seed means with its jackknife interval, and P(A - B < 0) from a paired bootstrap over scenes
+(--boot draws; 0 skips it). Resampling scenes with replacement biases Frechet distances upwards, so the bootstrap is
+only used for the sign probability.
+Floor: scenes are split into random halves (--splits); recorded half 1 vs recorded half 2, and each arm's half-1 clips
+vs recorded half 2 (and vice versa) at the same n; excess = arm - floor.
   python3 tests_analyze.py --real REAL.npz --arm ours=s42.npz,s1000.npz,s2026.npz --arm b0=b0_s42.npz \
       --pair ours:b0 --boot 1000 --out report.json
 """

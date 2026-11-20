@@ -1,5 +1,5 @@
 #!/bin/bash
-# Submit exactly one OmniNWM common149 shard/seed pair.
+# OmniNWM inference for one shard/seed pair of the 149 common clips.
 # Required exports: OMNI_SHARD=0..14 and OMNI_SEED in {0,42,1000}.
 #SBATCH --job-name=omni_one
 #SBATCH --partition=<partition>

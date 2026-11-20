@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an isolated ZeroShot input directory for official GEM sampling."""
+"""Build the ZeroShot input directory (one condition frame per common clip) for GEM sampling."""
 
 from __future__ import annotations
 
@@ -33,8 +33,7 @@ def main() -> None:
         (args.input_dir / name).symlink_to(source)
         expected_names.append(name)
 
-    # GEM's official ZeroShot reader uses os.listdir without sorting. Record the
-    # exact order that maps its local output index back to the common clip id.
+    # The ZeroShot reader uses os.listdir order; record it to map output indices to clip ids.
     observed_names = os.listdir(args.input_dir)
     if sorted(observed_names) != expected_names:
         raise RuntimeError("prepared GEM inputs do not match the requested range")

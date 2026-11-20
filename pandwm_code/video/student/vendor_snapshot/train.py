@@ -1,10 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore")
-# Import torch BEFORE transformers / diffusers / huggingface_hub: their import
-# chains transitively call into torch.cuda's lazy init from a context where
-# `_check_capability` sees `num_gpus=` empty on this cluster, triggering
-# `device=N, num_gpus= INTERNAL ASSERT FAILED` at the later `set_device`.
-# Plain `import torch` first sidesteps the bad init ordering.
+# Import torch before transformers / diffusers / huggingface_hub: their import chains can trigger
+# torch.cuda's lazy init in a state that makes the later `set_device` fail.
 import torch
 import transformers.utils.logging as _tfm_log
 _tfm_log.set_verbosity_error()
@@ -96,8 +93,9 @@ def create_parser():
         help="The wandb run name.")
     parser.add_argument(
         "--eval-on-save", action="store_true",
-        help="At each ckpt step: save (no upload) → eval(EMA, 4-step) → "
-             "upload+prune. Pipeline must implement evaluate_4step_ema_pipeline.")
+        help="At each checkpoint step: save (no upload), evaluate the EMA "
+             "model with the 4-step sampler, then upload and prune. The "
+             "pipeline must implement evaluate_4step_ema_pipeline.")
     parser.add_argument(
         "--keep-last-ckpts", type=int, default=0,
         help="Local ckpt retention after each upload: 0 = keep all (default); "
@@ -142,10 +140,8 @@ if __name__ == "__main__":
         if config["device"] == "cuda":
             torch.cuda.set_device(local_rank)
 
-        # 60 min NCCL timeout (default 10 min). `--eval-on-save` runs a full
-        # val-set eval inside the cycle (~27 min for 60 batches × 27 s) which
-        # would otherwise trip NCCL watchdog on collectives that interleave
-        # with rank-0-only work (eval restore, prune).
+        # 60 min NCCL timeout (default 10 min): `--eval-on-save` runs a full
+        # validation pass between collectives, which would trip the watchdog.
         import datetime
         torch.distributed.init_process_group(
             backend=config["ddp_backend"],
@@ -166,12 +162,9 @@ if __name__ == "__main__":
     # load the pipeline including the models
     output_path = config["output_path"] if args.output_path is None else args.output_path
 
-    # Direct wandb.log() pattern from official quickstart
-    # (https://docs.wandb.ai/quickstart/). NO sync_tensorboard because mixing
-    # TB-sync with explicit run.log(step=N) causes wandb to silently drop the
-    # step= parameter (warning: "Step cannot be set when using tensorboard
-    # syncing"). pipeline.log() in ctsd_pano.py calls run.log() directly with
-    # explicit step=global_step. Order doesn't matter without sync_tensorboard.
+    # Log with wandb directly, without sync_tensorboard: mixing tensorboard
+    # sync with an explicit step= makes wandb silently drop the step.
+    # pipeline.log() calls run.log() with step=global_step.
     if args.wandb and should_save:
         import wandb
         wandb.init(
@@ -343,10 +336,9 @@ if __name__ == "__main__":
                     pipeline.preview_pipeline(
                         preview_batch, output_path, global_step)
 
-            # save (no upload) → eval(EMA, 4-step) → upload+prune cycle, opt-in
-            # via `--eval-on-save`. The pipeline must implement
-            # `evaluate_4step_ema_pipeline` (CD / DMD); eval acts as the gate
-            # before HF upload of the just-saved ckpt.
+            # Opt-in via `--eval-on-save`: save (no upload), evaluate the EMA
+            # model with the 4-step sampler, then upload and prune. The
+            # pipeline must implement `evaluate_4step_ema_pipeline`.
             if global_step % args.checkpointing_steps == 0:
                 if args.eval_on_save:
                     pipeline.save_checkpoint(

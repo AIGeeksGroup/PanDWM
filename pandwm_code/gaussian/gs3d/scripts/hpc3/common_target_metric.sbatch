@@ -6,6 +6,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# FID/FVD for one generated common-clip dump (real/ and fake/ tensors) using the I3D detector.
+# Usage: METHOD=.. SEED=.. DUMP=.. OFFSET=.. OUT=.. sbatch common_target_metric.sbatch
 set -euo pipefail
 
 METHOD=${METHOD:?export METHOD}

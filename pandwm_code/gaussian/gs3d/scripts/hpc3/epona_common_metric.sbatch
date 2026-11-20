@@ -6,6 +6,8 @@
 #SBATCH --cpus-per-task=12
 #SBATCH --time=01:00:00
 #SBATCH --output=/path/to/pandwm_root/external_runs/epona/logs/%x_%j.log
+# FID/FVD for the Epona dump of one seed.
+# Usage: SEED=0 sbatch epona_common_metric.sbatch
 set -euo pipefail
 
 SEED=${SEED:?export SEED}

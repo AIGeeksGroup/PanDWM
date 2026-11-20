@@ -1,9 +1,7 @@
 """Shared pano-Gaussian geometry: rays, virtual cameras, resampled targets.
 
-Functions here are the validated geometry core (ray round-trip error 1.8e-12 px;
-gsplat PSNR 30-38 dB on recorded panoramas) used by the GS decoder training
-pipeline. All directions are unit vectors in the
-nuScenes ego frame; ranges are Euclidean meters along those unit rays.
+Geometry core used by the GS decoder training pipeline. All directions are unit vectors in the nuScenes ego
+frame; ranges are Euclidean meters along those unit rays.
 """
 import numpy as np
 import torch
@@ -14,7 +12,7 @@ from dwm_pano.datasets.pano_projection import (
     project_ego_points_to_pano,
 )
 
-# Elevation half-extent of the FINAL 600-row pano (pre-crop FOV scaled).
+# Elevation half-extent of the final 600-row pano (pre-crop FOV scaled).
 PANO_LAT_HALF_RAD = VERT_FOV_HALF_RAD * PANO_H / PANO_H_PRE_CROP
 
 
