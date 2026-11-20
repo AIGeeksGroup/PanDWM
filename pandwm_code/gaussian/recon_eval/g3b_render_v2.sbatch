@@ -25,7 +25,7 @@ export OMP_NUM_THREADS=4 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 PYTORCH
 export LOCAL_RANK=0 RANK=0 WORLD_SIZE=1 MASTER_ADDR=127.0.0.1
 export MASTER_PORT=$(( 20000 + (${SLURM_JOB_ID} * 7 + ${SLURM_ARRAY_TASK_ID:-0} * 131 + RANDOM) % 20000 ))
 cd $H/pandwm_code/src
-md5sum dwm_pano/recon/render_ours.py dwm_pano/gs_scene_v3.py $CK
+md5sum dwm_pano/recon/render_ours.py dwm_pano/gs/scene.py $CK
 nvidia-smi --query-gpu=name --format=csv,noheader
 N=${SLURM_ARRAY_TASK_COUNT:-1}; K=${SLURM_ARRAY_TASK_ID:-0}
 OVR3=${OVR3:-'{"plane_offset_px": 1.0}'}

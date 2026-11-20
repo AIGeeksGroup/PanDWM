@@ -3,7 +3,7 @@ import diffusers
 import diffusers.image_processor
 import dwm.common
 import dwm_pano.distributed as _dwm_distributed
-from dwm_pano.pano_stitch import PANO_OVERLAP_W, stitch_pano_halves
+from dwm_pano.geometry.pano_stitch import PANO_OVERLAP_W, stitch_pano_halves
 import dwm.functional
 import dwm.models.crossview_temporal_unet
 import dwm.utils.preview

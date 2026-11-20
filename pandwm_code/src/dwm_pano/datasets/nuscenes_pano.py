@@ -27,15 +27,15 @@ import torch
 from PIL import Image
 from pyquaternion import Quaternion
 
+from dwm_pano.datasets.pano_hdmap import MapCache
 from dwm_pano.datasets.pano_projection import (
     CAM_ORDER, PANO_W, PANO_H,
     PANO_HALF_LEFT_RANGE, PANO_HALF_RIGHT_RANGE,
 )
-from dwm_pano.datasets.pano_hdmap import MapCache
 from dwm_pano.datasets.pano_via_stitch import (
     render_bboxes_via_stitch, render_hdmap_via_stitch,
 )
-from dwm_pano.calibrated_stitch import camera_records_to_arrays
+from dwm_pano.geometry.calibrated_stitch import camera_records_to_arrays
 
 
 # Default output resolution per pano half.

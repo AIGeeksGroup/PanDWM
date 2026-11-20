@@ -22,7 +22,7 @@ from pathlib import Path
 import torch
 
 from dwm_pano.pipelines.ctsd_pano import CrossviewTemporalSD, PanoCrossviewTemporalSD
-from dwm_pano.pipelines.ctsd_pano_self_forcing_utils import slice_sequence_batch
+from dwm_pano.pipelines.rollout_utils import slice_sequence_batch
 
 WINDOW = 19
 CLIP = 35

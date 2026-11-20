@@ -17,15 +17,15 @@ from PIL import Image
 from torchvision.transforms import functional as tvf
 
 from audit_common_alignment import load_common_clips
-from dwm_pano.calibrated_stitch import camera_records_to_arrays
 from dwm_pano.datasets.nuscenes_pano import _slice_full_pano_to_halves
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.datasets.pano_projection import CAM_ORDER
+from dwm_pano.geometry.calibrated_stitch import camera_records_to_arrays
+from dwm_pano.geometry.nuscenes6_bridge import (
     PANO_CANVAS_OVERLAP_COLUMNS,
     apply_camera_sampling_grid,
     build_camera_sampling_grid,
     canvas_source_axes,
 )
-from dwm_pano.datasets.pano_projection import CAM_ORDER
 
 
 def parse_args():

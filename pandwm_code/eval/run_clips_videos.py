@@ -23,8 +23,8 @@ import torch
 
 import dwm.common
 import dwm.utils.preview
-from dwm_pano import evaluate_4step
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.eval import evaluate_4step
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 from run_history_probe import _encode_rgb, _psnr_by_frame, _window_batch
 
 WINDOWS = 2

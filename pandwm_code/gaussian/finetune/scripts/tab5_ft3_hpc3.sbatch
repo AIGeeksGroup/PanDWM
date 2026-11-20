@@ -9,7 +9,7 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/tab5_gen_gs_ft3/logs/%x_%A_%a.log
-# Gaussians on generated scenes: dwm_pano.eval_gs_shift on the generated test clips with the fine-tuned decoder,
+# Gaussians on generated scenes: dwm_pano.gs.eval_shift on the generated test clips with the fine-tuned decoder,
 # the fixed 4D scene (camera-time poses, mmdet3d v0.x boxes), DA3 scale relabel and the 2 bottom decoder rows
 # dropped, shifts 0 / +-1 / +-2 / +-4 m, plus LiDAR depth of the 0 m render (recon/gen_depth_pack.py).
 # ARM selects the scene flags (DA3FLAGS / EXTRA). Task i evaluates its share of the clips; MERGE=1 merges.
@@ -47,10 +47,10 @@ COMMON="-c $GS4D/configs/gs_review_hpc3.json --data-pkl $VAL_PKL --checkpoint $C
   --depth-pack $PACK --depth-res 224x400 --da3-src $DA3_SRC --da3-anyview $DA3_ANYVIEW --da3-metric $DA3_METRIC ${EXTRA:-}"
 echo "TAB5_START code=$OV arm=$ARM ckpt=$CK extra=${EXTRA:-} task=$TASK clips=[$S,$E) node=$(hostname) $(date -Is)"
 if [ -n "${MERGE:-}" ]; then
-  $PY -m dwm_pano.eval_gs_shift $COMMON --state $ST/merged.pt --merge $ST/state_*.pt \
+  $PY -m dwm_pano.gs.eval_shift $COMMON --state $ST/merged.pt --merge $ST/state_*.pt \
     --output $OUT/report_ours4d${SUBSET:+_$SUBSET}.json --device cpu
 else
-  $PY -m dwm_pano.eval_gs_shift $COMMON $SPAN --state $ST/state_$(printf %02d $TASK).pt \
+  $PY -m dwm_pano.gs.eval_shift $COMMON $SPAN --state $ST/state_$(printf %02d $TASK).pt \
     --sample-clips "${SAMPLE_CLIPS:-1,58,118,178}" --sample-dir $OUT/samples_$ARM
 fi
 rc=$?

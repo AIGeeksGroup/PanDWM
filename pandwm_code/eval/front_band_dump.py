@@ -20,10 +20,10 @@ import torch
 
 import dwm.common
 import dwm.functional
-from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.geometry.nuscenes6_bridge import (
     CAM_ORDER, PANO_CANVAS_OVERLAP_COLUMNS, apply_camera_sampling_grid, build_rig_sampling_grids, canvas_source_axes)
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
+from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
 
 FRAMES, CONTEXT = 35, 3
 

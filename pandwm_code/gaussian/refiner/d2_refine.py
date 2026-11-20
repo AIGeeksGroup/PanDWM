@@ -21,8 +21,8 @@ import torch
 import dwm.common
 import dwm.functional
 import dwm.utils.preview
-from dwm_pano.pano_stitch import stitch_pano_halves
-from dwm_pano.pipelines.ctsd_pano_self_forcing_utils import slice_sequence_batch
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
+from dwm_pano.pipelines.rollout_utils import slice_sequence_batch
 
 CLIP = 35
 WINDOW = 19

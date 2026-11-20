@@ -3,7 +3,7 @@
 The scene is built from the recorded panoramas of a test clip (VAE posterior-mean latents). Only clip frames 0..20
 are used (frame 20 is the input), so no target or later frame can leak. Modes:
   3d     Gaussians of frame 20 only (da3_gap 0).
-  4d     adds the static Gaussians of history frames 0, 5, 10, 15 (gs_scene_v3.static_world, moved into frame 20's ego),
+  4d     adds the static Gaussians of history frames 0, 5, 10, 15 (gs.scene.static_world, moved into frame 20's ego),
          with DA3 windows of 4 frames back. Frames are registered with camera-time ego poses
          (targets.camera_time_pose) and dynamic boxes use the mmdet3d v0.x reading.
   4d_v4  same as 4d but with the LiDAR-time ego poses of the pkl and the legacy box reading.
@@ -28,12 +28,12 @@ import torch
 from pyquaternion import Quaternion
 
 import dwm.common
-from dwm_pano.d2_render import encode_halves_mean
-from dwm_pano.evaluate_gs import build_dataset_config, ensure_single_rank_process_group, \
+from dwm_pano.gs.evaluate_gs import build_dataset_config, ensure_single_rank_process_group, \
     install_strict_pano_hardseam_stub, load_config
-from dwm_pano.export_gs_4d_demo import transform_gaussians
-from dwm_pano.gs_scene_v3 import SceneBuilder, SceneOptions, composite, composite_depth
+from dwm_pano.gs.render import transform_gaussians
+from dwm_pano.gs.scene import SceneBuilder, SceneOptions, composite, composite_depth
 from dwm_pano.recon.targets import camera_time_infos, camera_time_pose, pose  # noqa: F401 (re-export)
+from dwm_pano.refiner.render import encode_halves_mean
 
 INPUT_FRAME = 20
 HISTORY = (0, 5, 10, 15)
@@ -90,8 +90,8 @@ def main():
     modes = [m for m in args.modes.split(",") if m]
     if any(m not in MODES for m in modes):
         raise ValueError(f"modes {modes}, known {list(MODES)}")
+    from dwm_pano.geometry.calibrated_stitch import prepare_gsplat_intrinsics
     from dwm_pano_4d.da3_depth import Da3Ranger
-    from dwm_pano.calibrated_stitch import prepare_gsplat_intrinsics
     da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
     started = ensure_single_rank_process_group(device)
     try:

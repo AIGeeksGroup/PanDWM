@@ -17,8 +17,8 @@ import torch.distributed
 import dwm.common
 import dwm.functional
 import dwm.utils.preview
-from dwm_pano import evaluate_4step
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.eval import evaluate_4step
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 from dwm_pano.pipelines import ctsd_pano_consistency_distillation as cd
 
 

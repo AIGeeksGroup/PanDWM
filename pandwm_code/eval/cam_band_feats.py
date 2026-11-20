@@ -5,7 +5,7 @@ pixels the band covers; native views of six-camera baselines receive the same ma
 Val-150 clip. Arms (--arm NAME=KIND): latents:ROOT (our runs), recband (the recorded canvas), views:RUNDIR (a
 six-camera run). Geometries (--geometry): bridge, onebev_inverse, onebev_inverse_own; several share one decode.
 Outputs per arm: inc [n, 32, 6, 2048] (Inception features per frame and camera) and i3d [n, 2, 6, 400] (I3D logits on
-windows 3-18 and 19-34). Camera axis follows nuscenes6_bridge CAM_ORDER. Analyse with cam_band_analyze.py.
+windows 3-18 and 19-34). Camera axis follows geometry.nuscenes6_bridge CAM_ORDER. Analyse with cam_band_analyze.py.
   python3 cam_band_feats.py --base-config <frozen eval config>.json --out-dir 'D_{geometry}' \
       --geometry bridge,onebev_inverse,onebev_inverse_own --arm rec448=views:RUN --arm recband=recband ...
 Writes D_<geometry>/feats_<NAME>.npz; existing files are kept (arm skipped).
@@ -26,12 +26,12 @@ from clip_feats import features as pano_features
 from clip_feats import inc_float
 from long_feats import I3D
 from dwm_pano.datasets.pano_projection import pano_column_camera_indices
-from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
-from dwm_pano.metrics.nuscenes6_fvd import NuScenes6BandFrechetVideoDistance
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.geometry.nuscenes6_bridge import (
     CAM_ORDER, PANO_CANVAS_OVERLAP_COLUMNS, apply_camera_sampling_grid, build_rig_sampling_grids, canvas_source_axes,
     ego_directions_to_pano_pixels, real_camera_pixel_directions_ego)
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
+from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
+from dwm_pano.metrics.nuscenes6_fvd import NuScenes6BandFrechetVideoDistance
 
 FRAMES, CONTEXT = 35, 3
 FIRST, LAST = 3, 34                     # scored clip frames, windows 3-18 and 19-34
@@ -123,13 +123,13 @@ class CamGeometry:
 def _legacy_pixels(T, Km, c, rows, cols, crop=None):
     """OneBEV legacy camera pixel (OpenCV index coords at 900x1600) of pano points (pre-crop row, 9600 column).
 
-    Same arithmetic as dwm_pano.calibrated_stitch._onebev_legacy_grid_for_camera, on 1-D point arrays. It returns the
-    raw pixel coordinates (the original replaces invalid points by 2.0, which a Newton solver cannot use) and the
-    warp's crop constants. crop=None computes them from the given points, which must then be the full canvas mesh, as
-    the stitch does. LegacyInverseGeometry checks this copy against the original on the canvas mesh.
+    Same arithmetic as dwm_pano.geometry.calibrated_stitch._onebev_legacy_grid_for_camera, on 1-D point arrays. It
+    returns the raw pixel coordinates (the original replaces invalid points by 2.0, which a Newton solver cannot use)
+    and the warp's crop constants. crop=None computes them from the given points, which must then be the full canvas
+    mesh, as the stitch does. LegacyInverseGeometry checks this copy against the original on the canvas mesh.
     """
     import math
-    from dwm_pano.calibrated_stitch import (
+    from dwm_pano.geometry.calibrated_stitch import (
         ONEBEV_BACK_FOV_DEG, ONEBEV_OTHER_FOV_DEG, PANO_H_PRE_CROP, PANO_W, VERT_FOV_HALF_RAD, _onebev_angles)
     source_height, source_width = 900, 1600
     angles = _onebev_angles(T)
@@ -193,8 +193,8 @@ class LegacyInverseGeometry(CamGeometry):
             return self.cache[key]
         if len(self.cache) >= 16:
             raise RuntimeError("more than 16 distinct rigs; check the calibration")
-        from dwm_pano.calibrated_stitch import _onebev_legacy_grid_for_camera, prepare_gsplat_intrinsics
         from dwm_pano.datasets.pano_projection import PANO_CROP_TOP
+        from dwm_pano.geometry.calibrated_stitch import _onebev_legacy_grid_for_camera, prepare_gsplat_intrinsics
         if any(tuple(int(v) for v in s) != (1600, 900) for s in size):
             raise RuntimeError("the legacy warp is defined at native 1600x900")
         ideal = super().__call__(c2e, K, size)

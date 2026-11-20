@@ -24,8 +24,8 @@ from torchmetrics.image.fid import FrechetInceptionDistance
 
 import dwm.common
 import dwm.functional
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
-from dwm_pano.pano_stitch import stitch_pano_halves
 from long_feats import I3D, i3d_features
 
 FRAMES, CONTEXT = 35, 3

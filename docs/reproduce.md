@@ -36,13 +36,13 @@ Each clip directory holds `latents.pt`, `gt_vs_generated.mp4` and `summary.json`
 | Controllability | `scripts/ctrl_pred.sbatch` (`$EV/ctrl_predict.py`, `ctrl_gt.py`), then `$EV/ctrl_analyze.py` |
 | Long-video per-window metrics (Test-L) | `scripts/testl_analyze.sbatch` (`LIST=` for the 12 extension scenes; `long_feats.py`, `long_analyze2.py`) |
 | Ablations (Dev-78, 500 iterations each) | `pandwm_code/video/ablation`: configs from `scripts/make_ablation_configs.py`, training `scripts/train_abl.sbatch`, evaluation `scripts/abl_analyze.sbatch`, table `scripts/abl_table.py` |
-| Speed | `pandwm_code/src/dwm_pano/benchmark_speed.py` |
+| Speed | `pandwm_code/src/dwm_pano/eval/benchmark_speed.py` |
 
 Baseline outputs (UniMLVG, OpenDWM (SD3.5), DreamForge, DiST-4D, OmniNWM, and the front-view models of the qualitative comparison) were generated with their official code and scored with the same feature, flicker and controllability scripts (code versions and inputs are listed in Sec. 3 of the supplementary material).
 
 ## 3. Gaussian reconstruction (249 Test-S clips)
 
-Job scripts: `pandwm_code/gaussian/recon_eval/`. Scene construction is `src/dwm_pano/gs_scene_v3.py` (`SceneBuilder`); rendering and scoring are in `src/dwm_pano/recon/` (`targets.py`, `masks.py`, `render_ours.py`, `score.py`).
+Job scripts: `pandwm_code/gaussian/recon_eval/`. Scene construction is `src/dwm_pano/gs/scene.py` (`SceneBuilder`); rendering and scoring are in `src/dwm_pano/recon/` (`targets.py`, `masks.py`, `render_ours.py`, `score.py`).
 
 1. Render (`g3b_render_v2.sbatch`, three array tasks) with `TAG=g3bf` and the decoder checkpoint, using these scene overrides:
    - 3D: `{"plane_offset_px": 1.0, "seam_bridge": 16, "seam_bridge_search": 6, "seam_bridge_layer": "under", "edge_extend": 8, "band_extend": 8}` (Depth Anything 3 per frame);
@@ -56,14 +56,14 @@ Only the recorded frames up to the input frame are loaded. Baselines (Omni-Scene
 
 Job scripts: `pandwm_code/gaussian/finetune/scripts/`; decoder config `gaussian/gs4d/configs/gs_review_hpc3.json`. Input: the Test-S generations of section 1 (`tests/v84i4250_s42`).
 
-- **Gaussians only:** `src/dwm_pano/eval_gs_shift.py` with `--modes 4d --da3-relabel --da3-mode scale --da3-window clip --da3-fuse --plane-offset-px 1 --drop-bottom-rows 2 --fps-stride 10,5 --box-reading mmdet3d_v0x --camera-time-poses --shifts 0,1,2,4`. Run `tab5_ft3_hpc3.sbatch` for the 71 clips and `gsgen83_hpc3.sbatch` with `MODE=g3b` for the 12 extension clips and the 83-clip merge.
+- **Gaussians only:** `src/dwm_pano/gs/eval_shift.py` with `--modes 4d --da3-relabel --da3-mode scale --da3-window clip --da3-fuse --plane-offset-px 1 --drop-bottom-rows 2 --fps-stride 10,5 --box-reading mmdet3d_v0x --camera-time-poses --shifts 0,1,2,4`. Run `tab5_ft3_hpc3.sbatch` for the 71 clips and `gsgen83_hpc3.sbatch` with `MODE=g3b` for the 12 extension clips and the 83-clip merge.
 - **With the render refiner:**
   1. export the renders: `MODE=export SET=test` (and `SET=testext`) `sbatch --array=0-5 d2v2_gs_hpc3.sbatch`;
   2. refine: `gaussian/refiner/scripts/d2v2_refine.sbatch` with `CK=<refiner ckpt> STEPS=20 GMODE=all GSCALE=2 INIT_SIGMA=0.8`, seed 42;
   3. score: `MODE=eval TAG=<tag>` with `d2v2_gs_hpc3.sbatch`, then `MODE=merge TAG=<tag> sbatch gsgen83_hpc3.sbatch`.
-- **Shift preservation and multi-view consistency (supplementary):** `MODE=shiftcheck` of `d2v2_gs_hpc3.sbatch`; `src/dwm_pano/consistency_eval.py` with `consist_hpc3.sbatch`.
+- **Shift preservation and multi-view consistency (supplementary):** `MODE=shiftcheck` of `d2v2_gs_hpc3.sbatch`; `src/dwm_pano/gs/consistency_eval.py` with `consist_hpc3.sbatch`.
 
-The DiST-4D and DiST-4D + ReconDrive rows were computed with their official code and the same `eval_gs_shift` metrics.
+The DiST-4D and DiST-4D + ReconDrive rows were computed with their official code and the same `gs.eval_shift` metrics.
 
 ## 5. Training
 

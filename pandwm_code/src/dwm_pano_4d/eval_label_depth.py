@@ -5,9 +5,8 @@ Runs on labelled training frames. The same decoded Gaussians are placed either a
 label / pred; pixels without a label below --far-cut keep the decoder geometry). Variants are scored like
 evaluate_4d.py: frames (a, t, b) = (0, gap, 2 gap), frame t rendered at its own six cameras from the static Gaussians
 of a ("single") or a + b ("pooled"), static covered pixels only, plus the round trip "own". The "*_edge" variants also
-drop depth-edge pixels as in export_gs_v2_clips.py.
+drop depth-edge pixels with gs.render.edge_mask.
 
---dac-weights adds "dac" / "dac_edge" (DAC range from dac_depth.py on the VAE round trip of the frame);
 --da3-anyview adds "da3" / "da3_edge" (Depth Anything 3 from da3_depth.py, scale chosen by --da3-scale). Pixels DA3
 calls sky keep the decoder geometry. For the first --video-clips clips it also renders review videos, one row per
 variant (views_*.mp4 near-rig, far_*.mp4 far chase and sweep; *_raw has no fixes, *_v2 uses the edge filter and
@@ -31,22 +30,17 @@ import torch.nn.functional as F
 import dwm.common
 from dwm.utils.preview import save_tensor_to_video
 from dwm_pano.datasets.pano_projection import PANO_HALF_LEFT_RANGE, PANO_HALF_RIGHT_RANGE
-from dwm_pano.evaluate_gs import (
+from dwm_pano.gs.evaluate_gs import (
     build_dataset_config,
     ensure_single_rank_process_group,
     install_strict_pano_hardseam_stub,
     load_config,
 )
-from dwm_pano.export_gs_4d_clean import intrinsics
-from dwm_pano.export_gs_batch149 import cameras as far_cameras
-from dwm_pano.export_gs_clean_views import VIEWS
-from dwm_pano.export_gs_long_demo import pinhole
-from dwm_pano.export_gs_v2_clips import edge_mask, pushpull_fill
+from dwm_pano.gs.render import VIEWS, cameras as far_cameras, edge_mask, intrinsics, pinhole, pushpull_fill
 from dwm_pano_4d.evaluate_4d import masked_psnr
 from dwm_pano_4d.geometry import points_in_boxes, relative_ego_transform, transform_gaussians
 
 VARIANTS = ("pred", "pred_edge", "label", "label_edge")
-DAC_VARIANTS = ("dac", "dac_edge")
 DA3_VARIANTS = ("da3", "da3_edge")
 
 
@@ -66,9 +60,6 @@ def parse_args():
     p.add_argument("--max-scale", type=float, default=1.0)
     p.add_argument("--output", required=True, type=Path)
     p.add_argument("--video-dir", required=True, type=Path)
-    p.add_argument("--dac-root", default="")
-    p.add_argument("--dac-config", default="")
-    p.add_argument("--dac-weights", default="")
     p.add_argument("--da3-src", default="", help="Depth-Anything-3 repo src/")
     p.add_argument("--da3-anyview", default="", help="DA3 any-view folder (config.json + model.safetensors)")
     p.add_argument("--da3-metric", default="", help="DA3 metric model folder")
@@ -102,7 +93,7 @@ def log_stats(prefix, a, b, mask):
 
 
 def load_label(pipe, batch, frame, mode, device):
-    """DAC label of one frame as Euclidean range on the decoder grid (2, H, W) + validity, like _load_frame_ranges."""
+    """Depth label of one frame as Euclidean range on the decoder grid (2, H, W) + validity, like _load_frame_ranges."""
     cfg = pipe.training_config
     ts = int(batch["frame_timestamps_us"][0, frame])
     with h5py.File(os.path.join(cfg["range_dir"], f"{ts}.h5"), "r") as handle:
@@ -163,19 +154,12 @@ def main():
         Kv = torch.tensor(np.stack([K_view] * len(views)), device=device, dtype=torch.float32)
         Kf = torch.tensor(np.stack([pinhole(1280, 640, 90.0)] * 2), device=device, dtype=torch.float32)
 
-        dac = None
-        if args.dac_weights:
-            from dwm_pano_4d.dac_depth import DacRanger, pano_from_halves, range_to_decoder_grid, relabel_gaussians
-            dac = DacRanger(args.dac_root, args.dac_config, args.dac_weights, device)
-            print(f"[labeldepth] DAC loaded ({dac.config['model_name']})", flush=True)
         da3 = None
         if args.da3_anyview:
-            from dwm_pano_4d.da3_depth import Da3Ranger
-            from dwm_pano_4d.dac_depth import relabel_gaussians
+            from dwm_pano_4d.da3_depth import Da3Ranger, relabel_gaussians
             da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
             print(f"[labeldepth] DA3 loaded ({da3.anyview_name} + {da3.metric_name})", flush=True)
-        variants_all = VARIANTS + (DAC_VARIANTS if dac is not None else ()) + (DA3_VARIANTS if da3 is not None else ())
-        rgb_dir = Path(dcfg["base_dataset"]["rgb_dir"])
+        variants_all = VARIANTS + (DA3_VARIANTS if da3 is not None else ())
 
         rows = []
         for n, index in enumerate(indices):
@@ -252,25 +236,6 @@ def main():
                          "edge_fraction_label": float(1 - keep_lab.float().mean())}
                 result = {"pred": (g, every), "pred_edge": (g, keep_pred),
                           "label": (g_lab, every), "label_edge": (g_lab, keep_lab)}
-                if dac is not None:
-                    shape = tuple(rng.shape)
-                    rt = pipe.decode_half_latents(latents)[0]                  # (2, 3, H, W) in [0, 1]
-                    r_dac = range_to_decoder_grid(dac.pano_range(pano_from_halves(rt)), shape[1], shape[2], device)
-                    dac_valid = content.view(shape) & (r_dac > 0.5) & (r_dac < args.far_cut)
-                    g_dac, rng_dac = relabel_gaussians(g, rng, r_dac, dac_valid, origins, dirs)
-                    keep_dac = ~edge_mask(rng_dac, 0.1, 0.3, 1).to(device)
-                    result["dac"], result["dac_edge"] = (g_dac, every), (g_dac, keep_dac)
-                    lab_mask = use.view(shape)
-                    stats.update(log_stats("dac_vae_vs_label", r_dac, label, lab_mask))
-                    stats.update(log_stats("pred_vs_label", rng, label, lab_mask))
-                    if t == args.gap:                                          # the scored frame: DAC on the jpg too
-                        import cv2
-                        ts = int(batch["frame_timestamps_us"][0, t])
-                        jpg = cv2.cvtColor(cv2.imread(str(rgb_dir / f"{ts}.jpg")), cv2.COLOR_BGR2RGB)
-                        r_jpg = range_to_decoder_grid(dac.pano_range(jpg.astype(np.float32) / 255.0),
-                                                      shape[1], shape[2], device)
-                        stats.update(log_stats("dac_jpg_vs_label", r_jpg, label, lab_mask))
-                    stats["edge_fraction_dac"] = float(1 - keep_dac.float().mean())
                 if da3 is not None:
                     shape = tuple(rng.shape)
                     maps = da3_maps(t)
@@ -352,8 +317,7 @@ def main():
                 T = min(batch["vae_images"].shape[1], args.video_frames)
                 for t in range(T):
                     variants, _ = decode(t)
-                    rows_raw = ("pred", "label") + (("dac",) if dac is not None else ()) + \
-                        (("da3",) if da3 is not None else ())
+                    rows_raw = ("pred", "label") + (("da3",) if da3 is not None else ())
                     for mode, pairs in (("raw", rows_raw), ("v2", tuple(f"{r}_edge" for r in rows_raw))):
                         for kind, c2w_list, K, w, h in (
                                 ("views", [VIEWS[v][1](t) for v in views], Kv, 960, h_view),
@@ -386,7 +350,7 @@ def main():
         report = {"checkpoint": str(args.checkpoint), "data_pkl": str(args.data_pkl), "clips": len(rows),
                   "gap_frames": args.gap, "resize": args.resize, "far_cut_m": args.far_cut,
                   "mean": mean, "geometry_mean": geometry, "rows": rows,
-                  "note": "training scenes with DAC labels; held-out frame t never enters pooled / single"}
+                  "note": "training scenes with depth labels; held-out frame t never enters pooled / single"}
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps({"mean": mean, "geometry_mean": geometry}, indent=2), flush=True)

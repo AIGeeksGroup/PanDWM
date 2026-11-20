@@ -24,7 +24,7 @@ import torch
 
 import dwm.common
 import dwm.functional
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 
 FRAMES, CONTEXT = 35, 3
 METRICS = ("fid_all", "fid_w1", "fid_w2", "fvd_w1", "fvd_w2")

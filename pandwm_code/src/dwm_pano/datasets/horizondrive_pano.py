@@ -38,7 +38,7 @@ from dwm_pano.datasets.nuscenes_pano import (
     _slice_full_pano_to_halves,
     _slice_full_pano_to_halves_nearest,
 )
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.geometry.nuscenes6_bridge import (
     PANO_CANVAS_OVERLAP_COLUMNS,
     apply_camera_sampling_grid,
     build_camera_sampling_grid,

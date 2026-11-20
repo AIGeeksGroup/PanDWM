@@ -4,8 +4,8 @@ The six cameras are cut back out of the stitched pano as pinhole crops, and seve
 with their known intrinsics, rig extrinsics and ego poses. DA3 is used as a library from its src/ (network only),
 with the any-view Large model and the metric Large model (single-image metric depth and sky probability).
 
-* Crops: the pipeline's hard-seam grid (calibrated_stitch.build_owned_pano_sampling_grid) maps every canvas pixel to
-  the source-camera pixel it shows. Inverting it gives, for camera k, a pinhole image on camera k's own optical
+* Crops: the pipeline's hard-seam grid (geometry.calibrated_stitch.build_owned_pano_sampling_grid) maps every canvas
+  pixel to the source-camera pixel it shows. Inverting it gives, for camera k, a pinhole image on camera k's own optical
   centre and orientation, scaled to one common crop size with the intrinsics adjusted.
 * Model: the recipe of depth_anything_3.model.da3.NestedDepthAnything3Net with the Large any-view model; its depth is
   least-squares scaled to the metric model's depth on confident non-sky pixels.
@@ -27,9 +27,9 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from dwm_pano.calibrated_stitch import build_owned_pano_sampling_grid, half_canvas_pano_axes
 from dwm_pano.datasets.pano_projection import PANO_HALF_LEFT_RANGE, PANO_HALF_RIGHT_RANGE
-from dwm_pano.gs_geometry import PANO_LAT_HALF_RAD
+from dwm_pano.geometry.calibrated_stitch import build_owned_pano_sampling_grid, half_canvas_pano_axes
+from dwm_pano.geometry.gs_geometry import PANO_LAT_HALF_RAD
 from dwm_pano.pipelines.ctsd_pano_gs_decoder import PANO_CANVAS_OVERLAP_COLUMNS
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
@@ -311,6 +311,19 @@ def rescale_gaussians(g, pred_range, new_range, valid, origins):
     s = ratio[use, None].to(g.dtype)
     out[use, 0:3] = origins[use].to(g.dtype) + s * (g[use, 0:3] - origins[use].to(g.dtype))
     out[use, 11:14] = g[use, 11:14] * s
+    return out, torch.where(valid, new_range.float(), pred_range.float())
+
+
+def relabel_gaussians(g, pred_range, new_range, valid, origins, dirs):
+    """Move each Gaussian of a valid pixel along its ray to new_range; scales follow the range ratio.
+
+    g is (N, 14) in decoder order; pred_range, new_range and valid are (V, H, W). Returns (g', range')."""
+    use = valid.reshape(-1)
+    r_pred, r_new = pred_range.reshape(-1).float(), new_range.reshape(-1).float()
+    out = g.clone()
+    out[use, 0:3] = (origins[use] + dirs[use] * r_new[use, None]).to(g.dtype)
+    ratio = (r_new / r_pred.clamp_min(1e-3)).clamp(0.25, 4.0)
+    out[use, 11:14] = g[use, 11:14] * ratio[use, None].to(g.dtype)
     return out, torch.where(valid, new_range.float(), pred_range.float())
 
 

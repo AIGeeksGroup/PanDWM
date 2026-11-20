@@ -17,8 +17,9 @@ import torch
 import dwm.common
 import dwm.functional
 from dwm_pano.datasets.pano_projection import VORONOI_BOUNDARIES
-from dwm_pano.nuscenes6_bridge import CAM_ORDER, PANO_CANVAS_OVERLAP_COLUMNS, build_rig_sampling_grids, canvas_source_axes
-from dwm_pano.pano_stitch import stitch_pano_halves
+from dwm_pano.geometry.nuscenes6_bridge import (
+    CAM_ORDER, PANO_CANVAS_OVERLAP_COLUMNS, build_rig_sampling_grids, canvas_source_axes)
+from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 
 FRAMES, CONTEXT = 35, 3
 

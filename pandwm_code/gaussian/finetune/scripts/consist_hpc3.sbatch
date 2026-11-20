@@ -33,9 +33,9 @@ OUT=${OUT_DIR:-$R/consist_$SET/$TAG}
 cd $GSAA
 echo "CONSIST_START set=$SET tag=$TAG task=$TASK/$NT merge=${MERGE:-} node=$(hostname) $(date -Is)"
 if [ -n "${MERGE:-}" ]; then
-  $PY -m dwm_pano.consistency_eval --out $OUT --merge
+  $PY -m dwm_pano.gs.consistency_eval --out $OUT --merge
 else
-  $PY -m dwm_pano.consistency_eval -c $GS4D/configs/gs_review_hpc3.json \
+  $PY -m dwm_pano.gs.consistency_eval -c $GS4D/configs/gs_review_hpc3.json \
     --data-pkl $DR/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl --checkpoint $RUNS/ft3/G3b/2000.pth \
     --clips-root $CLIPS --inputs $R/inputs_$SET --refined $R/refined_$SET/$TAG --clips "$SEL" --fps-stride $FS \
     --out $OUT --task $TASK ${REFINED2:+--refined2 $REFINED2} --da3-src $DA3_SRC --da3-anyview $DA3_ANYVIEW \

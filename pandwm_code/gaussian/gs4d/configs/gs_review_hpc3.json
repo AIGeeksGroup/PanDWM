@@ -264,6 +264,6 @@
     "depth_losses": false,
     "init": "G2-AA 250.pth",
     "depth_pilot": "arm C: from 4D coverage run step 3000; G2 depth subset p2 (80 scenes, every frame labelled); metre L1 0.0/0.0, log-depth L1 0.0/0.0 (range/render), far cut 99 m",
-    "gs_review_hpc3": "gs4dd_hpc3_C.json with the training dataset pointed at the val panos (rgb_dir pandwm_data/rgb, val pkl): only for the review / Difix / D1 render scripts on HPC3, which build their 35-frame clip dataset from config['training_dataset']"
+    "gs_review_hpc3": "gs4dd_hpc3_C.json with the training dataset pointed at the val panos (rgb_dir pandwm_data/rgb, val pkl): only for the review render and evaluation scripts on HPC3, which build their 35-frame clip dataset from config['training_dataset']"
   }
 }

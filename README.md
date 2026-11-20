@@ -47,7 +47,7 @@ This release is the code that produced the paper results, as it ran on our SLURM
 
 | Folder | Contents |
 |---|---|
-| `pandwm_code/src` | All Python packages: model (`dwm_pano/models/crossview_temporal_dit_pano.py`), pipelines, data loading, OpenDWM `dwm` package, student (`dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`), 4D Gaussians (`dwm_pano_4d`), reconstruction evaluation (`dwm_pano/gs_scene_v3.py`, `dwm_pano/recon/`), render refiner (`dwm_pano_d2`) |
+| `pandwm_code/src` | All Python packages: model (`dwm_pano/models/crossview_temporal_dit_pano.py`), pipelines, data loading, OpenDWM `dwm` package, student (`dwm_pano_cfdmd/pipeline_v8_4.py` and its parents), 3D Gaussian decoder (`dwm_pano/models/gs_decoder_pano.py`, `pipelines/ctsd_pano_gs_decoder.py`), 4D Gaussians (`dwm_pano_4d`), panorama stitching and Gaussian geometry (`dwm_pano/geometry/`), Gaussian scene construction, rendering helpers and evaluation (`dwm_pano/gs/`), reconstruction evaluation (`dwm_pano/recon/`), render refiner (`dwm_pano_d2`, plus its data, export and evaluation scripts in `dwm_pano/refiner/`), 4-step inference, speed benchmark and demo (`dwm_pano/eval/`) |
 | `pandwm_code/video/teacher` | Causal teacher (Stage 1) and consistency distillation: OpenDWM-style configs and training scripts |
 | `pandwm_code/video/student` | Student distillation: training configs, job scripts for training and generation |
 | `pandwm_code/video/ablation` | Ablation configs and job scripts |

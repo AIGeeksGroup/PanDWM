@@ -1,9 +1,9 @@
 """Band-limited FVD in the six real nuScenes camera frames.
 
-Metric half of the protocol bridge (see :mod:`dwm_pano.nuscenes6_bridge`).  It subclasses
+Metric half of the protocol bridge (see :mod:`dwm_pano.geometry.nuscenes6_bridge`).  It subclasses
 :class:`PanoPatchFrechetVideoDistance` and overrides only where the six views come from: the parent slices
 six Voronoi column bands out of the stitched pano, while this metric takes six views that
-:func:`dwm_pano.nuscenes6_bridge.resample_pano_to_rig` resampled into the real cameras.  Normalization,
+:func:`dwm_pano.geometry.nuscenes6_bridge.resample_pano_to_rig` resampled into the real cameras.  Normalization,
 resize, I3D weights, Frechet computation and per-camera accounting are inherited.
 
 The number is comparable across methods that pass through the same bridge, but not to full-frame nuScenes
@@ -17,11 +17,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.geometry.nuscenes6_bridge import (
     PANO_CANVAS_OVERLAP_COLUMNS, apply_camera_sampling_grid,
     build_rig_sampling_grids, canvas_source_axes,
 )
+from dwm_pano.metrics.fvd_pano import PanoPatchFrechetVideoDistance
 
 
 class NuScenes6BandFrechetVideoDistance(PanoPatchFrechetVideoDistance):

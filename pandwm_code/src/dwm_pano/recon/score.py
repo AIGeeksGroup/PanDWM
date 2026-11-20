@@ -96,7 +96,8 @@ def depth_metrics(d_hat, z):
 
 
 def scaled_K(K, hw):
-    """Native 1600x900 K -> output size with the half-pixel convention (calibrated_stitch.prepare_gsplat_intrinsics)."""
+    """Native 1600x900 K -> output size with the half-pixel convention
+    (geometry.calibrated_stitch.prepare_gsplat_intrinsics)."""
     h, w = hw
     sx, sy = w / 1600.0, h / 900.0
     k = np.array(K, dtype=np.float64).copy()

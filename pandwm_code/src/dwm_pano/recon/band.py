@@ -3,7 +3,7 @@
 Marks the camera pixels whose content is held by the panoramic band, i.e. the inverse of the legacy panorama
 warp used to produce the recorded panoramas (see eval/cam_band_feats.py, from which the warp and solve are copied).
 For every output pixel a Newton solve finds the panorama point that the camera's legacy warp maps to that pixel;
-the mask is converged, in front of the camera and inside the band. Camera order: nuscenes6_bridge.CAM_ORDER.
+the mask is converged, in front of the camera and inside the band. Camera order: geometry.nuscenes6_bridge.CAM_ORDER.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import numpy as np
 import torch
 
 from dwm_pano.datasets.pano_projection import pano_column_camera_indices
-from dwm_pano.nuscenes6_bridge import (
+from dwm_pano.geometry.nuscenes6_bridge import (
     PANO_CANVAS_OVERLAP_COLUMNS, build_rig_sampling_grids, canvas_source_axes, ego_directions_to_pano_pixels,
     real_camera_pixel_directions_ego)
 
@@ -23,7 +23,7 @@ CANVAS_HW = (256, 4114)
 
 def _legacy_pixels(T, Km, c, rows, cols, crop=None):
     """Legacy warp: camera pixel (OpenCV index coords at 900x1600) of panorama points (pre-crop row, 9600 column)."""
-    from dwm_pano.calibrated_stitch import (
+    from dwm_pano.geometry.calibrated_stitch import (
         ONEBEV_BACK_FOV_DEG, ONEBEV_OTHER_FOV_DEG, PANO_H_PRE_CROP, PANO_W, VERT_FOV_HALF_RAD, _onebev_angles)
     source_height, source_width = 900, 1600
     angles = _onebev_angles(T)
@@ -72,8 +72,8 @@ def band_geometry(c2e, K, size, out_hw):
     """c2e (6, 4, 4) camera-to-ego, K (6, 3, 3) at native 1600x900, size (6, 2) (w, h).
     Returns a dict of (6, H, W) arrays: valid (bool band mask), grids (canvas grid_sample coords), owner (canvas-column camera).
     """
-    from dwm_pano.calibrated_stitch import _onebev_legacy_grid_for_camera, prepare_gsplat_intrinsics
     from dwm_pano.datasets.pano_projection import PANO_CROP_TOP
+    from dwm_pano.geometry.calibrated_stitch import _onebev_legacy_grid_for_camera, prepare_gsplat_intrinsics
     if any(tuple(int(v) for v in s) != (1600, 900) for s in size):
         raise RuntimeError("the legacy warp is defined at native 1600x900")
     h, w = int(out_hw[0]), int(out_hw[1])

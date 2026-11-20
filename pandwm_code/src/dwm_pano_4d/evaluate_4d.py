@@ -24,7 +24,7 @@ from pathlib import Path
 import torch
 
 import dwm.common
-from dwm_pano.evaluate_gs import (
+from dwm_pano.gs.evaluate_gs import (
     build_dataset_config,
     ensure_single_rank_process_group,
     install_strict_pano_hardseam_stub,

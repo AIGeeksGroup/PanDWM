@@ -29,7 +29,7 @@ from pyquaternion import Quaternion
 
 import cam_band_feats as cbf
 import ctrl_common as cc
-from dwm_pano.calibrated_stitch import camera_records_to_arrays
+from dwm_pano.geometry.calibrated_stitch import camera_records_to_arrays
 
 CAMS = cbf.CAM_ORDER
 

@@ -1,4 +1,4 @@
-"""Entry point for pandwm_common_front.sbatch: runs dwm_pano.evaluate_4step on the common clips."""
+"""Entry point for pandwm_common_front.sbatch: runs dwm_pano.eval.evaluate_4step on the common clips."""
 import argparse
 import sys
 import types
@@ -32,7 +32,7 @@ def main():
     args = parser.parse_args()
 
     install_hardseam_guard()
-    from dwm_pano import evaluate_4step
+    from dwm_pano.eval import evaluate_4step
     from dwm_pano.pipelines import ctsd_pano_consistency_distillation as cd
 
     original = cd.PanoCrossviewTemporalConsistencyDistillation \

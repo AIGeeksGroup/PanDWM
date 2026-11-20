@@ -26,23 +26,23 @@ from PIL import Image
 import dwm.common
 import dwm.utils.preview
 from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
-from dwm_pano.calibrated_stitch import (
+from dwm_pano.datasets.pano_projection import (
+    PANO_CROP_TOP, PANO_HALF_LEFT_RANGE, PANO_HALF_RIGHT_RANGE, PANO_H,
+    PANO_W,
+)
+from dwm_pano.geometry.calibrated_stitch import (
     build_owned_pano_sampling_grid,
     half_canvas_pano_axes,
     prepare_gsplat_intrinsics,
     sampling_grid_to_ego_rays,
     stitch_camera_views_from_owned_grid,
 )
-from dwm_pano.datasets.pano_projection import (
-    PANO_CROP_TOP, PANO_HALF_LEFT_RANGE, PANO_HALF_RIGHT_RANGE, PANO_H,
-    PANO_W,
-)
-from dwm_pano.gs_geometry import (
+from dwm_pano.geometry.gs_geometry import (
     PANO_LAT_HALF_RAD, build_virtual_camera, pano_half_camera_indices,
     pano_half_directions, pano_source_camera_cosine_map,
     virtual_pixel_directions_ego,
 )
-from dwm_pano.generated_latent_cache import (
+from dwm_pano.gs.latent_cache import (
     latent_cache_path,
     scalar_int,
     validate_cache_payload,

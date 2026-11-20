@@ -45,21 +45,21 @@ cd $GSAA
 echo "D2V2GS_START mode=$MODE set=$SET task=$TASK/$NT tag=${TAG:-} node=$(hostname) $(date -Is)"
 case $MODE in
   export)
-    $PY -m dwm_pano.d2v2_export -c $GS4D/configs/gs_review_hpc3.json --data-pkl $VAL_PKL --checkpoint $CK \
+    $PY -m dwm_pano.refiner.export -c $GS4D/configs/gs_review_hpc3.json --data-pkl $VAL_PKL --checkpoint $CK \
       --clips-root $CLIPS --clips "$SEL" --fps-stride $FS --out-root $R/inputs_$SET \
       --da3-src $DA3_SRC --da3-anyview $DA3_ANYVIEW --da3-metric $DA3_METRIC ;;
   shiftcheck)                                          # does the refiner keep the shift?
     TAG=${TAG:?TAG}
-    $PY -m dwm_pano.d2v2_shiftcheck -c $GS4D/configs/gs_review_hpc3.json --inputs $R/inputs_$SET \
+    $PY -m dwm_pano.refiner.shiftcheck -c $GS4D/configs/gs_review_hpc3.json --inputs $R/inputs_$SET \
       --refined $R/refined_$SET/$TAG --out $R/shiftcheck_$SET/$TAG ${EXTRA:-} ;;
   eval)
     TAG=${TAG:?TAG}; ST=$R/eval_$SET/$TAG; mkdir -p $ST
     COMMON="-c $GS4D/configs/gs_review_hpc3.json --data-pkl $VAL_PKL --inputs $R/inputs_$SET --fps-stride $FS \
       --i3d $I3D --expected-clips $N ${REFINED:+--refined $REFINED} ${EXTRA:-}"
     if [ -n "${MERGE:-}" ]; then
-      $PY -m dwm_pano.d2v2_eval $COMMON --state $ST/merged.pt --merge $ST/state_*.pt --output $ST/report.json --device cpu
+      $PY -m dwm_pano.refiner.eval $COMMON --state $ST/merged.pt --merge $ST/state_*.pt --output $ST/report.json --device cpu
     else
-      $PY -m dwm_pano.d2v2_eval $COMMON --clips "$SEL" --state $ST/state_$TASK.pt
+      $PY -m dwm_pano.refiner.eval $COMMON --clips "$SEL" --state $ST/state_$TASK.pt
     fi ;;
 esac
 rc=$?
