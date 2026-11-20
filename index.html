@@ -12,7 +12,7 @@
   <title>PanDWM: Panoramic 4D Driving World Models</title>
   <link rel="icon" href="static/images/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="static/css/nerfies-base.css">
-  <link rel="stylesheet" href="static/css/project.css?v=2f06d3c2">
+  <link rel="stylesheet" href="static/css/project.css?v=d20481f7">
   <script src="static/js/scenes.js?v=f0bb215d" defer></script>
   <script src="static/js/project.js?v=74c6e21b" defer></script>
   <script src="static/js/video-magnifier.js?v=23be4725" defer></script>
@@ -50,7 +50,7 @@
         <span><sup>‡</sup>Corresponding author.</span>
       </p>
       <nav class="publication-links" aria-label="Paper resources">
-        <a class="button is-light" href="https://arxiv.org/" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-paper"/></svg>Paper</a>
+        <a class="button is-light" href="https://arxiv.org/abs/2611.19857" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-paper"/></svg>Paper</a>
         <a class="button" href="https://github.com/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-code"/></svg>Code</a>
         <a class="button is-light" href="https://huggingface.co/datasets/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-archive"/></svg>Data</a>
         <a class="button" href="https://huggingface.co/AIGeeksGroup/PanDWM" target="_blank" rel="noopener noreferrer"><svg class="icon" aria-hidden="true"><use href="#icon-model"/></svg>Model</a>
@@ -79,6 +79,9 @@
             The band is generated causally, one window at a time, by a four-step student distilled from a block-causal video diffusion model and trained on its own generated history.
             A feed-forward decoder lifts each generated frame into 3D Gaussians placed along the calibrated camera rays of its pixels; 4D Gaussians add static Gaussians from neighbouring frames, aligned by ego pose, to fill regions unseen in the current frame.
             On the nuScenes validation set, the student matches the FID of its 50-step causal teacher (10.1 vs. 9.93) and lowers FVD-1 from 47.7 to 37.4, at 1.96&thinsp;s instead of 33.7&thinsp;s per frame.</p>
+        </div>
+        <div class="promo-video">
+          <video src="static/videos/pandwm.mp4" poster="static/images/pandwm_video_poster.jpg" controls playsinline preload="metadata" width="1920" height="1080" aria-label="PanDWM video"></video>
         </div>
       </div>
     </section>

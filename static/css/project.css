@@ -66,6 +66,8 @@ button.button.is-outlined:hover { background: #ffffff; border-color: var(--rule-
 .section-spec { max-width: 720px; margin: -12px auto 28px; font-size: 15px; color: var(--muted); text-align: center; }
 .content p { text-align: justify; }
 .content p + p { margin-top: 16px; }
+.promo-video { margin-top: 28px; border-radius: 12px; overflow: hidden; background: #000; }
+.promo-video video { width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
 
 /* Scene browser */
 .scene-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 28px; }
