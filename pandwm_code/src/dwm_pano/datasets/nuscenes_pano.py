@@ -470,11 +470,9 @@ class PanoNuScenesDataset(torch.utils.data.Dataset):
             rgb_path = os.path.join(self.rgb_dir, f"{ts}.jpg")
             if not os.path.exists(rgb_path):
                 raise FileNotFoundError(
-                    f"RGB pano missing: {rgb_path}. /local is per-node — if "
-                    f"training runs on a node without RGB, the previous silent "
-                    f"black-image fallback would let loss converge to 0 on "
-                    f"black 'GT'. Pin srun --nodelist=<node-with-rgb> or "
-                    f"replicate rgb_dir to a shared filesystem.")
+                    f"RGB pano missing: {rgb_path}. Check rgb_dir; when it is on node-local "
+                    f"storage, run on a node that holds it or copy it to a "
+                    f"shared filesystem.")
             rgb_full = Image.open(rgb_path).convert("RGB")
             left_rgb, right_rgb = _slice_full_pano_to_halves(rgb_full, half_w, half_h)
             images.append([left_rgb, right_rgb])
@@ -612,9 +610,9 @@ if __name__ == "__main__":
     ]
     for split, pkl, rgb in TEST_CASES:
         if not os.path.exists(pkl):
-            print(f"[{split}] pkl missing: {pkl} — skip"); continue
+            print(f"[{split}] pkl missing: {pkl}, skipped"); continue
         if not os.path.exists(rgb):
-            print(f"[{split}] rgb dir missing: {rgb} — skip"); continue
+            print(f"[{split}] rgb dir missing: {rgb}, skipped"); continue
         ds = PanoNuScenesDataset(
             pkl_path=pkl, rgb_dir=rgb,
             sequence_length=9,
@@ -634,4 +632,4 @@ if __name__ == "__main__":
                 m = len(v[0]) if v else 0
                 el = v[0][0] if v and v[0] else None
                 extra = f" (PIL size: {el.size})" if hasattr(el, "size") else ""
-                print(f"  {k}: list[{n} × {m}] {type(el).__name__}{extra}")
+                print(f"  {k}: list[{n} x {m}] {type(el).__name__}{extra}")

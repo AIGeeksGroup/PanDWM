@@ -26,8 +26,8 @@ c["pipeline"]["model_checkpoint_path"] = INIT
 c["pipeline"]["model_load_state_args"] = {"strict": True}
 c["training_dataset"]["render_root"] = ROOT
 c["training_dataset"]["min_items"] = int(args.min_items)
-c["informations"] = dict(c.get("informations", {}), experiment="D2 v2 refiner", init=INIT,
+c["informations"] = dict(c.get("informations", {}), experiment="render refiner, round-trip renders", init=INIT,
                          render_root=ROOT, objective=c["informations"]["objective"].replace(
-                             "degraded C2b GS render", "round-trip G3b GS render (d2v2_make_pairs)"))
+                             "degraded GS render", "round-trip GS render"))
 Path(args.out).write_text(json.dumps(c, indent=2) + "\n")
 print(args.out)

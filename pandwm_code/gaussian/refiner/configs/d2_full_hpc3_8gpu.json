@@ -487,11 +487,11 @@
     "persistent_workers": true
   },
   "informations": {
-    "experiment": "D2 refiner",
+    "experiment": "render refiner",
     "init": "/path/to/pandwm_root/pandwm_data/stage1_causal_20000.pth",
     "lr": 1e-05,
     "gpus": 8,
-    "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, conditioned on the clip's degraded C2b GS render (16 latent ch + coverage)",
+    "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, conditioned on the clip's degraded GS render (16 latent channels + coverage)",
     "render_root": "/path/to/pandwm_root/pandwm_runs/d2_refiner/train_pairs"
   }
 }

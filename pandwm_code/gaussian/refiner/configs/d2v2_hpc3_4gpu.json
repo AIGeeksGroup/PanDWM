@@ -487,12 +487,12 @@
     "persistent_workers": true
   },
   "informations": {
-    "experiment": "D2 v2 refiner",
+    "experiment": "render refiner, round-trip renders",
     "init": "/path/to/pandwm_root/pandwm_runs/d2_refiner/runs/pilot/checkpoints/4000.pth",
     "lr": 1e-05,
     "gpus": 4,
-    "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, conditioned on the clip's round-trip G3b GS render (d2v2_make_pairs) (16 latent ch + coverage)",
+    "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, conditioned on the clip's round-trip GS render (16 latent channels + coverage)",
     "render_root": "/path/to/pandwm_root/pandwm_runs/d2v2/train_pairs",
-    "note_4gpu": "4-GPU variant (HPC3 had no free 8-GPU node; batch 4 per step)"
+    "note_4gpu": "4-GPU variant (batch 4 per step)"
   }
 }

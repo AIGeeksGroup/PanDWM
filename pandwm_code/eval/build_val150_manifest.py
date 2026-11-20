@@ -42,7 +42,7 @@ def main():
            "anchor_timestamp_us": anchor, "max_time_error_us": int(audit["max_time_error_us"]),
            "relaxed_tolerance_us": audit.get("relaxed_tolerance_us"), "frames": 35, "context_frames": 3, "fps": 10}
     out = {"note": "scene-0018 scene-start clip (val scene 150 of 150), admitted with relaxed_sync.py (50.49 ms > 50 ms "
-                   "sync tolerance); dataset = cd_eval_frozen149_hpc3.json validation dataset + relaxed_sync, "
+                   "sync tolerance); dataset = the frozen 149-clip eval config's validation dataset + relaxed_sync, "
                    "fps_stride_tuples [[10, 20]]; with dev149_manifest.json it forms the 150-scene val set",
            "dataset_fps_stride_tuples": [[10, 20]], "dataset_len": 150, "count": 1, "clips": [row]}
     text = json.dumps(out, indent=1) + "\n"

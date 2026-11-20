@@ -27,8 +27,8 @@ except ModuleNotFoundError:
     def stitch_hardseam(*args, **kwargs):
         raise ModuleNotFoundError(
             "omninwm.utils.pano_hardseam is unavailable on this host; "
-            "on-the-fly bbox/hdmap pano rendering requires the cluster "
-            "PanDWM workspace. Use pre-rendered bbox_dir/hdmap_dir PNGs "
+            "on-the-fly bbox/hdmap pano rendering needs that module. "
+            "Use pre-rendered bbox_dir/hdmap_dir PNGs "
             "(every timestamp must have {int(ts)}.png).")
 
 

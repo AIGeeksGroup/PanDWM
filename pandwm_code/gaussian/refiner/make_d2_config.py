@@ -55,10 +55,10 @@ def build(base, gpus, render_root, lr, seed, min_items, render_init_prob=0.0, re
     c["training_dataset"] = {"_class_name": "dwm_pano_d2.data.D2RenderDataset", "base": td,
                              "render_root": render_root, "min_items": int(min_items)}
     c["informations"] = {
-        "experiment": "D2 refiner",
+        "experiment": "render refiner",
         "init": TEACHER, "lr": float(lr), "gpus": int(gpus),
         "objective": "Stage-1 flow matching on one 19-frame window (start 0..16) of a 35-frame train clip, "
-                     "conditioned on the clip's degraded C2b GS render (16 latent ch + coverage)",
+                     "conditioned on the clip's degraded GS render (16 latent channels + coverage)",
         "render_root": render_root}
     return c
 
