@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=omni_figure
+#SBATCH --job-name=qualitative_figure
 #SBATCH --partition=<partition>
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
@@ -7,13 +7,13 @@
 #SBATCH --mem=48G
 #SBATCH --time=00:45:00
 #SBATCH --output=%x_%j.log
-# Summarize the OmniNWM results over seeds and render qualitative comparison figures.
+# Qualitative comparison figure of all methods (PanDWM, HorizonDrive, Epona, Vista, GEM, OmniNWM) on the common clips.
+# Usage: HORIZON_SEED42_JOB=<HorizonDrive seed-42 job id> sbatch qualitative_figure.sbatch
 set -euo pipefail
 
 H=/path/to/pandwm_root
 P=$H/pandwm_code/baselines
 ROOT=$H/omninwm_runs
-SUMMARY=$ROOT/common149_summary
 FIGURES=$ROOT/common149_figures
 HD=$H/horizondrive_runs/common/job_${HORIZON_SEED42_JOB:?set HORIZON_SEED42_JOB}/lossless
 PD=$H/external_runs/epona/common_target_10ctx_16pred/pandwm_seed42/lossless
@@ -21,24 +21,11 @@ EP=$H/external_runs/epona/common_target_10ctx_16pred/seed_42/lossless
 VISTA=$H/vista_runs/common_seed42/fake
 GEM=$H/gem_runs/common149_dump/seed_42/fake
 OMNI=$ROOT/common149_dump/seed_42/fake
-R2R=$H/external_runs/epona/common_target_10ctx_16pred/real_vs_real.json
-AUDIT=$ROOT/checkpoint_audit.json
 
-test ! -e "$SUMMARY"
 test ! -e "$FIGURES"
-mkdir -p "$SUMMARY"
-
-"$H/pandwm_venv/bin/python" "$P/omninwm/summarize_common.py" \
-  --result "0=$ROOT/common149_dump/seed_0/common_front_seed0.json" \
-  --result "42=$ROOT/common149_dump/seed_42/common_front_seed42.json" \
-  --result "1000=$ROOT/common149_dump/seed_1000/common_front_seed1000.json" \
-  --real-vs-real "$R2R" \
-  --checkpoint-audit "$AUDIT" \
-  --out "$SUMMARY/omninwm_common149_multiseed.json" \
-  --markdown-out "$SUMMARY/omninwm_common149_multiseed.md"
 
 "$H/pandwm_venv/bin/python" \
-  "$P/horizondrive/make_common_qualitative.py" \
+  "$P/common/make_common_qualitative.py" \
   --horizon-real "$HD/real" \
   --horizon-fake "$HD/fake" \
   --pandwm-real "$PD/real" \
@@ -62,4 +49,5 @@ mkdir -p "$SUMMARY"
   --fps 10 \
   --out-dir "$FIGURES"
 
-find "$SUMMARY" "$FIGURES" -maxdepth 2 -type f -printf '%p %s bytes\n' | sort
+
+find "$FIGURES" -maxdepth 2 -type f -printf '%p %s bytes\n' | sort

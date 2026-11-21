@@ -36,7 +36,7 @@ export PYTHONPATH=$H/pandwm_code/src:$H/pandwm_code/TATS_fvd
 export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1
 echo "method=$METHOD seed=$SEED dump=$DUMP offset=$OFFSET"
 "$H/pandwm_venv/bin/python" \
-  "$P/horizondrive/evaluate_common_front.py" \
+  "$P/common/evaluate_common_front.py" \
   --dump "$DUMP" \
   --i3d "$I3D" \
   --condition-frames "$OFFSET" \

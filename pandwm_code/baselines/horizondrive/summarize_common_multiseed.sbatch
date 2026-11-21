@@ -24,7 +24,7 @@ mkdir -p "$OUT_DIR"
 source /path/to/conda/bin/activate pandwm
 cd "$P"
 "$H/pandwm_venv/bin/python" \
-  horizondrive/summarize_common_multiseed.py \
+  common/summarize_common_multiseed.py \
   --horizon "0=$H/horizondrive_runs/common/job_${HORIZON_SEED0_JOB}/common_front_fvd.json" \
   --horizon "42=$H/horizondrive_runs/common/job_${HORIZON_SEED42_JOB}/common_front_fvd.json" \
   --horizon "1000=$H/horizondrive_runs/common/job_${HORIZON_SEED1000_JOB}/common_front_fvd.json" \

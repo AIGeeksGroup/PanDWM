@@ -9,6 +9,9 @@
 #SBATCH --array=0-14%2
 #SBATCH --output=%x_%A_%a.log
 # OmniNWM inference on the 149 common clips: array of 15 shards (10 clips each) x 3 seeds, 8 GPUs per task.
+# The shard pkls it reads (sp_shards_dp1/shard_NN.pkl) are written by prepare_sp_shards.py:
+#   python $P/omninwm/prepare_sp_shards.py --data $DATA_ROOT/omninwm_common149_12hz.pkl --manifest $DATA_ROOT/manifest.json --out $DATA_ROOT/sp_shards_dp1
+#   (P=<repo>/pandwm_code/baselines, DATA_ROOT=omninwm_runs/common149_adapter, written by prepare_common_full.sbatch)
 set -euo pipefail
 
 H=/path/to/pandwm_root

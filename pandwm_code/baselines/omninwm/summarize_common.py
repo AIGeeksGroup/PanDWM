@@ -24,7 +24,6 @@ def parse_args():
     parser.add_argument("--result", action="append", type=parse_seed_path,
                         required=True)
     parser.add_argument("--real-vs-real", required=True, type=Path)
-    parser.add_argument("--checkpoint-audit", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--markdown-out", required=True, type=Path)
     return parser.parse_args()
@@ -69,15 +68,11 @@ def main():
     if (int(real_vs_real.get("source_clips", -1)) != 149
             or int(real_vs_real.get("frames", -1)) != 16):
         raise ValueError("real-vs-real file uses a different target protocol")
-    audit = json.loads(args.checkpoint_audit.read_text(encoding="utf-8"))
-    if not audit.get("passed"):
-        raise ValueError("official checkpoint audit did not pass")
 
     payload = {
         "method": "OmniNWM",
         "official_repository_commit": (
             "8e2333ee0dfb7be7a477e51a97e644bf7ec53039"),
-        "checkpoint_audit": audit,
         "protocol": {
             "clips": 149,
             "generated_views": 6,

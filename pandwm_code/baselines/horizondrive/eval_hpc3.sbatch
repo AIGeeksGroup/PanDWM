@@ -7,18 +7,10 @@
 #SBATCH --time=2:00:00
 #SBATCH --output=%x_%j.log
 #
-# HorizonDrive baseline evaluation (official checkpoints, upstream evaluator).
-# Smoke test:
-#   sbatch eval_cluster.sbatch
-# Common-clip protocol (smoke test, then full):
-#   sbatch --export=ALL,HD_MODE=common_smoke eval_cluster.sbatch
-#   sbatch --export=ALL,HD_MODE=common eval_cluster.sbatch
-# Full HorizonDrive protocol (4 GPUs recommended):
-#   sbatch --gres=gpu:4 --cpus-per-task=48 --time=8:00:00 \
-#     --export=ALL,HD_MODE=full eval_cluster.sbatch
+# HorizonDrive baseline evaluation (official checkpoints) on the 149 common clips.
+# Usage: sbatch --export=ALL,HD_SEED=42 eval_hpc3.sbatch
 set -euo pipefail
 
-HD_MODE=${HD_MODE:-smoke}
 HD_SEED=${HD_SEED:-42}
 HD_HOME=${HD_HOME:-$HOME/horizondrive_repro}
 HD_REPO=${HD_REPO:-$HD_HOME/HorizonDrive}
@@ -32,18 +24,7 @@ HD_PANO_HDMAP_DIR=${HD_PANO_HDMAP_DIR:-$HOME/pandwm_data/hdmap}
 HD_OUTPUT_ROOT=${HD_OUTPUT_ROOT:-$HOME/horizondrive_runs}
 HD_PANDWM=${HD_PANDWM:-$HOME/pandwm_code/baselines}
 
-case "$HD_MODE" in
-  full)
-    HD_CONFIG=$HD_PANDWM/horizondrive/horizondrive_hpc3_full.yaml
-    ;;
-  common)
-    HD_CONFIG=$HD_PANDWM/horizondrive/horizondrive_hpc3_common.yaml
-    ;;
-  *)
-    echo "HD_MODE must be full or common; got: $HD_MODE" >&2
-    exit 2
-    ;;
-esac
+HD_CONFIG=$HD_PANDWM/horizondrive/horizondrive_hpc3_common.yaml
 
 export HD_REPO HD_MODELS HD_NUSCENES_ROOT HD_ANN_PATH
 export HD_PANO_RGB_DIR HD_PANO_BBOX_DIR HD_PANO_HDMAP_DIR
@@ -64,15 +45,12 @@ for path in "$HD_REPO" "$HD_ENV/bin/python" "$HD_CONFIG"; do
   fi
 done
 
-mkdir -p "$HD_OUTPUT_ROOT/$HD_MODE"
+HD_RUN_ROOT=$HD_OUTPUT_ROOT/common
+mkdir -p "$HD_RUN_ROOT"
 cd "$HD_REPO"
 
-if [[ "$HD_MODE" = common* ]]; then
-  HD_EVAL_ENTRY=$HD_PANDWM/horizondrive/eval_common.py
-  export HD_COMMON_DUMP_DIR=${HD_COMMON_DUMP_DIR:-$HD_OUTPUT_ROOT/$HD_MODE/job_${SLURM_JOB_ID}/lossless}
-else
-  HD_EVAL_ENTRY=horizondrive/eval.py
-fi
+HD_EVAL_ENTRY=$HD_PANDWM/horizondrive/eval_common.py
+export HD_COMMON_DUMP_DIR=${HD_COMMON_DUMP_DIR:-$HD_RUN_ROOT/job_${SLURM_JOB_ID}/lossless}
 
 NUM_PROCESSES=${SLURM_GPUS_ON_NODE:-1}
 if [[ "$NUM_PROCESSES" == *\(* ]]; then
@@ -92,26 +70,15 @@ PY
 )}
 export NUM_PROCESSES MAIN_PROCESS_PORT
 
-echo "host=$(hostname) mode=$HD_MODE seed=$HD_SEED processes=$NUM_PROCESSES"
+echo "host=$(hostname) protocol=common seed=$HD_SEED processes=$NUM_PROCESSES"
 nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader
-if [[ "$HD_MODE" = common* ]]; then
-  for path in "$HD_ANN_PATH" "$HD_PANO_RGB_DIR" \
-      "$HD_PANO_BBOX_DIR" "$HD_PANO_HDMAP_DIR"; do
-    if [ ! -e "$path" ]; then
-      echo "missing common-protocol data: $path" >&2
-      exit 2
-    fi
-  done
-else
-  "$HD_ENV/bin/python" "$HD_PANDWM/horizondrive/validate_assets.py" \
-    --repo "$HD_REPO" \
-    --models "$HD_MODELS" \
-    --nuscenes-root "$HD_NUSCENES_ROOT" \
-    --ann "$HD_ANN_PATH" \
-    --sha256-manifest "$HD_PANDWM/horizondrive/models.sha256" \
-    --image-check all \
-    --json-out "$HD_OUTPUT_ROOT/$HD_MODE/preflight_${SLURM_JOB_ID}.json"
-fi
+for path in "$HD_ANN_PATH" "$HD_PANO_RGB_DIR" \
+    "$HD_PANO_BBOX_DIR" "$HD_PANO_HDMAP_DIR"; do
+  if [ ! -e "$path" ]; then
+    echo "missing common-protocol data: $path" >&2
+    exit 2
+  fi
+done
 
 "$HD_ENV/bin/accelerate" launch \
   --num_processes="$NUM_PROCESSES" \
@@ -129,8 +96,8 @@ fi
   --report_to=tensorboard \
   --config_path="$HD_CONFIG" \
   --pretrained_model_name_or_path="$HD_MODELS/Wan2.1-T2V-1.3B" \
-  --output_dir="$HD_OUTPUT_ROOT/$HD_MODE/job_${SLURM_JOB_ID}" \
+  --output_dir="$HD_RUN_ROOT/job_${SLURM_JOB_ID}" \
   --vae_path="$HD_MODELS/horizondrive-vae.pkl" \
   --transformer_path="$HD_MODELS/horizondrive-dit.safetensors"
 
-echo "completed: $HD_OUTPUT_ROOT/$HD_MODE/job_${SLURM_JOB_ID}"
+echo "completed: $HD_RUN_ROOT/job_${SLURM_JOB_ID}"

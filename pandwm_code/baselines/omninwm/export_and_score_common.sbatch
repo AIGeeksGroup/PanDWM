@@ -45,7 +45,7 @@ for SEED in "${SEEDS[@]}"; do
   test "$(find "$DUMP/real" -maxdepth 1 -type f -name 'clip_*.pt' | wc -l)" -eq 149
   test "$(find "$DUMP/fake" -maxdepth 1 -type f -name 'clip_*.pt' | wc -l)" -eq 149
   if [ ! -f "$OUT" ]; then
-    "$H/pandwm_venv/bin/python" horizondrive/evaluate_common_front.py \
+    "$H/pandwm_venv/bin/python" common/evaluate_common_front.py \
       --dump "$DUMP" \
       --i3d "$I3D" \
       --condition-frames 0 \

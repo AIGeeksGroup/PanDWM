@@ -26,7 +26,7 @@ test ! -e "$OUT" || { echo "refusing to overwrite $OUT" >&2; exit 2; }
 export PYTHONUNBUFFERED=1
 export PYTHONPATH=$H/pandwm_code/src:$H/pandwm_code/TATS_fvd
 cd "$P"
-$H/pandwm_venv/bin/python horizondrive/evaluate_common_front.py \
+$H/pandwm_venv/bin/python common/evaluate_common_front.py \
   --dump "$DUMP" \
   --i3d "$I3D" \
   --condition-frames 1 \
