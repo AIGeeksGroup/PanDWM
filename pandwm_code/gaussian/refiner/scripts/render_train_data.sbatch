@@ -10,8 +10,8 @@
 #SBATCH --time=03:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2_refiner/logs/%x_%A_%a.log
 # D2 refiner, GS side.
-#   MODE=pairs  [TASKS=14 LIMIT=0 BUDGET_S=9000 OUT=train_pairs]  sbatch --array=0-13 d2_render_hpc3.sbatch
-#   MODE=count                                                       sbatch d2_render_hpc3.sbatch
+#   MODE=pairs  [TASKS=14 LIMIT=0 BUDGET_S=9000 OUT=train_pairs]  sbatch --array=0-13 render_train_data.sbatch
+#   MODE=count                                                       sbatch render_train_data.sbatch
 set -uo pipefail
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/common_env_hpc3.sh
 source /path/to/pandwm_root/pandwm_code/gaussian/gs4d/scripts_hpc3/da3_env_hpc3.sh

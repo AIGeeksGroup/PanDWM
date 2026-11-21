@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # D2 refiner training.
-#   TAG=pilot STEPS=1000 CKPT_STEPS=500 sbatch --job-name=pandwm_d2_pilot train_d2.sbatch
-#   SMOKE=1 sbatch --gres=gpu:2 --cpus-per-task=16 --mem=240G --time=01:00:00 --job-name=pandwm_d2_smoke train_d2.sbatch
+#   TAG=pilot STEPS=1000 CKPT_STEPS=500 sbatch --job-name=pandwm_d2_pilot train.sbatch
+#   SMOKE=1 sbatch --gres=gpu:2 --cpus-per-task=16 --mem=240G --time=01:00:00 --job-name=pandwm_d2_smoke train.sbatch
 #   RESUME_FROM=<step> TAG=<existing run> STEPS=<new max> ... : resume in place (no overwrite check)
 #   CONFIG_FILE=<config.json> : training config to use instead of the default pilot config
 #SBATCH --job-name=pandwm_d2
@@ -27,7 +27,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True TORCH_HOME=$DR/.cache/to
 export MASTER_PORT=$(( 20000 + ${SLURM_JOB_ID} % 20000 ))
 unset HF_AUTO_UPLOAD_REPO CKPT_OUT_DIR || true
 cd "$D2" || exit 1
-CONFIG=${CONFIG_FILE:-$D2/configs/d2_pilot_hpc3_8gpu.json}
+CONFIG=${CONFIG_FILE:-$D2/configs/train_hpc3_8gpu.json}
 NGPU=8
 RUN=$RUNROOT/$TAG
 RES_ARGS=""

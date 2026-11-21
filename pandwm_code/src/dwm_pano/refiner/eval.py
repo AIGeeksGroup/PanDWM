@@ -2,7 +2,7 @@
 
 Follows the protocol of gs/eval_shift.py (32 generated frames 3..34; FID on the stitched pano, FVD-I3D on frames
 0..15; +d and -d pooled; sharpness = ratio of luminance gradient energy, gs.eval_shift.grad_energy), on the
-refiner/export.py packs and the refined latents of d2_refine.py (<refined>/clipNNN/d2_dy<d>.pt), per shift d:
+refiner/export.py packs and the refined latents of refine.py (<refined>/clipNNN/d2_dy<d>.pt), per shift d:
 
   raw_<d>   the export's pixels (gs.eval_shift's 4D output)
   d2f_<d>   the refined latents decoded with the SD3.5 VAE and stitched like the video model's outputs (full)
@@ -40,7 +40,7 @@ def parse_args():
     p.add_argument("-c", "--config", required=True, type=Path, help="GS review config (VAE, dataset)")
     p.add_argument("--data-pkl", required=True, type=Path)
     p.add_argument("--inputs", required=True, type=Path, help="refiner/export.py out-root")
-    p.add_argument("--refined", default=None, type=Path, help="d2_refine.py out-root (None: raw only)")
+    p.add_argument("--refined", default=None, type=Path, help="refine.py out-root (None: raw only)")
     p.add_argument("--clips", default="")
     p.add_argument("--shifts", default="0,1,2,4", help="unsigned; d > 0 pools +d and -d")
     p.add_argument("--fps-stride", default="10,20")
@@ -67,7 +67,7 @@ def soft_mask(mask, dilate, feather):
 
 @torch.no_grad()
 def decode_latents(pipe, latents):
-    """(T, 2, 16, h, w) latents -> (T, 3, H, 4114) stitched pano in [0, 1] (as d2_refine.decode)."""
+    """(T, 2, 16, h, w) latents -> (T, 3, H, 4114) stitched pano in [0, 1] (as refine.decode)."""
     vae = pipe.vae
     shift = vae.config.shift_factor or 0
     flat = latents.flatten(0, 1).to(pipe.device, dtype=vae.dtype)

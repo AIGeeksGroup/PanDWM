@@ -9,9 +9,9 @@
 #SBATCH --mem=110G
 #SBATCH --time=04:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/d2v2/logs/%x_%A_%a.log
-# Render refiner inference (d2_refine.py) on exported lateral-shift renders.
+# Render refiner inference (refine.py) on exported lateral-shift renders.
 #   CK=<ckpt> OUT=<tag> CLIPS=<list> [SHIFTS=2,-2 STEPS=20 GMODE=none GSCALE=1 INIT_SIGMA=0 INPUTS=...]
-#   [NOSTRICT=1 VIDEO=<list> SET=dev MANIFEST=... FS=10,20] sbatch --array=0-3 d2v2_refine.sbatch   (array tasks split the clip list)
+#   [NOSTRICT=1 VIDEO=<list> SET=dev MANIFEST=... FS=10,20] sbatch --array=0-3 refine.sbatch   (array tasks split the clip list)
 set -uo pipefail
 DR=/path/to/pandwm_root
 D2=$DR/pandwm_code/gaussian/refiner
@@ -30,7 +30,7 @@ CL=$($PY -c "import sys; t=sys.argv[1]; s=(list(range(*map(int,t.split(':')))) i
 EXTRA=""; [[ ${NOSTRICT:-0} == 1 ]] && EXTRA="--no-strict"
 echo "D2REF_START ck=${CK:?CK} out=${OUT:?OUT} clips=$CL shifts=${SHIFTS:-0,1,-1,2,-2,4,-4} steps=${STEPS:-20} g=${GMODE:-none}/${GSCALE:-1} init=${INIT_SIGMA:-0} seed=${SEED:-42} node=$(hostname) $(date -Is)"
 cd $D2 || exit 1
-$PY d2_refine.py --config ${CONFIG:-$D2/configs/d2v2_hpc3_8gpu.json} --checkpoint $CK $EXTRA \
+$PY refine.py --config ${CONFIG:-$D2/configs/infer_hpc3_8gpu.json} --checkpoint $CK $EXTRA \
   --eval-config $C/manifests/cd_eval_frozen149_hpc3.json --manifest $C/${MANIFEST:-manifests/dev149_manifest.json} --fps-stride ${FS:-10,20} \
   --inputs $R/inputs_${SET:-dev} --out-root $R/refined_${SET:-dev}/$OUT --clips "$CL" --shifts ${SHIFTS:-0,1,-1,2,-2,4,-4} \
   --steps ${STEPS:-20} --guidance-mode ${GMODE:-none} --guidance-scale ${GSCALE:-1} --init-sigma ${INIT_SIGMA:-0} \

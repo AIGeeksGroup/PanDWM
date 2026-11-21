@@ -5,7 +5,7 @@ refiner's outputs are folded back into the scene, and the scored views are plain
 
   1. base scene A: the scene of the generated clip ("a"), or of the refiner's 0 m output ("r0");
   2. for every completion shift c (default +-2, +-4 m): scene B_c = the decoder on the refiner's output at c
-     (d2_refine.py's <refined>/clipNNN/d2_dy<c>.pt), with the clip's infos moved by c (d2v2_shift_infos);
+     (refine.py's <refined>/clipNNN/d2_dy<c>.pt), with the clip's infos moved by c (d2v2_shift_infos);
   3. B_c keeps only the Gaussians of its pixels where A, rendered at c, is a hole (alpha < 0.5; select "hole") or a
      hole or magnified more than mag_thr times against its source view (select "fix"), dilated by --mask-dilate
      canvas pixels;
@@ -54,7 +54,7 @@ def parse_args():
     p.add_argument("--data-pkl", required=True, type=Path)
     p.add_argument("--checkpoint", required=True, type=Path)
     p.add_argument("--clips-root", required=True, type=Path)
-    p.add_argument("--refined", required=True, type=Path, help="d2_refine.py out-root")
+    p.add_argument("--refined", required=True, type=Path, help="refine.py out-root")
     p.add_argument("--clips", required=True, help="comma list or start:end")
     p.add_argument("--variants", default="a_none,a_hole,a_fix,r0_none,r0_fix")
     p.add_argument("--complete-shifts", default="2,-2,4,-4")

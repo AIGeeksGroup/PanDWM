@@ -54,8 +54,9 @@ This release is the code that produced the paper results, as it ran on our SLURM
 | `pandwm_code/eval` | Evaluation protocol: clip manifests (`manifests/`), evaluation job scripts (`jobs/`), generation runners, FID/FVD, flicker, controllability and long-video analysis |
 | `pandwm_code/gaussian/gs3d` | Configs of the early 3D Gaussian decoder stages and the anti-aliased fine-tune job |
 | `pandwm_code/gaussian/gs4d` | 4D Gaussian decoder training and its configs |
-| `pandwm_code/gaussian/finetune` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation and multi-view consistency jobs |
-| `pandwm_code/gaussian/refiner` | Render refiner (configs, training and inference jobs, `d2_refine.py`) |
+| `pandwm_code/gaussian/finetune` | Final decoder fine-tuning (G3b): configs, `make_ft3_configs.py` and the training job |
+| `pandwm_code/gaussian/gen_eval` | Gaussians on generated scenes: evaluation, export for the refiner and multi-view consistency jobs |
+| `pandwm_code/gaussian/refiner` | Render refiner (configs, training and inference jobs, `refine.py`) |
 | `pandwm_code/gaussian/recon_eval` | Job scripts for the reconstruction table (render, score, merge) |
 | `pandwm_code/baselines` | Runs of OmniNWM, GEM, Vista, Epona and HorizonDrive on the common clips, and their scoring (`common/`) |
 | `docs/` | [Data preparation](docs/data.md) and [table-by-table reproduction](docs/reproduce.md) |
@@ -106,7 +107,7 @@ SLURM headers keep `<account>`, `<partition>` and `<qos>` placeholders; set them
 |---|---|---|
 | [`video/pandwm_video_v84i4250_ema.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Four-step video student (paper model) | `CKPT=` of the generation scripts |
 | [`gaussian/pandwm_gs_decoder_G3b_2000.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Gaussian decoder for both Gaussian tables | `--checkpoint` / `CKPT=` of the Gaussian scripts |
-| [`refiner/pandwm_render_refiner_v1_4000.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Render refiner | `CK=` of `d2v2_refine.sbatch` |
+| [`refiner/pandwm_render_refiner_v1_4000.pth`](https://huggingface.co/AIGeeksGroup/PanDWM) | Render refiner | `CK=` of `refine.sbatch` |
 | [Stable Diffusion 3.5 Medium](https://huggingface.co/stabilityai/stable-diffusion-3.5-medium) | VAE and text encoders | `pandwm_data/stable-diffusion-3.5-medium` |
 | [DA3-LARGE-1.1](https://huggingface.co/depth-anything/DA3-LARGE-1.1), [DA3METRIC-LARGE](https://huggingface.co/depth-anything/DA3METRIC-LARGE) | Range relabelling | `pandwm_code/third_party/depth_anything_3/weights/` |
 | I3D `i3d_pretrained_400.pt` and the `tats/fvd` code of [TATS](https://github.com/songweige/TATS) | FVD | `pandwm_code/TATS_fvd/` (`fvd.py`, `pytorch_i3d.py`, `i3d_pretrained_400.pt`) |
@@ -140,7 +141,7 @@ The decoder is trained in a chain of fine-tuning stages; the final stage (G3b, 2
 
 ### Stage 4: Render Refiner
 
-`pandwm_code/gaussian/refiner/scripts/train_d2.sbatch` with `pandwm_code/gaussian/refiner/configs/d2_pilot_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
+`pandwm_code/gaussian/refiner/scripts/train.sbatch` with `pandwm_code/gaussian/refiner/configs/train_hpc3_8gpu.json` (initialized from the causal teacher, 4000 steps).
 
 ## 🤖 Inference
 

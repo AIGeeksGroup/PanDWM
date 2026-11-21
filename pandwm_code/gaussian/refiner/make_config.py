@@ -7,8 +7,7 @@ train scenes) and changes:
   model     dwm_pano_d2.model.D2RenderDiT, 17 render channels, scale 10
   data      D2RenderDataset over the train set in 35-frame clips, one start every 2 s
 
-    python3 make_d2_config.py --out configs/d2_pilot_8gpu.json
-    python3 make_d2_config.py --out configs/d2_full_8gpu.json --min-items 300 --render-init-prob 0.5
+    python3 make_config.py --out configs/train_8gpu.json
 """
 
 import argparse

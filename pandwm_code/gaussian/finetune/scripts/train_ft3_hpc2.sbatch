@@ -6,12 +6,13 @@
 #SBATCH --mem=200G
 #SBATCH --time=12:00:00
 #SBATCH --output=/path/to/pandwm_root/pandwm_runs/gs_ft3/logs/%x_%j.log
-# Fine-tune the 4D decoder: ARM=G0|G1|G2, STEPS (default 2000) steps from an earlier checkpoint
+# Fine-tune the 4D decoder: ARM (default G3b, config configs/gs4dd_hpc2_ft3_<ARM>.json; make_ft3_configs.py
+# writes the configs of all arms), STEPS (default 2000) steps from an earlier checkpoint
 # into gs_ft3/<TAG or ARM>, checkpoints every 500 (all kept). The finetune copy of the code is
 # first on PYTHONPATH (pipeline_relabel.py and the pipeline_depth hook live only there).
-# Smoke: ARM=G1 STEPS=20 CKPT_STEPS=20 LOG_STEPS=1 TAG=smoke_G1 sbatch --time=01:00:00 <script>
+# Smoke: STEPS=20 CKPT_STEPS=20 LOG_STEPS=1 TAG=smoke_G3b sbatch --time=01:00:00 <script>
 set -uo pipefail
-ARM=${ARM:?ARM=G0|G1|G2}; STEPS=${STEPS:-2000}
+ARM=${ARM:-G3b}; STEPS=${STEPS:-2000}
 source $HOME/pandwm_code/gaussian/gs4d/scripts/common_env.sh
 F=$HOME/pandwm_code/gaussian/finetune
 export PYTHONPATH=$HOME/pandwm_code/src:$HOME/pandwm_code/TATS_fvd:$HOME/pandwm_da3_pkgs/site

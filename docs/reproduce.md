@@ -48,18 +48,18 @@ Job scripts: `pandwm_code/gaussian/recon_eval/`. Scene construction is `src/dwm_
    - 3D: `{"plane_offset_px": 1.0, "seam_bridge": 16, "seam_bridge_search": 6, "seam_bridge_layer": "under", "edge_extend": 8, "band_extend": 8}` (Depth Anything 3 per frame);
    - 4D: the same plus `{"da3_window": "clip", "da3_fuse": true}` (frames 0 to 20 of each clip).
 2. Score: `JOBFILE=score_jobs_g3bf.txt sbatch --array=0-11 g3b_score.sbatch`.
-3. Merge the 213-clip and 36-clip parts: `python3 merge_g3b.py g3bf`. It reuses the summary functions of `merge_249.py` in the same folder, which are verbatim copies of the `summarize` code of `recon/score.py`.
+3. Merge the 213-clip and 36-clip parts: `python3 merge.py g3b g3bf`. The summary functions of `merge.py` are verbatim copies of the `summarize` code of `recon/score.py`; `python3 merge.py tests249` merges the stored 213-clip scores of the table with the 36 additional clips in the same way.
 
 Only the recorded frames up to the input frame are loaded. Baselines (Omni-Scene, ReconDrive, DrivingForward, MCSplat) were rendered with their official code and scored with the same `score.py`, targets and masks.
 
 ## 4. Gaussians on generated scenes (83 Test-S clips)
 
-Job scripts: `pandwm_code/gaussian/finetune/scripts/`; decoder config `gaussian/gs4d/configs/gs_review_hpc3.json`. Input: the Test-S generations of section 1 (`tests/v84i4250_s42`).
+Job scripts: `pandwm_code/gaussian/gen_eval/`; decoder config `gaussian/gs4d/configs/gs_review_hpc3.json`. Input: the Test-S generations of section 1 (`tests/v84i4250_s42`).
 
 - **Gaussians only:** `src/dwm_pano/gs/eval_shift.py` with `--modes 4d --da3-relabel --da3-mode scale --da3-window clip --da3-fuse --plane-offset-px 1 --drop-bottom-rows 2 --fps-stride 10,5 --box-reading mmdet3d_v0x --camera-time-poses --shifts 0,1,2,4`. Run `tab5_ft3_hpc3.sbatch` for the 71 clips and `gsgen83_hpc3.sbatch` with `MODE=g3b` for the 12 extension clips and the 83-clip merge.
 - **With the render refiner:**
   1. export the renders: `MODE=export SET=test` (and `SET=testext`) `sbatch --array=0-5 d2v2_gs_hpc3.sbatch`;
-  2. refine: `gaussian/refiner/scripts/d2v2_refine.sbatch` with `CK=<refiner ckpt> STEPS=20 GMODE=all GSCALE=2 INIT_SIGMA=0.8`, seed 42;
+  2. refine: `gaussian/refiner/scripts/refine.sbatch` with `CK=<refiner ckpt> STEPS=20 GMODE=all GSCALE=2 INIT_SIGMA=0.8`, seed 42;
   3. score: `MODE=eval TAG=<tag>` with `d2v2_gs_hpc3.sbatch`, then `MODE=merge TAG=<tag> sbatch gsgen83_hpc3.sbatch`.
 - **Shift preservation and multi-view consistency (supplementary):** `MODE=shiftcheck` of `d2v2_gs_hpc3.sbatch`; `src/dwm_pano/gs/consistency_eval.py` with `consist_hpc3.sbatch`.
 
@@ -72,6 +72,6 @@ The DiST-4D and DiST-4D + ReconDrive rows were computed with their official code
 | Video student, 4 stages, 4250 iterations | `$CF/scripts/train_v7.sbatch` → `train_v8_1.sbatch` → `train_v8_3.sbatch` / `train_ext.sbatch` (`EXT=1`, then `EXT=2`) → `train_v8_4.sbatch` (see the README) |
 | Gaussian decoder, final stage G3b | `gaussian/finetune/scripts/train_ft3_hpc2.sbatch` with `ARM=G3b`, config `configs/gs4dd_hpc2_ft3_G3b.json`, 2000 steps from the previous stage |
 | Earlier decoder stages | 3D: `gaussian/gs3d/configs/`; 4D: `gaussian/gs4d/configs/` (`make_c2_config.py` and the other `make_*_config.py` scripts) |
-| Render refiner | `gaussian/refiner/scripts/train_d2.sbatch`, config `gaussian/refiner/configs/d2_pilot_hpc3_8gpu.json`, 4000 steps |
+| Render refiner | `gaussian/refiner/scripts/train.sbatch`, config `gaussian/refiner/configs/train_hpc3_8gpu.json`, 4000 steps |
 
 The decoder and the refiner are trained on the nuScenes train split only; `src/dwm_pano_d2/pipeline.py` rejects any training clip from the 83 evaluation scenes.

@@ -1,10 +1,14 @@
-"""Merge the stored 213-clip per-image reconstruction rows with the 36 additional clips and re-aggregate.
+"""Merge the per-image reconstruction rows of the 213-clip and 36-clip parts of the 249 Test-S clips and re-aggregate.
 
-summarize / summarize_depth below are verbatim copies of the nested functions in score.py main(), which cannot be
+    python3 merge.py tests249 [--repro-only]   stored 213-clip rows + the 36 additional clips (writes FINAL_249.json)
+    python3 merge.py g3b [tag]                 fine-tuned decoder (tag g3b by default; writes FINAL_<TAG>_249.json)
+
+tests249: summarize / summarize_depth below are verbatim copies of the nested functions in score.py main(), which cannot be
 imported. The stored 213-clip rows are first re-aggregated alone and must reproduce the stored score JSON exactly
 ("image" and "depth" blocks); only then are the merged 249-clip numbers written.
 
-    python merge_249.py
+g3b: the rows of each (mode, resolution) are concatenated and aggregated with the same functions, whose copies of the
+score.py summarize functions are checked against score.py first.
 """
 import json
 import sys
@@ -185,5 +189,48 @@ def main():
     return 0 if all_ok else 1
 
 
+
+X2 = H / "pandwm_runs/gs_recon_g3b"
+
+
+def main_g3b():
+    tag = sys.argv[2] if len(sys.argv) > 2 else "g3b"
+    if not verbatim_check():
+        print("summarize copy differs from score.py")
+        return 1
+    final = {"note": "tab:gs_recon, FT3 G3b decoder (step 2000, md5 18e655d8), 249 Test-S clips; 3d = plane offsets "
+                     "1 px with per-frame DA3, 4d = G3b's V2 scene (clip DA3 over frames 0..20 + fusion, plane "
+                     "offsets 1 px); renders on A800 at all resolutions; scorer and masks as FINAL_249.json.",
+             "columns": [c for c, _, _ in COLS], "rows": []}
+    old = json.loads((H / "pandwm_runs/gs_recon_ext249/FINAL_249.json").read_text())
+    for mode in ("3d", "4d"):
+        for res in ("224x400", "280x518", "352x640"):
+            rows = {"image": [], "depth": []}
+            for part in ("s213", "ext36"):
+                p = X2 / f"scores/{tag}_{mode}_{res}_{part}.rows.json"
+                r = json.loads(p.read_text())
+                rows["image"] += r["image"]
+                rows["depth"] += r["depth"]
+            rep = {"image": summarize(rows["image"], rows["image"]), "depth": summarize_depth(rows["depth"])}
+            v = table_values(rep)
+            label = f"{tag} ({mode.upper()})"
+            final["rows"].append({"row": label, "res": res, "images": rep["image"]["all"]["images"], "values": v,
+                                  "values_rounded": {c: round(v[c], DIGITS[c]) for c in DIGITS}})
+            print(f"{label:10s} {res} images={rep['image']['all']['images']:5d}  " +
+                  " ".join(f"{c} {v[c]:.{DIGITS[c]}f}" for c in DIGITS), flush=True)
+    print("--- stored FINAL_249.json")
+    print(json.dumps(old.get("rows", old), indent=None)[:4000])
+    final["tag"] = tag
+    (X2 / f"FINAL_{tag.upper()}_249.json").write_text(json.dumps(final, indent=1) + "\n")
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(repro_only() if "--repro-only" in sys.argv else main())
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd == "tests249":
+        sys.exit(repro_only() if "--repro-only" in sys.argv else main())
+    elif cmd == "g3b":
+        sys.exit(main_g3b())
+    else:
+        print("usage: python3 merge.py tests249 [--repro-only] | python3 merge.py g3b [tag]")
+        sys.exit(2)
