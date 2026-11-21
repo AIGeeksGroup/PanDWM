@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Long-video test set: for each scene of eval/review149_test71_long12.json, 3 recorded frames followed by
+# Long-video test set: for each scene of eval/manifests/review149_test71_long12.json, 3 recorded frames followed by
 # 12 windows of 16 frames (19.5 s) from the scene start; the first two windows are the standard evaluation
 # clip and are not scored.  Student, clean history, stochastic 4-step sampler, blend 128, steps [1000, 750, 500, 250].
 # Array task i runs list entries [i*CHUNK, (i+1)*CHUNK); output <LV>/<TAG>_scene<index>_seed<SEED>.
 # A time budget stops at a window boundary; resubmit to resume.  LIST=<scene list> replaces the 71 test scenes
-# (e.g. eval/testl_ext12_long12.json for the 12 extension scenes).
+# (e.g. eval/manifests/testl_ext12_long12.json for the 12 extension scenes).
 #   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch
 #   TAG=teacher50 CKPT=<stage1> ENGINE=teacher CHUNK=2 sbatch --array=0-35%4 scripts/long_video_testl.sbatch
 #SBATCH --job-name=pandwm_lvtl
@@ -20,8 +20,8 @@
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/eval
-CFG=$C/cd_eval_frozen149_hpc3.json
-LIST=${LIST:-$C/review149_test71_long12.json}
+CFG=$C/manifests/cd_eval_frozen149_hpc3.json
+LIST=${LIST:-$C/manifests/review149_test71_long12.json}
 LV=${LV_OUT:-$DR/pandwm_runs/long_videos_testl}
 PY=$DR/pandwm_venv/bin/python
 T=${TAG:?TAG}; CK=${CKPT:?CKPT}; SEED=${SEED:-42}; CHUNK=${CHUNK:-9}; WIN=${WINDOWS:-12}

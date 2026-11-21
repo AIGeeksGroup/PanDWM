@@ -31,7 +31,7 @@ EXTRA=""; [[ ${NOSTRICT:-0} == 1 ]] && EXTRA="--no-strict"
 echo "D2REF_START ck=${CK:?CK} out=${OUT:?OUT} clips=$CL shifts=${SHIFTS:-0,1,-1,2,-2,4,-4} steps=${STEPS:-20} g=${GMODE:-none}/${GSCALE:-1} init=${INIT_SIGMA:-0} seed=${SEED:-42} node=$(hostname) $(date -Is)"
 cd $D2 || exit 1
 $PY d2_refine.py --config ${CONFIG:-$D2/configs/d2v2_hpc3_8gpu.json} --checkpoint $CK $EXTRA \
-  --eval-config $C/cd_eval_frozen149_hpc3.json --manifest $C/${MANIFEST:-dev149_manifest.json} --fps-stride ${FS:-10,20} \
+  --eval-config $C/manifests/cd_eval_frozen149_hpc3.json --manifest $C/${MANIFEST:-manifests/dev149_manifest.json} --fps-stride ${FS:-10,20} \
   --inputs $R/inputs_${SET:-dev} --out-root $R/refined_${SET:-dev}/$OUT --clips "$CL" --shifts ${SHIFTS:-0,1,-1,2,-2,4,-4} \
   --steps ${STEPS:-20} --guidance-mode ${GMODE:-none} --guidance-scale ${GSCALE:-1} --init-sigma ${INIT_SIGMA:-0} \
   --video-clips "${VIDEO:-}" --seed ${SEED:-42}

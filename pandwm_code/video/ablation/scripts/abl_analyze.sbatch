@@ -41,7 +41,7 @@ for arm in $ARMS; do
     st=$FL/stats_${arm}_s${s}.json
     stats+=("$st")
     if [[ ! -s $st ]]; then
-      "$PY" "$ABL/scripts/dev78_clips.py" "$C/dev78_manifest.json" "$FL/dev78_clips.json"
+      "$PY" "$ABL/scripts/dev78_clips.py" "$C/manifests/dev78_manifest.json" "$FL/dev78_clips.json"
       "$PY" "$FLK/flicker_stats.py" --root "$root" --clips "$FL/dev78_clips.json" --out "$st" || { echo "FLICKER_FAIL $arm s$s"; fail=1; }
     fi
   done
@@ -51,14 +51,14 @@ for arm in $ARMS; do
 done
 RS=$FL/stats_ref_v84i4250_s42_eval149.json
 if [[ ! -s $RS ]]; then
-  "$PY" "$ABL/scripts/dev78_clips.py" "$C/dev78_manifest.json" "$FL/dev78_clips.json"
+  "$PY" "$ABL/scripts/dev78_clips.py" "$C/manifests/dev78_manifest.json" "$FL/dev78_clips.json"
   "$PY" "$FLK/flicker_stats.py" --root "$REF/v84i4250" --clips "$FL/dev78_clips.json" --out "$RS" || fail=1
 fi
 [[ $fail == 0 ]] || { echo "ABL_ANALYZE FAIL (inputs)"; exit 1; }
 cd "$C" || exit 1
 "$PY" tests_analyze.py --real "$FD/feats_real_dev78_manifest.npz" "${ARGS[@]}" --boot 1000 \
   --out "$AD/analysis_${NAME}.json" || fail=1
-"$PY" "$ABL/scripts/abl_flicker.py" --manifest "$C/dev78_manifest.json" --ref "$RS" "${FARGS[@]}" \
+"$PY" "$ABL/scripts/abl_flicker.py" --manifest "$C/manifests/dev78_manifest.json" --ref "$RS" "${FARGS[@]}" \
   --out "$AD/flicker_${NAME}.json" || fail=1
 if [[ $fail == 0 ]]; then
   "$PY" "$ABL/scripts/abl_table.py" "$AD/analysis_${NAME}.json" "$AD/flicker_${NAME}.json" "$CONTROL" \

@@ -4,8 +4,8 @@ Built on the frozen eval dataset with relaxed_sync.install() (stride 20 s, one c
 dataset has exactly the 149 clips of the dev149 manifest (same scene tokens and anchor timestamps) plus scene-0018.
 The new clip gets test_index 149; dataset_index refers to the relaxed dataset (150 clips), so runs and feature
 extraction of this manifest must also go through relaxed_sync.py.
-  python3 build_val150_manifest.py --base-config <eval config json> --dev149 dev149_manifest.json \
-      --output scene0018_manifest.json
+  python3 build_val150_manifest.py --base-config <eval config json> --dev149 manifests/dev149_manifest.json \
+      --output manifests/scene0018_manifest.json
 """
 import argparse
 import hashlib

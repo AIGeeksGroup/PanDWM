@@ -52,7 +52,7 @@ def parse_args():
     p.add_argument("--data-pkl", required=True, type=Path)
     p.add_argument("--checkpoint", required=True, type=Path, help="G3b decoder")
     p.add_argument("--out-root", required=True, type=Path)
-    p.add_argument("--manifest", required=True, type=Path, help="split_195_scene_manifest.json (dev / heldout)")
+    p.add_argument("--manifest", required=True, type=Path, help="eval/manifests/split_195_scene_manifest.json (dev / heldout)")
     p.add_argument("--task", type=int, default=0)
     p.add_argument("--tasks", type=int, default=1)
     p.add_argument("--limit", type=int, default=0)

@@ -4,7 +4,7 @@ For each clip: the recorded canvas (hard seam, blend 0) and the decoded generate
 requested clip frames, uint8 [F, 3, H, W] with W = 4114, plus the bridge's six-camera sampling grids at --render (as in
 front_band_dump.py) and the canonical 9600-column pano coordinate of every canvas column. A camera image of the same
 rig can then be mapped back into the canvas by inverting its grid.
-  python3 pano_canvas_dump.py --base-config <frozen eval config>.json --manifest dev149_manifest.json \
+  python3 pano_canvas_dump.py --base-config <frozen eval config>.json --manifest manifests/dev149_manifest.json \
       --dataset-stride 20 --arm-root <run> --out <dir> --positions 31,56,80,140 --frames 25
 """
 import argparse

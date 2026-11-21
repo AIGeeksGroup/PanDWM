@@ -18,7 +18,7 @@ lidar_to_cam[c] = inv(E_cam S_cam) @ E_info @ L2E. Dynamic 3D boxes are given in
 the pkl (mmdet3d v0.x: x, y, z, w, l, h, -yaw - pi/2), for the static / all depth split. "input" carries the same
 camera entries for the input frame itself and its lidar2ego.
 
-    python -m dwm_pano.recon.targets --manifest tests213_manifest.json --data-pkl <val pkl>
+    python -m dwm_pano.recon.targets --manifest eval/manifests/tests213_manifest.json --data-pkl <val pkl>
         --meta-dir <v1.0-trainval> --nusc-root <raw nuScenes root> --out targets.json
 """
 

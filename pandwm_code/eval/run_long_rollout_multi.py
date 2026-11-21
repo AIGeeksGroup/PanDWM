@@ -2,7 +2,7 @@
 Every scene restarts from the RNG state a fresh single-scene run has at that point (pipeline generator, global CPU
 and CUDA RNG, snapshotted after construction), so the output for a scene does not depend on the other scenes.
   python lowmem_launch.py run_long_rollout_multi.py --base-config C --checkpoint K --output-root R --tag T \
-      --scene-list dev76_long10.json --indices 0 1 2 --seed 42 --windows 10
+      --scene-list manifests/dev76_long10.json --indices 0 1 2 --seed 42 --windows 10
 Output R/<T>_scene<dev76_index>_seed<seed>.  A finished video is skipped;
 an interrupted one with resume_state.pt is resumed; a directory without either is moved aside (.incomplete_<time>).
 --debug-windows N stops every scene after N windows without writing the final video.
@@ -22,7 +22,7 @@ from dwm_pano.eval import evaluate_4step
 from dwm_pano.geometry.pano_stitch import stitch_pano_halves
 from dwm_pano.history_noise import make_history_for_window
 
-from run_history_probe import _encode_rgb, _psnr_by_frame, _window_batch
+from clip_io import _encode_rgb, _psnr_by_frame, _window_batch
 
 
 def latent_channel_stats(latents):

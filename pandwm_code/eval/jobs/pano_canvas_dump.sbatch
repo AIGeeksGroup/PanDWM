@@ -22,7 +22,7 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandabl
 export TORCH_HOME=$DR/.cache/torch OMP_NUM_THREADS=8 TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1
 cd "$C" || exit 1
 echo "CANVAS_START $(date -Is) node=$(hostname) arm=$ARM out=$OUT"
-"$PY" pano_canvas_dump.py --base-config cd_eval_frozen149_hpc3.json --manifest dev149_manifest.json \
+"$PY" pano_canvas_dump.py --base-config manifests/cd_eval_frozen149_hpc3.json --manifest manifests/dev149_manifest.json \
   --dataset-stride 20 --arm-root "$ARM" --out "$OUT" --positions "$POSITIONS" --frames "${FRAMES:-25}" --blend ${BLEND:-128}
 rc=$?
 echo "CANVAS_END rc=$rc $(date -Is)"

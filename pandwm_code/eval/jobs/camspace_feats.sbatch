@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Six-camera band features at 256x448 (cam_band_feats.py) of Val-150 arms, one dataset pass for all ARMS.
-#   ARMS="rec448=views:$B/rec448_val150 recband=recband unimlvg_P_s42=views:$B/unimlvg_P_s42" sbatch camspace_feats.sbatch
-#   ARMS="P_s42=latents:<root>+<root2> ..." REFS="P_s42=$FV/P_s42.npz" sbatch camspace_feats.sbatch
+#   ARMS="rec448=views:$B/rec448_val150 recband=recband unimlvg_P_s42=views:$B/unimlvg_P_s42" sbatch jobs/camspace_feats.sbatch
+#   ARMS="P_s42=latents:<root>+<root2> ..." REFS="P_s42=$FV/P_s42.npz" sbatch jobs/camspace_feats.sbatch
 # Output: $FD/feats_<name>.npz per geometry ({geometry} in FD; existing files are kept).
 # TOPROWS=52 masks native rows 0..51 for every arm (MagicDrive-V2 padding); use a separate FD then.
 #SBATCH --job-name=pandwm_camfeat
@@ -29,7 +29,7 @@ args=()
 for a in $ARMS; do args+=(--arm "$a"); done
 for r in ${REFS:-}; do args+=(--source-ref "$r"); done
 echo "CAMFEAT_START $(date -Is) $(hostname) fd=$FD ${args[*]}"
-"$PY" cam_band_feats.py --base-config cd_eval_frozen149_hpc3.json --out-dir "$FD" "${args[@]}" \
+"$PY" cam_band_feats.py --base-config manifests/cd_eval_frozen149_hpc3.json --out-dir "$FD" "${args[@]}" \
   ${POSITIONS:+--positions $POSITIONS} ${GEOMETRY:+--geometry $GEOMETRY} ${TOPROWS:+--mask-top-native-rows $TOPROWS}
 rc=$?
 echo "CAMFEAT_END rc=$rc $(date -Is)"

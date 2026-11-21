@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Runs clip_feats.py on clip runs (and on the recorded frames of the manifest), then optionally
 # tests_analyze.py.  Features are written once per run directory: $FD/feats_<name>.npz; existing files are kept.
-#   ROOTS="v84i4250_s42=$OUT/v84i4250_s42 ..." sbatch scripts/tests_feats.sbatch               (also computes real features)
+#   ROOTS="v84i4250_s42=$OUT/v84i4250_s42 ..." sbatch jobs/tests_feats.sbatch               (also computes real features)
 #   ROOTS=... ANALYZE="--arm ours=FD/feats_a.npz,FD/feats_b.npz --pair ours:b0" NAME=main sbatch ...
-#   MANIFEST=dev149_manifest.json STRIDE=20 FD=<dir> ROOTS=... (other manifests)
+#   MANIFEST=manifests/dev149_manifest.json STRIDE=20 FD=<dir> ROOTS=... (other manifests)
 #SBATCH --job-name=pandwm_tfeat
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>
@@ -17,11 +17,11 @@
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/eval
-CFG=$C/cd_eval_frozen149_hpc3.json
+CFG=$C/manifests/cd_eval_frozen149_hpc3.json
 PY=$DR/pandwm_venv/bin/python
 OUT=${OUT:-$DR/pandwm_runs/tests}
 FD=${FD:-$OUT/feats}
-MANIFEST=${MANIFEST:-tests213_manifest.json}; STRIDE=${STRIDE:-5}
+MANIFEST=${MANIFEST:-manifests/tests213_manifest.json}; STRIDE=${STRIDE:-5}
 REALNAME=${REALNAME:-real_$(basename "$MANIFEST" .json)}
 export PYTHONPATH=$DR/pandwm_code/src:$DR/pandwm_code/TATS_fvd
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True

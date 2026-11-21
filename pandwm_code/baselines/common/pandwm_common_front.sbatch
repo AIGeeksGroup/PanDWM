@@ -20,7 +20,7 @@ INDICES=${INDICES:-}
 VIS_DIR=${VIS_DIR:-}
 H=/path/to/pandwm_root
 P=$H/pandwm_code/baselines
-CFG_SRC=$H/pandwm_code/eval/cd_eval_frozen149_hpc3.json
+CFG_SRC=$H/pandwm_code/eval/manifests/cd_eval_frozen149_hpc3.json
 RUN=$H/pandwm_runs/common_front_items${ITEMS}_seed${SEED}
 I3D=$H/pandwm_code/TATS_fvd/i3d_pretrained_400.pt
 

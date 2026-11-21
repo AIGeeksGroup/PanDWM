@@ -70,7 +70,7 @@ def load_val150(base_config, stride=20.0, light=True):
     where = {(a["scene_token"], int(c[0]["timestamp"])): i for i, (c, a) in enumerate(zip(base.clips, base.clip_audit))}
     rows = []
     for m in MANIFESTS:
-        for r in json.load(open(m))["clips"]:
+        for r in json.load(open(f"manifests/{m}"))["clips"]:
             key = (r["scene_token"], int(r["anchor_timestamp_us"]))
             if key not in where:
                 raise RuntimeError(f"{m} clip {r['test_index']} not in the relaxed dataset")
@@ -286,7 +286,7 @@ def canvas_to_cams(canvas, geo):
 
 
 def recorded_canvas(batch, device, blend):
-    """The recorded canvas of clip frames 3..34, as clip_feats.py --real (stitch blend from tests_feats.sbatch)."""
+    """The recorded canvas of clip frames 3..34, as clip_feats.py --real (stitch blend from jobs/tests_feats.sbatch)."""
     return stitch_pano_halves(batch["vae_images"][:, CONTEXT:FRAMES].to(device), blend_width=blend)[0, :, 0].clamp(0, 1)
 
 
@@ -431,7 +431,7 @@ def main():
                     help="NAME=latents:R1[+R2] | NAME=recband | NAME=views:RUN (RUN holds clipNNN/{fake.pt uint8 "
                          "[T, 6, 3, h, w], calib.pt, meta.json}; camera order FL, F, FR, BR, B, BL unless meta.json "
                          "has camera_order)")
-    ap.add_argument("--map", default="val150_scene_map.json", help="six-camera run clip index -> Val-150 test_index")
+    ap.add_argument("--map", default="manifests/val150_scene_map.json", help="six-camera run clip index -> Val-150 test_index")
     ap.add_argument("--blend", type=int, default=128, help="stitch cross-fade of our and the recorded canvas (paper 128)")
     ap.add_argument("--source-ref", action="append", default=[], help="NAME=pano feature npz to check the canvas against")
     ap.add_argument("--positions", default="", help="smoke tests only: a subset of test indices")

@@ -18,7 +18,7 @@ Usage::
     python3 -m dwm_pano.eval.demo_world_model \
         --gs-config gaussian/gs3d/configs/gs_decoder_prod_rd0p01_rl0p01.json \
         --gs-run /path/to/pandwm_root/runs/gs_prod_rd0p01_rl0p01 --gs-step 15000 \
-        --stage2-config eval/cd_eval_frozen149_hpc3.json \
+        --stage2-config eval/manifests/cd_eval_frozen149_hpc3.json \
         --stage2-run /path/to/pandwm_root/runs/cd_baseline --stage2-step 10000 \
         --stage2-ema --clip-index 0 --lateral-shifts-m 0.0 1.0 2.0 \
         --out-dir /path/to/pandwm_root/demos/clip0

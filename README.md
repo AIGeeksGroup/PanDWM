@@ -51,7 +51,7 @@ This release is the code that produced the paper results, as it ran on our SLURM
 | `pandwm_code/video/teacher` | Causal teacher (Stage 1) and consistency distillation: OpenDWM-style configs and training scripts |
 | `pandwm_code/video/student` | Student distillation: training configs, job scripts for training and generation |
 | `pandwm_code/video/ablation` | Ablation configs and job scripts |
-| `pandwm_code/eval` | Evaluation protocol: clip manifests, generation runners, FID/FVD, flicker, controllability and long-video analysis |
+| `pandwm_code/eval` | Evaluation protocol: clip manifests (`manifests/`), evaluation job scripts (`jobs/`), generation runners, FID/FVD, flicker, controllability and long-video analysis |
 | `pandwm_code/gaussian/gs3d` | Configs of the early 3D Gaussian decoder stages and the anti-aliased fine-tune job |
 | `pandwm_code/gaussian/gs4d` | 4D Gaussian decoder training and its configs |
 | `pandwm_code/gaussian/finetune` | Final decoder fine-tuning (G3b), Depth Anything 3 relabelling, generated-scene evaluation and multi-view consistency jobs |
@@ -74,10 +74,10 @@ PanDWM uses the [nuScenes](https://www.nuscenes.org/) dataset (train 700 scenes,
 
 | Set | Clips | Manifest |
 |---|---|---|
-| Val-150 | First 3.5 s of the 150 validation scenes | `dev149_manifest.json` + `scene0018_manifest.json` |
-| Dev-78 | First 3.5 s of 78 validation scenes | `dev78_manifest.json` |
-| Test-S | 249 clips (83 scenes, 5 / 10 / 15 s) | `tests249_manifest.json` |
-| Test-L | 83 scenes, 3 + 12 × 16 frames | `testl83_long12.json` |
+| Val-150 | First 3.5 s of the 150 validation scenes | `manifests/dev149_manifest.json` + `manifests/scene0018_manifest.json` |
+| Dev-78 | First 3.5 s of 78 validation scenes | `manifests/dev78_manifest.json` |
+| Test-S | 249 clips (83 scenes, 5 / 10 / 15 s) | `manifests/tests249_manifest.json` |
+| Test-L | 83 scenes, 3 + 12 × 16 frames | `manifests/testl83_long12.json` |
 
 ## ⚙️ Environment Setup
 
@@ -129,7 +129,7 @@ The student is trained for 4250 iterations in four stages, each resuming from th
 |---|---|---|---|
 | 0–1150 | `pipeline_v7.py` (DMD, spatial heads) | `configs/cfdmd_D_gan_v7_hpc3_8gpu.json` | `scripts/train_v7.sbatch` |
 | 1150–1600 | `pipeline_v8_1.py` (temporal heads) | `configs/cfdmd_F_gan_v8_1_hpc3_8gpu.json` | `scripts/train_v8_1.sbatch` |
-| 1600–4000 | `pipeline_v8_3.py` (motion term) | `configs/cfdmd_H_gan_v8_3_hpc3_8gpu.json`, then `cfdmd_Hx_…` and `cfdmd_Hx2_…` (extensions to 3000 and 4000) | `scripts/train_v8_3.sbatch`, `train_ext.sbatch`, `train_ext2.sbatch` |
+| 1600–4000 | `pipeline_v8_3.py` (motion term) | `configs/cfdmd_H_gan_v8_3_hpc3_8gpu.json`, then `cfdmd_Hx_…` and `cfdmd_Hx2_…` (extensions to 3000 and 4000) | `scripts/train_v8_3.sbatch`, `train_ext.sbatch` (`EXT=1`, then `EXT=2`) |
 | 4000–4250 | `pipeline_v8_4.py` (sharpness term, 179-frame clips, 2–10 self-generated windows) | `configs/cfdmd_I_gan_v8_4_hpc3_8gpu.json` | `scripts/train_v8_4.sbatch` |
 
 The training entry is `scripts/train_resumable_v7.py` (8 GPUs, `torch.distributed.run`). The released weights are the EMA weights at iteration 4250.

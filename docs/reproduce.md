@@ -5,7 +5,7 @@ All commands are SLURM job scripts as we ran them. Every script starts with a he
 Conventions:
 
 - `ROOT=/path/to/pandwm_root` (see [Paths](../README.md#paths)); the Python packages are read from `$ROOT/pandwm_code/src`, job scripts from the other folders of `$ROOT/pandwm_code`, and outputs go to `$ROOT/pandwm_runs/...`.
-- `CF=$ROOT/pandwm_code/video/student`, `EV=$ROOT/pandwm_code/eval`.
+- `CF=$ROOT/pandwm_code/video/student`, `EV=$ROOT/pandwm_code/eval`. Clip lists and the frozen evaluation config are in `$EV/manifests`; the evaluation job scripts are in `$EV/jobs` and are submitted from `$EV` (`cd $EV; sbatch jobs/<name>.sbatch`), the generation and training jobs from `$CF`.
 - Video checkpoint: `pandwm_video_v84i4250_ema.pth`; Gaussian decoder: `pandwm_gs_decoder_G3b_2000.pth`; refiner: `pandwm_render_refiner_v1_4000.pth`.
 
 ## 1. Video generation
@@ -15,12 +15,12 @@ Fixed settings of the paper model: EMA weights at iteration 4250, stochastic fou
 | Set | Command (run from `$CF`) |
 |---|---|
 | Test-S, first 213 clips | `TAG=v84i4250 CKPT=<video ckpt> SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch` |
-| Test-S, 36 extension clips | same with `MANIFEST=$EV/tests_ext36_manifest.json` |
-| Val-150 (Dev-149 part) | same with `MANIFEST=$EV/dev149_manifest.json STRIDE=20`, seeds 42, 1000 and 2026 |
-| Val-150 (scene-0018) | same with `MANIFEST=$EV/scene0018_manifest.json`, run through `relaxed_sync.py` (see its docstring) |
-| Dev-78 | `MANIFEST=$EV/dev78_manifest.json STRIDE=20` |
+| Test-S, 36 extension clips | same with `MANIFEST=$EV/manifests/tests_ext36_manifest.json` |
+| Val-150 (Dev-149 part) | same with `MANIFEST=$EV/manifests/dev149_manifest.json STRIDE=20`, seeds 42, 1000 and 2026 |
+| Val-150 (scene-0018) | same with `MANIFEST=$EV/manifests/scene0018_manifest.json`, run through `relaxed_sync.py` (see its docstring) |
+| Dev-78 | `MANIFEST=$EV/manifests/dev78_manifest.json STRIDE=20` |
 | Test-L, 71 scenes | `TAG=v84i4250 CKPT=<video ckpt> SEED=42 sbatch --array=0-7%4 scripts/long_video_testl.sbatch` |
-| Test-L, 12 extension scenes | `LIST=$EV/testl_ext12_long12.json ... sbatch scripts/long_video_testl.sbatch` |
+| Test-L, 12 extension scenes | `LIST=$EV/manifests/testl_ext12_long12.json ... sbatch scripts/long_video_testl.sbatch` |
 | 50-step causal teacher (reference rows) | `ENGINE=teacher TAG=teacher50 CKPT=<teacher ckpt> CHUNK=4` with the same scripts |
 | Setting G (no recorded history) | `TAG=v84i4250G HISTORY=none` |
 
@@ -30,11 +30,11 @@ Each clip directory holds `latents.pt`, `gt_vs_generated.mp4` and `summary.json`
 
 | Result | Scripts |
 |---|---|
-| FID, FVD-1, FVD-2 (panoramic band) | Features: `scripts/tests_feats.sbatch` (`clip_feats.py`); metrics: `$EV/tests_analyze.py`. Val-150 merge and analysis: `scripts/val150_analyze.sbatch`. The frozen 149-clip protocol is `$EV/compute_eval149_metrics.py` with `$EV/cd_eval_frozen149_hpc3.json`. |
-| Six-camera metrics (supplementary) | `scripts/camspace_feats.sbatch`, `scripts/camspace_analyze.sbatch` |
-| Flicker and sharpness ratios | `$EV/flicker_diag.py` (`flicker_diag_subset.py` for subsets) |
-| Controllability | `scripts/ctrl_pred.sbatch` (`$EV/ctrl_predict.py`, `ctrl_gt.py`), then `$EV/ctrl_analyze.py` |
-| Long-video per-window metrics (Test-L) | `scripts/testl_analyze.sbatch` (`LIST=` for the 12 extension scenes; `long_feats.py`, `long_analyze2.py`) |
+| FID, FVD-1, FVD-2 (panoramic band) | Features: `$EV/jobs/tests_feats.sbatch` (`clip_feats.py`); metrics: `$EV/tests_analyze.py`. Val-150 merge and analysis: `$EV/jobs/val150_analyze.sbatch`. The frozen 149-clip protocol is `$EV/compute_eval149_metrics.py` with `$EV/manifests/cd_eval_frozen149_hpc3.json`. |
+| Six-camera metrics (supplementary) | `$EV/jobs/camspace_feats.sbatch`, `$EV/jobs/camspace_analyze.sbatch` |
+| Flicker and sharpness ratios | `$EV/flicker_diag.py` (`--clips <json>` for a subset of the 149 clips) |
+| Controllability | `$EV/jobs/ctrl_pred.sbatch` (`$EV/ctrl_predict.py`, `ctrl_gt.py`), then `$EV/ctrl_analyze.py` |
+| Long-video per-window metrics (Test-L) | `$EV/jobs/testl_analyze.sbatch` (`LIST=` for the 12 extension scenes; `long_feats.py`, `long_analyze.py`) |
 | Ablations (Dev-78, 500 iterations each) | `pandwm_code/video/ablation`: configs from `scripts/make_ablation_configs.py`, training `scripts/train_abl.sbatch`, evaluation `scripts/abl_analyze.sbatch`, table `scripts/abl_table.py` |
 | Speed | `pandwm_code/src/dwm_pano/eval/benchmark_speed.py` |
 
@@ -69,7 +69,7 @@ The DiST-4D and DiST-4D + ReconDrive rows were computed with their official code
 
 | Model | Entry |
 |---|---|
-| Video student, 4 stages, 4250 iterations | `$CF/scripts/train_v7.sbatch` → `train_v8_1.sbatch` → `train_v8_3.sbatch` / `train_ext.sbatch` / `train_ext2.sbatch` → `train_v8_4.sbatch` (see the README) |
+| Video student, 4 stages, 4250 iterations | `$CF/scripts/train_v7.sbatch` → `train_v8_1.sbatch` → `train_v8_3.sbatch` / `train_ext.sbatch` (`EXT=1`, then `EXT=2`) → `train_v8_4.sbatch` (see the README) |
 | Gaussian decoder, final stage G3b | `gaussian/finetune/scripts/train_ft3_hpc2.sbatch` with `ARM=G3b`, config `configs/gs4dd_hpc2_ft3_G3b.json`, 2000 steps from the previous stage |
 | Earlier decoder stages | 3D: `gaussian/gs3d/configs/`; 4D: `gaussian/gs4d/configs/` (`make_c2_config.py` and the other `make_*_config.py` scripts) |
 | Render refiner | `gaussian/refiner/scripts/train_d2.sbatch`, config `gaussian/refiner/configs/d2_pilot_hpc3_8gpu.json`, 4000 steps |

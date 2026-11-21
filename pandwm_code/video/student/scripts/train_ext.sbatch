@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Extends a finished run from step 2000 to MAX_STEPS (default 3000).  The extension config equals the original
-# one except pipeline.target_steps.  Resumes in place from the latest committed checkpoint with the same data
-# offset, like train_v8_3.sbatch.  Before training past 2000 it hard-links the step-2000 state into
-# seeds/<ARM>_2000 (scripts/seed_branch.py), which no run prunes, so checkpoint rotation cannot remove it.
-#   sbatch --job-name=pandwm_cfdmd_Hx --export=ALL,ARM=H --dependency=afterok:<previous job> scripts/train_ext.sbatch
+# Extends a finished run from step FROM to MAX_STEPS.  The extension config equals the original one except
+# pipeline.target_steps.  Resumes in place from the latest committed checkpoint with the same data offset, like
+# train_v8_3.sbatch.  Before training past FROM it hard-links the step-FROM state into seeds/<ARM>_<FROM>
+# (scripts/seed_branch.py), which no run prunes, so checkpoint rotation cannot remove it.
+#   EXT=1 (default): first extension, FROM=2000, MAX_STEPS default 3000, config cfdmd_Hx_..., markers PLAN_<ARM>X_*
+#     sbatch --job-name=pandwm_cfdmd_Hx --export=ALL,ARM=H --dependency=afterok:<previous job> scripts/train_ext.sbatch
+#   EXT=2: second extension (ARM=H), FROM=3000, MAX_STEPS default 4000, config cfdmd_Hx2_..., markers PLAN_HX2_*;
+#     it requires the first extension to have finished.
+#     sbatch --job-name=pandwm_cfdmd_Hx2 --export=ALL,EXT=2 --dependency=afterok:<jobid> scripts/train_ext.sbatch
 #SBATCH --job-name=pandwm_cfdmd_ext
 #SBATCH --partition=<partition>
 #SBATCH --account=<account>
@@ -16,13 +20,17 @@
 #SBATCH --signal=B:USR1@300
 #SBATCH --output=%x_%j.log
 set -euo pipefail
-ARM=${ARM:-H}
-MAX_STEPS=${MAX_STEPS:-3000}
+EXT=${EXT:-1}
+case "$EXT" in
+    1) ARM=${ARM:-H}; FROM=2000; MAX_STEPS=${MAX_STEPS:-3000}; XCFG=Hx; XMARK=X ;;
+    2) ARM=H; FROM=3000; MAX_STEPS=${MAX_STEPS:-4000}; XCFG=Hx2; XMARK=X2 ;;
+    *) echo "UNKNOWN_EXT $EXT"; exit 1 ;;
+esac
 source /path/to/pandwm_root/pandwm_venv/bin/activate
 CF=/path/to/pandwm_root/pandwm_code/video/student
 R=/path/to/pandwm_root/pandwm_runs
 case "$ARM" in
-    H) export CAMPAIGN_DIR=$R/cfdmd_H; CONFIG=$CF/configs/cfdmd_Hx_gan_v8_3_hpc3_8gpu.json ;;
+    H) export CAMPAIGN_DIR=$R/cfdmd_H; CONFIG=$CF/configs/cfdmd_${XCFG}_gan_v8_3_hpc3_8gpu.json ;;
     *) echo "UNKNOWN_ARM $ARM"; exit 1 ;;
 esac
 export PAUSE_FILE=$CAMPAIGN_DIR/PAUSE_REQUESTED
@@ -49,12 +57,12 @@ if [[ "$STEP" == none ]]; then
     echo "BRANCH_NOT_SEEDED: no committed checkpoint in $OUT"
     exit 1
 fi
-if (( STEP < 2000 )); then echo "EXT_NOT_READY: $ARM is at step $STEP, the run to 2000 has not finished"; exit 1; fi
+if (( STEP < FROM )); then echo "EXT_NOT_READY: $ARM is at step $STEP, the run to $FROM has not finished"; exit 1; fi
 if (( STEP >= MAX_STEPS )); then echo "ARM_ALREADY_COMPLETE gan step=$STEP"; exit 0; fi
-if (( STEP == 2000 )) && [[ ! -e "$R/seeds/${ARM}_2000" ]]; then
-    python3 "$CF/scripts/seed_branch.py" "$OUT" "$R/seeds/${ARM}_2000/gan" 2000
+if (( STEP == FROM )) && [[ ! -e "$R/seeds/${ARM}_$FROM" ]]; then
+    python3 "$CF/scripts/seed_branch.py" "$OUT" "$R/seeds/${ARM}_$FROM/gan" $FROM
 fi
-echo "PLAN_${ARM}X_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS"
+echo "PLAN_${ARM}${XMARK}_START $(date -Is) node=$(hostname) job=$SLURM_JOB_ID resume=$STEP max=$MAX_STEPS"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 cp "$CONFIG" "$OUT/log/config_used_job_${SLURM_JOB_ID}.json"
 echo "ARM_START gan resume=$STEP config=$(basename "$CONFIG") $(date -Is)"
@@ -73,5 +81,5 @@ if [[ -e "$PAUSE_FILE" ]]; then
     echo "CAMPAIGN_PAUSED gan checkpoint safely requested; rc=$RESULT $(date -Is)"
     exit 0
 fi
-if (( RESULT == 0 )); then echo "ARM_COMPLETE gan $(date -Is)"; echo "PLAN_${ARM}X_COMPLETE $(date -Is)"; exit 0; fi
+if (( RESULT == 0 )); then echo "ARM_COMPLETE gan $(date -Is)"; echo "PLAN_${ARM}${XMARK}_COMPLETE $(date -Is)"; exit 0; fi
 echo "ARM_FAILED gan rc=$RESULT"; exit "$RESULT"

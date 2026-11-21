@@ -18,7 +18,7 @@ from pathlib import Path
 DR = "/path/to/pandwm_root"
 BASE = Path(__file__).resolve().parents[2] / "PanDWM-teacher-v3/configs/teacher_v3_control.json"
 RENDER_ROOT = f"{DR}/pandwm_runs/d2_refiner/train_pairs"
-MANIFEST = f"{DR}/pandwm_code/eval/split_195_scene_manifest.json"
+MANIFEST = f"{DR}/pandwm_code/eval/manifests/split_195_scene_manifest.json"
 TEACHER = f"{DR}/pandwm_data/stage1_causal_20000.pth"
 
 

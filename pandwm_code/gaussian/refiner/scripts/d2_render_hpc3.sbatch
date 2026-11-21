@@ -20,7 +20,7 @@ export PANDWM_PANO_BLEND_W=128                  # the frozen protocol's stitch (
 D2R=$DR/pandwm_runs/d2_refiner
 CK=${CKPT:-$RUNS/c2_hpc2/checkpoints/3000.pth}
 TRAIN_PKL=$DR/pandwm_recovered_metadata/nuscenes_interp_12Hz_infos_train_with_bid_caption.pkl
-MANIFEST=$DR/pandwm_code/eval/split_195_scene_manifest.json
+MANIFEST=$DR/pandwm_code/eval/manifests/split_195_scene_manifest.json
 DA3ARGS="--da3-src $DA3_SRC --da3-anyview $DA3_ANYVIEW --da3-metric $DA3_METRIC"
 TASK=${SLURM_ARRAY_TASK_ID:-0}
 MODE=${MODE:?MODE=pairs|count}

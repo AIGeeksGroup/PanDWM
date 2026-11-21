@@ -10,7 +10,10 @@ Reports ratios over GT (pooled means), per-clip distributions of the within-wind
 static, < 0.85, or flickery, > 1.2), the ratio by GT motion tertile, the boundary step's low/high-frequency and
 brightness make-up, and, for the two arms given in --pair, the per-clip link between sharpness loss and change
 reduction.
-  python3 flicker_diag.py <root> <out.json> --pair <before> <after> <arm> [<arm> ...]
+With --clips <json> (a JSON list of clip indices, or a dict with the key "non_test_clip_indices") the analysis is
+restricted to the listed clips: per-clip statistics, pooled ratios, motion tertiles (computed on the listed clips' GT)
+and the --pair numbers use those clips only, and the output also holds clip_list and clip_indices.
+  python3 flicker_diag.py <root> <out.json> [--clips <json>] --pair <before> <after> <arm> [<arm> ...]
 """
 import json
 import sys
@@ -25,6 +28,17 @@ if "--pair" in args:
     i = args.index("--pair")
     pair = (args[i + 1], args[i + 2])
     args = args[:i] + args[i + 3:]
+clips_path = None
+indices = list(range(149))
+if "--clips" in args:
+    i = args.index("--clips")
+    clips_path = args[i + 1]
+    args = args[:i] + args[i + 2:]
+    clip_key = "non_test_clip_indices"
+    payload = json.load(open(clips_path))
+    indices = sorted(int(x) for x in (payload[clip_key] if isinstance(payload, dict) else payload))
+    if len(set(indices)) != len(indices) or not indices or indices[0] < 0 or indices[-1] > 148:
+        raise SystemExit(f"bad clip list: {len(indices)} entries")
 arms = args[2:]
 PARTS = ("full", "lf", "hf", "bright")
 
@@ -71,12 +85,15 @@ def clip_stats(path):
             for side in ("g", "r")}
 
 
-per = {a: [clip_stats(f"{root}/{a}/clip{i:03d}/gt_vs_generated.mp4") for i in range(149)] for a in arms}
+per = {a: [clip_stats(f"{root}/{a}/clip{i:03d}/gt_vs_generated.mp4") for i in indices] for a in arms}
 gt = per[arms[0]]
 arr = lambda a, side, key, part=None: np.array([(c[side][key][part] if part else c[side][key]) for c in per[a]])
 gt_win = arr(arms[0], "r", "win", "full")
 tert = np.quantile(gt_win, [1 / 3, 2 / 3])
-out = {"root": root, "arms": arms, "gt_from": arms[0], "clips": 149, "summary": {}, "per_clip": {}}
+out = {"root": root, "arms": arms, "gt_from": arms[0], "clips": len(indices)}
+if clips_path:
+    out.update({"clip_list": clips_path, "clip_indices": indices})
+out.update({"summary": {}, "per_clip": {}})
 print(f"{'arm':9s} | within-window change/GT: full   low   high  bright | boundary/GT: full   low   high  bright | "
       f"sharp/GT  sat/GT | per-clip change ratio p10 p50 p90, <0.85, >1.2 | by GT motion low/mid/high")
 for a in arms:
@@ -114,7 +131,7 @@ if pair:
                    "mean_d_change_lf": float(d_lf.mean()), "mean_d_change_hf": float(d_hf.mean()),
                    "clips_sharper": int((d_sharp > 0).sum()), "clips_calmer": int((d_change < 0).sum())}
     print(f"pair {b} -> {a}: within-window change lf {d_lf.mean():+.3f} hf {d_hf.mean():+.3f} grey levels; "
-          f"sharpness lower on {(d_sharp < 0).sum()}/149 clips; corr(d sharpness, d change) = {corr:+.2f}")
+          f"sharpness lower on {(d_sharp < 0).sum()}/{len(indices)} clips; corr(d sharpness, d change) = {corr:+.2f}")
 print(f"GT: within-window change {out['gt']['win_full']:.2f}, boundary {out['gt']['bnd_full']:.2f}, sharp "
       f"{out['gt']['sharp']:.0f}, sat {out['gt']['sat']:.1f}, motion tertiles {tert[0]:.2f} / {tert[1]:.2f}")
 json.dump(out, open(out_path, "w"))

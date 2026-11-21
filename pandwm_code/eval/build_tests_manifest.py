@@ -9,8 +9,8 @@ so the anchor walks 0, 5, 10, 15 s and each clip is re-based at its own first fr
 is not part of Test-S.
 
   python3 build_tests_manifest.py --base-config <frozen eval config.json> \
-      --scenes review149_test71_long12.json --split dev149_nontest_split.json \
-      --output tests213_manifest.json
+      --scenes manifests/review149_test71_long12.json --split manifests/dev149_nontest_split.json \
+      --output manifests/tests213_manifest.json
 """
 import argparse
 import hashlib

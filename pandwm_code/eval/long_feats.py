@@ -1,7 +1,7 @@
 """Per-frame Inception and per-window pano-patch I3D features of long-rollout videos.
 
 Extracts and saves the features needed to compute FID / FVD per time bucket and to bootstrap over scenes
-(see long_analyze2.py):
+(see long_analyze.py):
   - inc_*: torchmetrics FrechetInceptionDistance(normalize=True) features (2048) of every stitched-pano frame;
   - i3d_*: PanoPatchFrechetVideoDistance features (6 Voronoi camera patches x 400 I3D logits) of every 16-frame window,
     with the same cut, resize and I3D weights as the 149-clip FVD.

@@ -2,7 +2,7 @@
 # FID / FVD-1 / FVD-2 of the six-camera band protocol (cam_band_analyze.py = tests_analyze.py with FID over
 # 6 cameras x frames), real = the recorded 256x448 views with the same mask (feats_rec448.npz).
 #   ARMS="ours=P_s42.npz,P_s1000.npz,P_s2026.npz;unimlvg_P=unimlvg_P_s42.npz;recband=recband.npz" \
-#   PAIRS="ours:unimlvg_P,ours:recband" TAG=P sbatch camspace_analyze.sbatch
+#   PAIRS="ours:unimlvg_P,ours:recband" TAG=P sbatch jobs/camspace_analyze.sbatch
 # ARMS files are relative to $FD (feats_<file>); output $FD/analysis_<TAG>.json.
 #SBATCH --job-name=pandwm_caman
 #SBATCH --partition=<partition>

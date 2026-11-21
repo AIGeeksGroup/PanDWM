@@ -6,7 +6,7 @@ stitch_views.stitch_six (OneBEV hard seam) and passed through clip_feats.feature
 other arm's Val-150 features: per-frame Inception (torchmetrics FID path) and pano-patch I3D on the two 16-frame
 windows. The output npz has clip_feats.py's fields, with test_index = Val-150 position, so tests_analyze.py can pair
 it with the recorded Val-150 features.
-  python3 baseline_feats.py --runs RUN --map val150_scene_map.json --out feats_val150/<name>.npz
+  python3 baseline_feats.py --runs RUN --map manifests/val150_scene_map.json --out feats_val150/<name>.npz
 """
 import argparse
 import json

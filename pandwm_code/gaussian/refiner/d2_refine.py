@@ -59,7 +59,7 @@ def main():
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--no-strict", action="store_true", help="smoke only: load a base (teacher) checkpoint")
     p.add_argument("--eval-config", required=True, help="evaluation config (validation dataset and dataloader of the frozen 149-clip protocol)")
-    p.add_argument("--manifest", required=True, help="dev149_manifest.json")
+    p.add_argument("--manifest", required=True, help="eval/manifests/dev149_manifest.json")
     p.add_argument("--inputs", required=True, type=Path)
     p.add_argument("--out-root", required=True, type=Path)
     p.add_argument("--clips", required=True)

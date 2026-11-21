@@ -19,7 +19,7 @@ Two substitutions, both applied before the target script builds the pipeline:
 Evaluations launched this way are compared only with each other (same GPU,
 same path), not with numbers produced through real FSDP.
 
-  python lowmem_launch.py run_eval149_videos.py <its arguments...>
+  python lowmem_launch.py run_clips_videos.py <its arguments...>
 """
 
 import runpy

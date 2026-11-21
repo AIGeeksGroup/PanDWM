@@ -135,7 +135,7 @@ def main():
     ap.add_argument("--base-config", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--arm", action="append", required=True, help="NAME=latents:R1[+R2] | NAME=recband | NAME=views:RUN")
-    ap.add_argument("--map", default="val150_scene_map.json")
+    ap.add_argument("--map", default="manifests/val150_scene_map.json")
     ap.add_argument("--blend", type=int, default=128)
     ap.add_argument("--source-ref", action="append", default=[], help="NAME=pano feature npz (checked every --check-every clips)")
     ap.add_argument("--check-every", type=int, default=10)

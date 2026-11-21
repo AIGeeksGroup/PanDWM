@@ -16,7 +16,7 @@ from pathlib import Path
 
 import dwm.common
 
-C = Path(__file__).resolve().parent
+C = Path(__file__).resolve().parent / "manifests"
 STRIDE_S = 5.0
 OFFSETS_S = (5.0, 10.0, 15.0)
 CLIP = 35

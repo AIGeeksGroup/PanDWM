@@ -1,16 +1,17 @@
 """Long-video quality over time from long_feats.py features.
 
-All arms are compared on the same videos and windows (the (scene, seed, window) cells that every listed arm has). The
-real frames of every cell come from one reference arm (--real-from, default the first arm), as in long_fid.py.
-  1. FID (Inception features) of generated vs real frames per time bucket, and KID x 1000 per window.
-  2. FVD (6 camera patches x I3D logits) per bucket of 16-frame windows.
-  3. Seed-vs-seed reference (arms with two seeds per scene): FID / FVD between the two seeds' videos of the same
-     scenes, next to each seed vs the real frames at the same n.
-  4. Uncertainty over scenes: delete-one-scene jackknife SE of each arm's FID per bucket, of its late minus early
-     change and of its difference to the first arm; paired-bootstrap P(difference < 0).
-  5. Realism vs an unpaired real pool (--pool NAME reads feats_pool_NAME.npz): FID / FVD of each seed's videos vs the
-     pool, next to the recorded frames of the same scenes and windows vs the pool.
-  python3 long_analyze.py <feat_dir> <out.json> --arms A B ... [--real-from A] [--seeds 42] [--boot 300] [--pool P]
+Raw features are kept in float32 and moments are computed on demand on the GPU (Frechet distance through symmetric
+eigensolvers). All arms are compared on the same (scene, seed, window) cells; real frames come from --real-from
+(default: first arm).
+  1. FID / FVD generated vs recorded per window bucket (equal n across arms); KID x 1000 per window.
+  2. Seed-vs-seed reference (two seeds per scene): gen-gen vs gen-real at the same n, excess = gen-real - gen-gen.
+  3. Uncertainty: delete-one-group jackknife over scenes (groups of --jack-group scenes) giving point +- 1.96 SE for
+     each arm, its late - early rise, and its difference to the first arm; paired bootstrap P(difference < 0).
+  4. Realism vs an unpaired real pool, either --pool NAME (feats_pool_NAME.npz; drop pool clips that show the evaluated
+     scenes with --pool-exclude-clips) or --pool-split: the scenes are split in two halves and each half's generated
+     and recorded frames are compared with the other half's recorded frames of all windows; the two directions are
+     averaged. excess = generated - recorded vs the same pool.
+  python3 long_analyze.py <feat_dir> <out.json> --arms A B ... [--buckets NAME=LO-HI ...] [--pool-split]
 """
 import argparse
 import json
@@ -19,55 +20,34 @@ import numpy as np
 import torch
 
 DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BUCKETS = [("w1-3", 1, 3), ("w4-6", 4, 6), ("w7-9", 7, 9), ("w10-12", 10, 12), ("early w1-6", 1, 6),
-           ("late w7-12", 7, 12)]
+DEFAULT_BUCKETS = ["w1-3=1-3", "w4-6=4-6", "w7-9=7-9", "w10-12=10-12", "early w1-6=1-6", "late w7-12=7-12"]
 
 
 def load(feat_dir, tag):
     z = np.load(f"{feat_dir}/feats_{tag}.npz")
-    first, last = int(z["first_window"]), int(z["windows"])
     vids = [(int(a), int(b)) for a, b in zip(z["scenes"], z["seeds"])]
-    return {"tag": tag, "first": first, "last": last, "vids": vids, "index": {v: i for i, v in enumerate(vids)},
-            "inc_gen": z["inc_gen"], "inc_real": z["inc_real"], "i3d_gen": z["i3d_gen"], "i3d_real": z["i3d_real"]}
+    return {"tag": tag, "first": int(z["first_window"]), "last": int(z["windows"]), "vids": vids,
+            "index": {v: i for i, v in enumerate(vids)}, "inc_gen": z["inc_gen"], "inc_real": z["inc_real"],
+            "i3d_gen": z["i3d_gen"], "i3d_real": z["i3d_real"]}
 
 
-def cell(arm, kind, vid, w):
-    """Features of window w (1-indexed) of video vid: inc (16, 2048) or i3d (6, 400)."""
-    i, k = arm["index"][vid], w - arm["first"]
-    if kind == "inc_gen" or kind == "inc_real":
-        return arm[kind][i, 16 * k:16 * k + 16]
-    return arm[kind][i, k]
+def cells(arm, kind, vid, windows):
+    """Features of the listed windows (1-indexed) of one video, stacked: inc (16 * n, 2048) or i3d (6 * n, 400)."""
+    i = arm["index"][vid]
+    if kind.startswith("inc"):
+        return np.concatenate([arm[kind][i, 16 * (w - arm["first"]):16 * (w - arm["first"]) + 16] for w in windows])
+    return np.concatenate([arm[kind][i, w - arm["first"]] for w in windows])
 
 
-class Stats:
-    """Sufficient statistics (n, sum, sum of outer products) in float64 on DEV."""
-
-    def __init__(self, d):
-        self.n, self.s, self.ss = 0, torch.zeros(d, dtype=torch.float64, device=DEV), \
-            torch.zeros(d, d, dtype=torch.float64, device=DEV)
-
-    def add(self, x, weight=1):
-        x = torch.as_tensor(np.asarray(x, np.float64), device=DEV).reshape(-1, self.s.shape[0])
-        self.n += weight * x.shape[0]
-        self.s += weight * x.sum(0)
-        self.ss += weight * (x.T @ x)
-        return self
-
-    def plus(self, other, weight=1):
-        out = Stats(self.s.shape[0])
-        out.n, out.s, out.ss = self.n + weight * other.n, self.s + weight * other.s, self.ss + weight * other.ss
-        return out
-
-    def moments(self):
-        mu = self.s / self.n
-        cov = (self.ss - self.n * torch.outer(mu, mu)) / (self.n - 1)
-        return mu, cov
+def moments(x):
+    x = torch.as_tensor(np.ascontiguousarray(x), device=DEV, dtype=torch.float64)
+    mu = x.mean(0)
+    xc = x - mu
+    return mu, xc.T @ xc / (x.shape[0] - 1)
 
 
 def frechet(a, b):
-    """torchmetrics' Frechet distance; trace sqrt(S1 S2) through symmetric eigensolvers (same value, stabler)."""
-    mu1, s1 = a.moments()
-    mu2, s2 = b.moments()
+    (mu1, s1), (mu2, s2) = a, b
     ev, vec = torch.linalg.eigh(s1)
     root = (vec * ev.clamp_min(0).sqrt()) @ vec.T
     m = root @ s2 @ root
@@ -75,16 +55,9 @@ def frechet(a, b):
     return float((mu1 - mu2).square().sum() + s1.trace() + s2.trace() - 2 * tr)
 
 
-def frechet_eigvals(a, b):
-    mu1, s1 = a.moments()
-    mu2, s2 = b.moments()
-    return float((mu1 - mu2).square().sum() + s1.trace() + s2.trace()
-                 - 2 * torch.linalg.eigvals(s1 @ s2).sqrt().real.sum())
-
-
 def kid(x, y):
-    x = torch.as_tensor(np.asarray(x, np.float64), device=DEV).reshape(-1, 2048)
-    y = torch.as_tensor(np.asarray(y, np.float64), device=DEV).reshape(-1, 2048)
+    x = torch.as_tensor(np.ascontiguousarray(x), device=DEV, dtype=torch.float64)
+    y = torch.as_tensor(np.ascontiguousarray(y), device=DEV, dtype=torch.float64)
     d = x.shape[1]
     kxx, kyy, kxy = (x @ x.T / d + 1) ** 3, (y @ y.T / d + 1) ** 3, (x @ y.T / d + 1) ** 3
     n, m = x.shape[0], y.shape[0]
@@ -98,254 +71,194 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--arms", nargs="+", required=True)
     ap.add_argument("--real-from", default=None)
-    ap.add_argument("--seeds", type=int, nargs="*", default=None, help="restrict to these seeds")
-    ap.add_argument("--scenes", type=int, nargs="*", default=None, help="restrict to these scenes")
+    ap.add_argument("--seeds", type=int, nargs="*", default=None)
+    ap.add_argument("--scenes", type=int, nargs="*", default=None)
+    ap.add_argument("--buckets", nargs="*", default=None, help="NAME=LO-HI; names starting with early / late get "
+                                                               "intervals and the late - early rise")
     ap.add_argument("--boot", type=int, default=300)
+    ap.add_argument("--jack-group", type=int, default=1, help="scenes per jackknife group")
     ap.add_argument("--pool", default=None)
-    ap.add_argument("--buckets", nargs="*", default=None,
-                    help="NAME=LO-HI window buckets (default w1-3 ... late w7-12); names starting with early / late / "
-                         "all get intervals")
+    ap.add_argument("--pool-exclude-clips", type=int, nargs="*", default=None)
+    ap.add_argument("--pool-split", action="store_true")
+    ap.add_argument("--no-kid", action="store_true")
     a = ap.parse_args()
     arms = {t: load(a.feat_dir, t) for t in a.arms}
-    ref = arms[a.real_from] if a.real_from in arms else load(a.feat_dir, a.real_from) if a.real_from else \
-        arms[a.arms[0]]
+    ref = arms[a.real_from] if a.real_from in arms else (load(a.feat_dir, a.real_from) if a.real_from else
+                                                          arms[a.arms[0]])
     vids = set.intersection(*[set(arm["vids"]) for arm in arms.values()])
     if a.seeds:
         vids = {v for v in vids if v[1] in a.seeds}
     if a.scenes:
         vids = {v for v in vids if v[0] in a.scenes}
+    vids = sorted(vids)
     first = max(arm["first"] for arm in arms.values())
     last = min(arm["last"] for arm in arms.values())
-    vids = sorted(vids)
-    ref_vids = set(ref["vids"])
-    real_vid = {}
-    for v in vids:   # the real frames of a video: the reference arm's copy of the same (scene, seed), else any seed
-        real_vid[v] = v if v in ref_vids else next(r for r in ref["vids"] if r[0] == v[0])
+    real_vid = {v: (v if v in ref["index"] else next(r for r in ref["vids"] if r[0] == v[0])) for v in vids}
     scenes = sorted({v[0] for v in vids})
     seeds = sorted({v[1] for v in vids})
     windows = list(range(first, last + 1))
-    spec = BUCKETS if not a.buckets else [(b.split("=")[0], int(b.split("=")[1].split("-")[0]),
-                                           int(b.split("=")[1].split("-")[1])) for b in a.buckets]
-    buckets = [(name, lo, hi) for name, lo, hi in spec if lo >= first and hi <= last]
+    spec = [(b.split("=")[0], int(b.split("=")[1].split("-")[0]), int(b.split("=")[1].split("-")[1]))
+            for b in (a.buckets or DEFAULT_BUCKETS)]
+    buckets = [(n, lo, hi) for n, lo, hi in spec if lo >= first and hi <= last]
     if first > 1 or last < 12:
         buckets.append((f"all w{first}-{last}", first, last))
     print(f"{len(vids)} videos ({len(scenes)} scenes x seeds {seeds}), windows {first}-{last}, arms {a.arms}, "
           f"real frames from {ref['tag']}", flush=True)
-    out = {"arms": a.arms, "real_from": ref["tag"], "videos": vids, "windows": [first, last], "fid": {}, "kid": {},
-           "fvd": {}, "seed_split": {}, "bootstrap": {}}
+    out = {"arms": a.arms, "real_from": ref["tag"], "videos": vids, "windows": [first, last],
+           "buckets": [list(b) for b in buckets], "fid": {}, "fvd": {}, "kid": {}, "seed_split": {}, "uncertainty": {},
+           "pool": {}}
 
-    # per (scene, window) statistics, so buckets and bootstrap resamples are sums of them
-    inc = {t: {} for t in a.arms}
-    vd = {t: {} for t in a.arms}
-    inc_real, vd_real = {}, {}
-    for sc in scenes:
-        for w in windows:
-            r = Stats(2048)
-            rv = Stats(400)
-            for v in vids:
-                if v[0] == sc:
-                    r.add(cell(ref, "inc_real", real_vid[v], w))
-                    rv.add(cell(ref, "i3d_real", real_vid[v], w))
-            inc_real[sc, w], vd_real[sc, w] = r, rv
-            for t, arm in arms.items():
-                g, gv = Stats(2048), Stats(400)
-                for v in vids:
-                    if v[0] == sc:
-                        g.add(cell(arm, "inc_gen", v, w))
-                        gv.add(cell(arm, "i3d_gen", v, w))
-                inc[t][sc, w], vd[t][sc, w] = g, gv
+    def gen(t, kind, vs, ws):
+        return np.concatenate([cells(arms[t], kind, v, ws) for v in vs])
 
-    def total(table, lo, hi, weights=None):
-        acc = None
-        for sc in scenes:
-            wt = 1 if weights is None else weights.get(sc, 0)
-            if wt == 0:
-                continue
-            for w in range(lo, hi + 1):
-                acc = table[sc, w] if acc is None and wt == 1 else (Stats(table[sc, w].s.shape[0]).plus(
-                    table[sc, w], wt) if acc is None else acc.plus(table[sc, w], wt))
-        return acc
+    def rec(kind, vs, ws):
+        return np.concatenate([cells(ref, kind, real_vid[v], ws) for v in vs])
 
-    check = (frechet(total(inc[a.arms[0]], *buckets[-1][1:]), total(inc_real, *buckets[-1][1:])),
-             frechet_eigvals(total(inc[a.arms[0]], *buckets[-1][1:]), total(inc_real, *buckets[-1][1:])))
-    print(f"frechet check (eigh vs eigvals) {check[0]:.4f} {check[1]:.4f}", flush=True)
+    def wr(lo, hi):
+        return list(range(lo, hi + 1))
 
-    print("\n== 1. FID generated vs real per bucket (equal n across arms)")
-    print("  arm            " + " ".join(f"{b[0]:>11s}" for b in buckets))
+    print("\n== 1. FID / FVD generated vs recorded per bucket (equal n across arms)")
+    print("  FID  arm           " + " ".join(f"{b[0]:>11s}" for b in buckets))
+    rec_m = {b[0]: (moments(rec("inc_real", vids, wr(b[1], b[2]))), moments(rec("i3d_real", vids, wr(b[1], b[2]))))
+             for b in buckets}
     for t in a.arms:
-        out["fid"][t] = {name: frechet(total(inc[t], lo, hi), total(inc_real, lo, hi)) for name, lo, hi in buckets}
-        print(f"  {t:14s} " + " ".join(f"{out['fid'][t][b[0]]:11.2f}" for b in buckets), flush=True)
-    rr = {}
-    if first <= 6 and last >= 7:
-        rr["real early vs real late"] = frechet(total(inc_real, max(first, 1), 6), total(inc_real, 7, min(last, 12)))
-        print(f"  real early vs real late (content shift of the recorded video): {rr['real early vs real late']:.2f}")
-    out["fid_real_vs_real"] = rr
-
-    print("\n== KID x 1000 per window, generated vs real (unbiased)")
-    print("  arm            " + " ".join(f"{w:6d}" for w in windows))
-    for t, arm in arms.items():
-        out["kid"][t] = []
-        for w in windows:
-            g = np.concatenate([cell(arm, "inc_gen", v, w) for v in vids])
-            r = np.concatenate([cell(ref, "inc_real", real_vid[v], w) for v in vids])
-            out["kid"][t].append(kid(g, r))
-        print(f"  {t:14s} " + " ".join(f"{x:6.2f}" for x in out["kid"][t]), flush=True)
-
-    print("\n== 2. FVD (I3D, 6 camera patches) generated vs real per bucket of 16-frame windows")
-    print("  arm            " + " ".join(f"{b[0]:>11s}" for b in buckets))
+        out["fid"][t], out["fvd"][t] = {}, {}
+        for name, lo, hi in buckets:
+            out["fid"][t][name] = frechet(moments(gen(t, "inc_gen", vids, wr(lo, hi))), rec_m[name][0])
+            out["fvd"][t][name] = frechet(moments(gen(t, "i3d_gen", vids, wr(lo, hi))), rec_m[name][1])
+        print(f"  FID  {t:13s} " + " ".join(f"{out['fid'][t][b[0]]:11.2f}" for b in buckets), flush=True)
     for t in a.arms:
-        out["fvd"][t] = {name: frechet(total(vd[t], lo, hi), total(vd_real, lo, hi)) for name, lo, hi in buckets}
-        print(f"  {t:14s} " + " ".join(f"{out['fvd'][t][b[0]]:11.2f}" for b in buckets), flush=True)
-    print(f"  samples per bucket: {len(vids)} videos x windows x 6 patches (e.g. {len(vids) * 6 * 6} for 6 windows)")
+        print(f"  FVD  {t:13s} " + " ".join(f"{out['fvd'][t][b[0]]:11.2f}" for b in buckets), flush=True)
 
-    if len(seeds) == 2 and all(any(v == (sc, sd) for v in vids) for sc in scenes for sd in seeds):
+    if not a.no_kid:
+        print("\n== KID x 1000 per window, generated vs recorded")
+        print("  arm            " + " ".join(f"{w:6d}" for w in windows))
+        for t in a.arms:
+            out["kid"][t] = [kid(gen(t, "inc_gen", vids, [w]), rec("inc_real", vids, [w])) for w in windows]
+            print(f"  {t:14s} " + " ".join(f"{x:6.2f}" for x in out["kid"][t]), flush=True)
+
+    if len(seeds) == 2 and all((sc, sd) in set(vids) for sc in scenes for sd in seeds):
         sa, sb = seeds
-        print(f"\n== 3. Seed-vs-seed reference (seed {sa} vs {sb}, {len(scenes)} scenes; same n on both sides)")
-        print("  arm            bucket        FID gen-gen  FID gen-real  excess | FVD gen-gen  FVD gen-real  excess")
-        for t, arm in arms.items():
+        print(f"\n== 2. Seed-vs-seed reference (seed {sa} vs {sb}, {len(scenes)} scenes)")
+        print("  arm            bucket        FID gen-gen  gen-rec  excess | FVD gen-gen  gen-rec  excess")
+        for t in a.arms:
             res = {}
             for name, lo, hi in buckets:
-                g = {}
-                gv = {}
-                for sd in seeds:
-                    s, sv = Stats(2048), Stats(400)
-                    for sc in scenes:
-                        for w in range(lo, hi + 1):
-                            s.add(cell(arm, "inc_gen", (sc, sd), w))
-                            sv.add(cell(arm, "i3d_gen", (sc, sd), w))
-                    g[sd], gv[sd] = s, sv
-                r, rv = Stats(2048), Stats(400)
-                for sc in scenes:
-                    for w in range(lo, hi + 1):
-                        r.add(cell(ref, "inc_real", real_vid[(sc, sa)], w))
-                        rv.add(cell(ref, "i3d_real", real_vid[(sc, sa)], w))
-                gg, gr = frechet(g[sa], g[sb]), 0.5 * (frechet(g[sa], r) + frechet(g[sb], r))
-                vg, vr = frechet(gv[sa], gv[sb]), 0.5 * (frechet(gv[sa], rv) + frechet(gv[sb], rv))
-                res[name] = {"fid_gen_gen": gg, "fid_gen_real": gr, "fid_excess": gr - gg,
-                             "fvd_gen_gen": vg, "fvd_gen_real": vr, "fvd_excess": vr - vg}
-                print(f"  {t:14s} {name:12s} {gg:11.2f} {gr:13.2f} {gr - gg:7.2f} | {vg:11.2f} {vr:13.2f} "
-                      f"{vr - vg:7.2f}", flush=True)
+                va, vb = [(sc, sa) for sc in scenes], [(sc, sb) for sc in scenes]
+                r_i, r_v = moments(rec("inc_real", va, wr(lo, hi))), moments(rec("i3d_real", va, wr(lo, hi)))
+                ga, gb = moments(gen(t, "inc_gen", va, wr(lo, hi))), moments(gen(t, "inc_gen", vb, wr(lo, hi)))
+                va_, vb_ = moments(gen(t, "i3d_gen", va, wr(lo, hi))), moments(gen(t, "i3d_gen", vb, wr(lo, hi)))
+                gg, gr = frechet(ga, gb), 0.5 * (frechet(ga, r_i) + frechet(gb, r_i))
+                vg, vr = frechet(va_, vb_), 0.5 * (frechet(va_, r_v) + frechet(vb_, r_v))
+                res[name] = {"fid_gen_gen": gg, "fid_gen_rec": gr, "fid_excess": gr - gg, "fvd_gen_gen": vg,
+                             "fvd_gen_rec": vr, "fvd_excess": vr - vg}
+                print(f"  {t:14s} {name:12s} {gg:11.2f} {gr:8.2f} {gr - gg:7.2f} | {vg:11.2f} {vr:8.2f} {vr - vg:7.2f}",
+                      flush=True)
             out["seed_split"][t] = res
 
-    if a.boot > 0 and len(scenes) >= 4:
-        # intervals are delete-one-scene jackknife SEs; the bootstrap is only used for P(difference < 0) of paired arms
-        main_b = [b for b in buckets if b[0].startswith(("early", "late", "all"))]
+    main_b = [b for b in buckets if b[0].startswith(("early", "late", "all"))]
+    if a.boot >= 0 and len(scenes) >= 4 and main_b:
+        groups = [scenes[i:i + a.jack_group] for i in range(0, len(scenes), a.jack_group)]
         names = [b[0] for b in main_b]
-        # per-scene bucket sums once, so a resample is a weighted sum over scenes only
-        per_scene = {}
-        for name, lo, hi in main_b:
-            per_scene[name, "real"] = {sc: total(inc_real, lo, hi, {sc: 1}) for sc in scenes}
-            for t in a.arms:
-                per_scene[name, t] = {sc: total(inc[t], lo, hi, {sc: 1}) for sc in scenes}
 
-        def wsum(table, wts):
-            acc = None
-            for sc, wt in wts.items():
-                if wt:
-                    acc = Stats(table[sc].s.shape[0]).plus(table[sc], wt) if acc is None else acc.plus(table[sc], wt)
-            return acc
+        def add_stats(table, vs):
+            for name, lo, hi in main_b:
+                r = moments(rec("inc_real", vs, wr(lo, hi)))
+                for t in a.arms:
+                    table[t][name].append(frechet(moments(gen(t, "inc_gen", vs, wr(lo, hi))), r))
 
         jack = {t: {n: [] for n in names} for t in a.arms}
-        for drop in scenes:
-            wts = {sc: (0 if sc == drop else 1) for sc in scenes}
-            for name, lo, hi in main_b:
-                real = wsum(per_scene[name, "real"], wts)
-                for t in a.arms:
-                    jack[t][name].append(frechet(wsum(per_scene[name, t], wts), real))
-        rng = np.random.default_rng(0)
+        for g in groups:
+            add_stats(jack, [v for v in vids if v[0] not in g])
         draws = {t: {n: [] for n in names} for t in a.arms}
-        for _ in range(a.boot):
+        rng = np.random.default_rng(0)
+        for _ in range(max(a.boot, 0)):
             pick = rng.choice(len(scenes), len(scenes), replace=True)
-            wts = {}
-            for p_ in pick:
-                wts[scenes[p_]] = wts.get(scenes[p_], 0) + 1
-            for name, lo, hi in main_b:
-                real = wsum(per_scene[name, "real"], wts)
-                for t in a.arms:
-                    draws[t][name].append(frechet(wsum(per_scene[name, t], wts), real))
-        print(f"\n== 4. Uncertainty over scenes ({len(scenes)} scenes): FID +- 1.96 jackknife SE; "
-              f"P(<0) from {a.boot} paired bootstrap resamples")
+            add_stats(draws, [v for p in pick for v in vids if v[0] == scenes[p]])
 
         def se(values):
             v = np.asarray(values, np.float64)
             return float(np.sqrt((len(v) - 1) / len(v) * np.square(v - v.mean()).sum()))
 
+        print(f"\n== 3. Uncertainty: FID +- 1.96 jackknife SE ({len(groups)} groups of <= {a.jack_group} scenes); "
+              f"P(<0) from {a.boot} paired bootstrap resamples")
         base = a.arms[0]
+        early_n = next((n for n in names if n.startswith("early")), None)
+        late_n = next((n for n in names if n.startswith("late")), None)
         for t in a.arms:
             res = {}
-            for name in names:
-                p0 = out["fid"][t][name]
-                e = se(jack[t][name])
-                res[name] = {"point": p0, "se_jack": e, "ci": [p0 - 1.96 * e, p0 + 1.96 * e]}
+            for n in names:
+                p0, e = out["fid"][t][n], se(jack[t][n])
+                res[n] = {"point": p0, "se_jack": e, "ci": [p0 - 1.96 * e, p0 + 1.96 * e]}
                 if t != base:
-                    pd = p0 - out["fid"][base][name]
-                    e = se(np.asarray(jack[t][name]) - np.asarray(jack[base][name]))
-                    diff = np.asarray(draws[t][name]) - np.asarray(draws[base][name])
-                    res[name]["minus_" + base] = {"point": pd, "se_jack": e, "ci": [pd - 1.96 * e, pd + 1.96 * e],
-                                                  "p_below_0_boot": float((diff < 0).mean())}
-            early_n = next((n for n in names if n.startswith("early")), None)
-            late_n = next((n for n in names if n.startswith("late")), None)
+                    pd = p0 - out["fid"][base][n]
+                    e = se(np.asarray(jack[t][n]) - np.asarray(jack[base][n]))
+                    diff = np.asarray(draws[t][n]) - np.asarray(draws[base][n])
+                    res[n]["minus_" + base] = {"point": pd, "se_jack": e, "ci": [pd - 1.96 * e, pd + 1.96 * e],
+                                               "p_below_0_boot": float((diff < 0).mean()) if a.boot else None}
             if early_n and late_n:
                 pr = out["fid"][t][late_n] - out["fid"][t][early_n]
                 e = se(np.asarray(jack[t][late_n]) - np.asarray(jack[t][early_n]))
                 res["late_minus_early"] = {"point": pr, "se_jack": e, "ci": [pr - 1.96 * e, pr + 1.96 * e]}
-            out["bootstrap"][t] = res
-            line = "  ".join(f"{n} {res[n]['point']:.2f} [{res[n]['ci'][0]:.2f}, {res[n]['ci'][1]:.2f}]"
-                             for n in names)
-            print(f"  {t:14s} {line}")
+            out["uncertainty"][t] = res
+            print(f"  {t:14s} " + "  ".join(f"{n} {res[n]['point']:.2f} [{res[n]['ci'][0]:.2f}, {res[n]['ci'][1]:.2f}]"
+                                           for n in names))
             if "late_minus_early" in res:
                 r = res["late_minus_early"]
                 print(f"  {'':14s} late - early {r['point']:+.2f} [{r['ci'][0]:+.2f}, {r['ci'][1]:+.2f}]")
             if t != base:
                 for n in names:
                     d = res[n]["minus_" + base]
-                    print(f"  {'':14s} {n} minus {base}: {d['point']:+.2f} [{d['ci'][0]:+.2f}, {d['ci'][1]:+.2f}] "
-                          f"P(<0) {d['p_below_0_boot']:.2f}", flush=True)
-    if a.pool:
-        z = np.load(f"{a.feat_dir}/feats_pool_{a.pool}.npz")
-        p_inc, p_vd = Stats(2048).add(z["inc_real"]), Stats(400).add(z["i3d_real"])
-        print(f"\n== 5. Realism vs the unpaired real pool '{a.pool}' ({z['inc_real'].shape[0]} clips, "
-              f"{z['inc_real'].shape[0] * 32} frames); per seed, same n as the recorded frames")
-        print("  arm            bucket        FID gen-pool  FID rec-pool  excess | FVD gen-pool  FVD rec-pool  excess")
-        out["pool"] = {"name": a.pool, "arms": {}}
-        for t, arm in arms.items():
-            res = {}
-            for name, lo, hi in buckets:
-                fg, vg = [], []
-                for sd in seeds:
-                    g, gv = Stats(2048), Stats(400)
-                    for sc in scenes:
-                        for w in range(lo, hi + 1):
-                            g.add(cell(arm, "inc_gen", (sc, sd), w))
-                            gv.add(cell(arm, "i3d_gen", (sc, sd), w))
-                    fg.append(frechet(g, p_inc))
-                    vg.append(frechet(gv, p_vd))
-                r, rv = Stats(2048), Stats(400)
-                for sc in scenes:
-                    for w in range(lo, hi + 1):
-                        r.add(cell(ref, "inc_real", real_vid[(sc, seeds[0])], w))
-                        rv.add(cell(ref, "i3d_real", real_vid[(sc, seeds[0])], w))
-                fr, vr = frechet(r, p_inc), frechet(rv, p_vd)
-                res[name] = {"fid_gen_pool": float(np.mean(fg)), "fid_rec_pool": fr, "fid_excess": float(np.mean(fg)) - fr,
-                             "fvd_gen_pool": float(np.mean(vg)), "fvd_rec_pool": vr, "fvd_excess": float(np.mean(vg)) - vr}
-                print(f"  {t:14s} {name:12s} {np.mean(fg):12.2f} {fr:13.2f} {np.mean(fg) - fr:7.2f} | "
-                      f"{np.mean(vg):12.2f} {vr:13.2f} {np.mean(vg) - vr:7.2f}", flush=True)
-            out["pool"]["arms"][t] = res
-        print("  KID x 1000 per window vs the pool (generated, all videos; then the recorded frames)")
-        pool_x = z["inc_real"].reshape(-1, 2048)
-        out["pool"]["kid"] = {}
-        for t, arm in list(arms.items()) + [("recorded", None)]:
-            row = []
-            for w in windows:
-                if arm is None:
-                    g = np.concatenate([cell(ref, "inc_real", real_vid[(sc, seeds[0])], w) for sc in scenes])
+                    pb = "" if d["p_below_0_boot"] is None else f" P(<0) {d['p_below_0_boot']:.2f}"
+                    print(f"  {'':14s} {n} minus {base}: {d['point']:+.2f} [{d['ci'][0]:+.2f}, {d['ci'][1]:+.2f}]{pb}",
+                          flush=True)
+
+    if a.pool or a.pool_split:
+        if a.pool_split:
+            halves = [scenes[0::2], scenes[1::2]]
+            plan = [(halves[0], halves[1]), (halves[1], halves[0])]
+            label = f"split halves of {len(scenes)} scenes (each half vs the other half's recorded frames, all windows)"
+        else:
+            z = np.load(f"{a.feat_dir}/feats_pool_{a.pool}.npz")
+            keep = [i for i, c in enumerate(z["clips"]) if not a.pool_exclude_clips or int(c) not in
+                    set(a.pool_exclude_clips)]
+            pool_inc, pool_vd = z["inc_real"][keep].reshape(-1, 2048), z["i3d_real"][keep].reshape(-1, 400)
+            plan = [(scenes, None)]
+            label = f"pool '{a.pool}' ({len(keep)} clips, {pool_inc.shape[0]} frames)"
+        print(f"\n== 4. Realism vs an unpaired real reference: {label}; per seed, same n as the recorded frames")
+        print("  arm            bucket        FID gen  FID rec  excess | FVD gen  FVD rec  excess")
+        res_all = {t: {} for t in a.arms}
+        for name, lo, hi in buckets:
+            acc = {t: {"fg": [], "fr": [], "vg": [], "vr": []} for t in a.arms}
+            for evals, other in plan:
+                if other is None:
+                    p_i, p_v = moments(pool_inc), moments(pool_vd)
                 else:
-                    g = np.concatenate([cell(arm, "inc_gen", v, w) for v in vids])
-                row.append(kid(g, pool_x))
-            out["pool"]["kid"][t] = row
-            print(f"  {t:14s} " + " ".join(f"{x:6.2f}" for x in row), flush=True)
+                    pv = [v for v in vids if v[0] in other and v[1] == seeds[0]]
+                    p_i, p_v = moments(rec("inc_real", pv, windows)), moments(rec("i3d_real", pv, windows))
+                rv = [v for v in vids if v[0] in evals and v[1] == seeds[0]]
+                fr = frechet(moments(rec("inc_real", rv, wr(lo, hi))), p_i)
+                vr = frechet(moments(rec("i3d_real", rv, wr(lo, hi))), p_v)
+                for t in a.arms:
+                    for sd in seeds:
+                        gv = [v for v in vids if v[0] in evals and v[1] == sd]
+                        acc[t]["fg"].append(frechet(moments(gen(t, "inc_gen", gv, wr(lo, hi))), p_i))
+                        acc[t]["vg"].append(frechet(moments(gen(t, "i3d_gen", gv, wr(lo, hi))), p_v))
+                    acc[t]["fr"].append(fr)
+                    acc[t]["vr"].append(vr)
+            for t in a.arms:
+                fg, frr = float(np.mean(acc[t]["fg"])), float(np.mean(acc[t]["fr"]))
+                vg, vrr = float(np.mean(acc[t]["vg"])), float(np.mean(acc[t]["vr"]))
+                res_all[t][name] = {"fid_gen": fg, "fid_rec": frr, "fid_excess": fg - frr, "fvd_gen": vg,
+                                    "fvd_rec": vrr, "fvd_excess": vg - vrr}
+        for t in a.arms:
+            for name, _, _ in buckets:
+                r = res_all[t][name]
+                print(f"  {t:14s} {name:12s} {r['fid_gen']:8.2f} {r['fid_rec']:8.2f} {r['fid_excess']:7.2f} | "
+                      f"{r['fvd_gen']:8.2f} {r['fvd_rec']:8.2f} {r['fvd_excess']:7.2f}", flush=True)
+        out["pool"] = {"label": label, "arms": res_all}
     json.dump(out, open(a.out, "w"), indent=1)
-    print("LONG_ANALYZE_DONE")
+    print("LONG_ANALYZE2_DONE")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Render a manifest of 35-frame clips (3 frames of history + 2 closed-loop 16-frame windows) with one model load.
 
-Same code path as run_eval149_videos.py, extended as follows:
+With manifests/dev149_manifest.json and --dataset-stride 20 this is the frozen 149-clip validation protocol (Dev-149,
+one window per val scene; run it through tests_gen.sbatch).  Features:
   * clips come from a manifest: the frozen eval dataset with fps_stride_tuples [[10, --dataset-stride]],
     clip = manifest["clips"][i]["dataset_index"], checked against its scene token and anchor timestamp; the sampler
     generator is reseeded per clip from seed * 1000 + test_index;
@@ -25,7 +26,7 @@ import dwm.common
 import dwm.utils.preview
 from dwm_pano.eval import evaluate_4step
 from dwm_pano.geometry.pano_stitch import stitch_pano_halves
-from run_history_probe import _encode_rgb, _psnr_by_frame, _window_batch
+from clip_io import _encode_rgb, _psnr_by_frame, _window_batch
 
 WINDOWS = 2
 CLIP = 3 + 16 * WINDOWS

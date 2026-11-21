@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Detection and segmentation predictions for the controllability evaluation (ctrl_predict.py).
 #   ARMS="rec448=views:$B/rec448_val150 recband=recband" [REFS="recband=$FV/real.npz"] [MODELS=frcnn,m2f_cs]
-#   [UNMASKED=rec448u] [GT=1: also build the GT (ctrl_gt.py, CPU) in the background] sbatch scripts/ctrl_pred.sbatch
+#   [UNMASKED=rec448u] [GT=1: also build the GT (ctrl_gt.py, CPU) in the background] sbatch jobs/ctrl_pred.sbatch
 # Outputs: $OUT/pred/<arm>__<det>+<seg>/clipNNN.npz, $OUT/gt/<timing>/clipNNN.npz (resumable).
 #SBATCH --job-name=pandwm_ctrl
 #SBATCH --partition=<partition>
@@ -27,13 +27,13 @@ echo "CTRL_JOB_START $(date -Is) $(hostname) arms=$ARMS models=${MODELS:-frcnn,m
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 GTPID=
 if [[ ${GT:-0} == 1 ]]; then
-  "$PY" ctrl_gt.py --base-config cd_eval_frozen149_hpc3.json --out-dir $OUT/gt > $OUT/logs/gt_${SLURM_JOB_ID}.log 2>&1 &
+  "$PY" ctrl_gt.py --base-config manifests/cd_eval_frozen149_hpc3.json --out-dir $OUT/gt > $OUT/logs/gt_${SLURM_JOB_ID}.log 2>&1 &
   GTPID=$!
 fi
 args=(); for x in $ARMS; do args+=(--arm "$x"); done
 for r in ${REFS:-}; do args+=(--source-ref "$r"); done
 for u in ${UNMASKED:-}; do args+=(--unmasked "$u"); done
-"$PY" ctrl_predict.py --base-config cd_eval_frozen149_hpc3.json --out-dir $OUT/pred --models ${MODELS:-frcnn,m2f_cs} \
+"$PY" ctrl_predict.py --base-config manifests/cd_eval_frozen149_hpc3.json --out-dir $OUT/pred --models ${MODELS:-frcnn,m2f_cs} \
   "${args[@]}" ${POSITIONS:+--positions $POSITIONS}
 rc=$?
 if [[ -n $GTPID ]]; then wait $GTPID; echo "GT rc=$? ($(tail -1 $OUT/logs/gt_${SLURM_JOB_ID}.log))"; fi

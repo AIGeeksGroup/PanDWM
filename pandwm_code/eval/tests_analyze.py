@@ -20,7 +20,44 @@ import json
 import numpy as np
 import torch
 
-from long_analyze import DEV, Stats, frechet
+
+DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+class Stats:
+    """Sufficient statistics (n, sum, sum of outer products) in float64 on DEV."""
+
+    def __init__(self, d):
+        self.n, self.s, self.ss = 0, torch.zeros(d, dtype=torch.float64, device=DEV), \
+            torch.zeros(d, d, dtype=torch.float64, device=DEV)
+
+    def add(self, x, weight=1):
+        x = torch.as_tensor(np.asarray(x, np.float64), device=DEV).reshape(-1, self.s.shape[0])
+        self.n += weight * x.shape[0]
+        self.s += weight * x.sum(0)
+        self.ss += weight * (x.T @ x)
+        return self
+
+    def plus(self, other, weight=1):
+        out = Stats(self.s.shape[0])
+        out.n, out.s, out.ss = self.n + weight * other.n, self.s + weight * other.s, self.ss + weight * other.ss
+        return out
+
+    def moments(self):
+        mu = self.s / self.n
+        cov = (self.ss - self.n * torch.outer(mu, mu)) / (self.n - 1)
+        return mu, cov
+
+
+def frechet(a, b):
+    """torchmetrics' Frechet distance; trace sqrt(S1 S2) through symmetric eigensolvers (same value, stabler)."""
+    mu1, s1 = a.moments()
+    mu2, s2 = b.moments()
+    ev, vec = torch.linalg.eigh(s1)
+    root = (vec * ev.clamp_min(0).sqrt()) @ vec.T
+    m = root @ s2 @ root
+    tr = torch.linalg.eigvalsh((m + m.T) / 2).clamp_min(0).sqrt().sum()
+    return float((mu1 - mu2).square().sum() + s1.trace() + s2.trace() - 2 * tr)
 
 METRICS = ("FID", "FID-1", "FID-2", "FVD-1", "FVD-2")
 BOOT = ("FID", "FVD-1", "FVD-2")

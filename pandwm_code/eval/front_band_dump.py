@@ -2,13 +2,13 @@
 
 Writes a 384x768 uint8 CAM_FRONT view resampled from the panorama with the real calibration
 (NuScenes6BandFrechetVideoDistance.update_from_canvas, quantize_uint8, PANDWM_COMMON_VIS_DIR) for a clip run of
-run_eval149_videos.py / run_clips_videos.py:
+run_clips_videos.py (tests_gen.sbatch):
   real/<anchor>.pt : recorded frames 0..34, hard-seam canvas (blend 0);
   fake/<anchor>.pt : the clip's latents.pt decoded with the configured VAE, stitched with --blend.
 Both are uint8 [35, 3, 384, 768]; frame index = clip frame index (frames 0..2 of fake are the decoded history).
 --cams (several real cameras, giving [T, V, 3, H, W] in that order), --render H,W and --frames (keep only these
 clip frames, in order) are for multi-view figures; the defaults give the single CAM_FRONT dump.
-  python3 front_band_dump.py --base-config cd_eval_frozen149_hpc3.json --manifest dev149_manifest.json \
+  python3 front_band_dump.py --base-config manifests/cd_eval_frozen149_hpc3.json --manifest manifests/dev149_manifest.json \
       --dataset-stride 20 --arm-root <dir with clipNNN/> --out <dir> [--positions 31,64,148] [--blend 128]
 """
 import argparse

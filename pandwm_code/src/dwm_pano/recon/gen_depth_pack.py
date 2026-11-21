@@ -8,7 +8,7 @@ lidar_sync.py) moved into each camera, keeping 0.5 < z <= 80 m inside the image.
 Output <out>/clip<test_index:03d>.npz: frames (F,), c2w (F, 6, 4, 4), K (F, 6, 3, 3), counts (F, 6), and the
 concatenated points uv16 (N, 2) uint16 = round(16 * native pixel coords), z (N,), static (N,) bool.
 
-    python -m dwm_pano.recon.gen_depth_pack --manifest tests213_manifest.json --data-pkl <val pkl>
+    python -m dwm_pano.recon.gen_depth_pack --manifest eval/manifests/tests213_manifest.json --data-pkl <val pkl>
         --meta-dir <v1.0-trainval> --nusc-root <root> --out <dir>
 """
 

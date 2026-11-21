@@ -5,7 +5,7 @@
 #   TAG=v84i4250 CKPT=<..._ema.pth> SEED=42 sbatch --array=0-7%4 scripts/tests_gen.sbatch          (student)
 #   TAG=teacher50 CKPT=<stage1> ENGINE=teacher CHUNK=4 sbatch --array=0-53%4 --time=03:00:00 scripts/tests_gen.sbatch
 #   TAG=stage0_50 CKPT=<stage0> ENGINE=teacher BIDIR=1 ...                                         (bidirectional)
-#   TAG=v84i4250G HISTORY=none MANIFEST=dev78_manifest.json STRIDE=20 ...                  (no history conditioning)
+#   TAG=v84i4250G HISTORY=none MANIFEST=manifests/dev78_manifest.json STRIDE=20 ...                  (no history conditioning)
 # Default settings: stochastic 4-step sampler, steps [1000, 750, 500, 250], blend 128.
 #SBATCH --job-name=pandwm_tgen
 #SBATCH --partition=<partition>
@@ -20,11 +20,11 @@
 set -uo pipefail
 DR=/path/to/pandwm_root
 C=$DR/pandwm_code/eval
-CFG=$C/cd_eval_frozen149_hpc3.json
+CFG=$C/manifests/cd_eval_frozen149_hpc3.json
 PY=$DR/pandwm_venv/bin/python
 OUT=${OUT:-$DR/pandwm_runs/tests}
 T=${TAG:?TAG}; CK=${CKPT:?CKPT}; SEED=${SEED:-42}; CHUNK=${CHUNK:-27}
-MANIFEST=${MANIFEST:-tests213_manifest.json}; STRIDE=${STRIDE:-5}
+MANIFEST=${MANIFEST:-manifests/tests213_manifest.json}; STRIDE=${STRIDE:-5}
 ENGINE=${ENGINE:-student}; HISTORY=${HISTORY:-recorded}; BIDIR=${BIDIR:-0}; TSTEPS=${TEACHER_STEPS:-50}
 BUDGET=${BUDGET:-6600}   # seconds; set it to about (time limit - 10 min) when --time is changed
 export PYTHONPATH=$DR/pandwm_code/src:$DR/pandwm_code/TATS_fvd

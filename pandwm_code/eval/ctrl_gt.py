@@ -12,7 +12,7 @@ the image is scored against the annotations of the info that holds that camera s
     inside the map-expansion drivable_area raster (exterior minus holes, 0.05 m); region = protocol mask & hit within
     50 m & not inside the hull of any annotated box within 60 m. near = region pixels within 20 m.
 Output: <out>/<timing>/clipNNN.npz (NNN = test_index), resumable (existing files are kept).
-  python3 ctrl_gt.py --base-config cd_eval_frozen149_hpc3.json --out-dir GT --timings band,opendwm
+  python3 ctrl_gt.py --base-config manifests/cd_eval_frozen149_hpc3.json --out-dir GT --timings band,opendwm
 """
 import argparse
 import hashlib
@@ -247,7 +247,7 @@ def main():
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--pkl", default="/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl")
     ap.add_argument("--items", default="/path/to/pandwm_root/pandwm_runs/baselines/opendwm_val_items_official.json")
-    ap.add_argument("--map", default="val150_scene_map.json")
+    ap.add_argument("--map", default="manifests/val150_scene_map.json")
     ap.add_argument("--maps-dir", default="/path/to/pandwm_root/pandwm_data/nuscenes_maps_expansion")
     ap.add_argument("--timings", default="band,opendwm")
     ap.add_argument("--positions", default="")
