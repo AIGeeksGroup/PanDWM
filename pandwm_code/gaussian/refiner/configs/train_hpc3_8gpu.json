@@ -20,7 +20,7 @@
     "lr": 1e-05
   },
   "pipeline": {
-    "_class_name": "dwm_pano_d2.pipeline.PanoD2RefinerSD",
+    "_class_name": "dwm_pano.refiner.pipeline.PanoD2RefinerSD",
     "common_config": {
       "frame_prediction_style": "ctsd",
       "cat_condition": true,
@@ -125,7 +125,7 @@
       "temporal_attention_mask": "causal"
     },
     "model": {
-      "_class_name": "dwm_pano_d2.model.D2RenderDiT",
+      "_class_name": "dwm_pano.refiner.model.D2RenderDiT",
       "attention_head_dim": 64,
       "caption_projection_dim": 1536,
       "in_channels": 16,
@@ -200,7 +200,7 @@
     }
   },
   "training_dataset": {
-    "_class_name": "dwm_pano_d2.data.D2RenderDataset",
+    "_class_name": "dwm_pano.refiner.data.D2RenderDataset",
     "base": {
       "_class_name": "dwm.datasets.common.DatasetAdapter",
       "base_dataset": {

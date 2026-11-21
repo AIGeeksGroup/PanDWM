@@ -77,7 +77,7 @@ def main():
     print(f"[recon-masks] {len(rigs)} rigs", flush=True)
     if args.band_only:
         return
-    from dwm_pano_4d.da3_depth import IMAGENET_MEAN, IMAGENET_STD, SKY_THRESHOLD, load_da3_net
+    from dwm_pano.gs4d.da3_depth import IMAGENET_MEAN, IMAGENET_STD, SKY_THRESHOLD, load_da3_net
     device = torch.device("cuda", 0)
     model, name = load_da3_net(args.da3_src, args.da3_metric, device)
     mean = torch.tensor(IMAGENET_MEAN, device=device).view(1, 3, 1, 1)

@@ -1,7 +1,7 @@
 """Build the 4D decoder config trained with Depth Anything 3 (DA3) pseudo-depth.
 
 Starts from the depth-supervised config written by make_formal_config.py and changes:
-  * pipeline class dwm_pano_4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline: the depth labels of every batch come from
+  * pipeline class dwm_pano.gs4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline: the depth labels of every batch come from
     DA3 run on the batch's own frames (ground scale) instead of label files; gs4d_depth.depth_optional = false;
   * warm start from the coverage-run decoder (init/gs4d_cov_3000.pth);
   * training data: the 695-scene set (full train minus the 5 held-out labelled scenes).
@@ -19,11 +19,11 @@ DA3 = f"{DR}/pandwm_code/third_party/depth_anything_3"
 def main():
     c = json.load(open(HERE / "configs/gs4dd_hpc3_F1.json"))
     p = c["pipeline"]
-    assert p["_class_name"] == "dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline"
+    assert p["_class_name"] == "dwm_pano.gs4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline"
     assert p["gs4d_depth"] == {"weight_log_range": 0.1, "weight_log_render": 0.1, "far_cut_m": 99.0,
                                "depth_optional": True}
     assert p["training_config"]["weight_render_depth"] == 0.002 and p["training_config"]["weight_range_l1"] == 0.002
-    p["_class_name"] = "dwm_pano_4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline"
+    p["_class_name"] = "dwm_pano.gs4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline"
     p["gs4d_depth"]["depth_optional"] = False
     p["gs4d_da3"] = {"repo_src": f"{DA3}/repo/src", "anyview_dir": f"{DA3}/weights/DA3-LARGE-1.1",
                      "metric_dir": f"{DA3}/weights/DA3METRIC-LARGE", "scale": "ground", "sky_threshold": 0.3,

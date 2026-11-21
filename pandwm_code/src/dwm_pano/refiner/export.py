@@ -68,7 +68,7 @@ def main():
         raise ValueError("shifts must have distinct, exactly representable %g names")
     fps, stride = (float(x) for x in args.fps_stride.split(","))
     from dwm_pano.recon.render_ours import camera_time_infos
-    from dwm_pano_4d.da3_depth import Da3Ranger
+    from dwm_pano.gs4d.da3_depth import Da3Ranger
     da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
     started = ensure_single_rank_process_group(device)
     try:

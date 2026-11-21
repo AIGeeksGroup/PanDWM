@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Student training with the v8.4 pipeline (deep self-rollouts, src/dwm_pano_cfdmd/pipeline_v8_4.py), seeded on
+# Student training with the v8.4 pipeline (deep self-rollouts, src/dwm_pano/student/pipeline_v8_4.py), seeded on
 # the first run from seeds/H_4000 by hard links (scripts/seed_branch.py).  Copy of train_ext.sbatch (EXT=2) with its
 # own config (clips of 179 frames) and --resume-data-offset set to step % sampler length of the 179-frame
 # dataset (scripts/dataset_len.py) instead of the step.  MAX_STEPS defaults to 4250; to continue, run
@@ -42,7 +42,7 @@ OUT=$CAMPAIGN_DIR/gan
 latest() {
 python3 - "$OUT" <<'PY'
 import sys
-from dwm_pano_cfdmd.checkpoint_io import latest_step
+from dwm_pano.student.checkpoint_io import latest_step
 step = latest_step(sys.argv[1], 8)
 print("none" if step is None else step)
 PY

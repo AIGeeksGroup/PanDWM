@@ -2,9 +2,9 @@
 
 Starts from the teacher v3 control config (Stage-1 causal teacher, 8-GPU FSDP, full fine-tuning, lr 1e-5, the
 train scenes) and changes:
-  pipeline  dwm_pano_d2.pipeline.PanoD2RefinerSD, non-strict load (the only missing keys are render_embed.*),
+  pipeline  dwm_pano.refiner.pipeline.PanoD2RefinerSD, non-strict load (the only missing keys are render_embed.*),
             generation_task_ratio 0.3 (no-history windows), 3D-box / HD-map condition ratio 0.5
-  model     dwm_pano_d2.model.D2RenderDiT, 17 render channels, scale 10
+  model     dwm_pano.refiner.model.D2RenderDiT, 17 render channels, scale 10
   data      D2RenderDataset over the train set in 35-frame clips, one start every 2 s
 
     python3 make_config.py --out configs/train_8gpu.json
@@ -27,7 +27,7 @@ def build(base, gpus, render_root, lr, seed, min_items, render_init_prob=0.0, re
     c["generator_seed"] = int(seed)
     c["optimizer"]["lr"] = float(lr)
     pc = c["pipeline"]
-    pc["_class_name"] = "dwm_pano_d2.pipeline.PanoD2RefinerSD"
+    pc["_class_name"] = "dwm_pano.refiner.pipeline.PanoD2RefinerSD"
     pc.pop("robust_config", None)
     pc["d2_config"] = {"render_dropout": 0.1, "max_start": 16, "forbidden_scene_manifest": MANIFEST,
                        "render_init_prob": float(render_init_prob), "render_init_min_sigma": float(render_init_min_sigma)}
@@ -35,7 +35,7 @@ def build(base, gpus, render_root, lr, seed, min_items, render_init_prob=0.0, re
     pc["model_load_state_args"] = {"strict": False}
     pc["common_config"]["print_load_state_info"] = True
     m = pc["model"]
-    m["_class_name"] = "dwm_pano_d2.model.D2RenderDiT"
+    m["_class_name"] = "dwm_pano.refiner.model.D2RenderDiT"
     m["render_condition_channels"] = 17
     m["render_condition_scale"] = 10.0
     tc = pc["training_config"]
@@ -51,7 +51,7 @@ def build(base, gpus, render_root, lr, seed, min_items, render_init_prob=0.0, re
         raise ValueError("the base training dataset must be the train split")
     bd["sequence_length"] = 35
     bd["fps_stride_tuples"] = [[10, 2.0]]
-    c["training_dataset"] = {"_class_name": "dwm_pano_d2.data.D2RenderDataset", "base": td,
+    c["training_dataset"] = {"_class_name": "dwm_pano.refiner.data.D2RenderDataset", "base": td,
                              "render_root": render_root, "min_items": int(min_items)}
     c["informations"] = {
         "experiment": "render refiner",

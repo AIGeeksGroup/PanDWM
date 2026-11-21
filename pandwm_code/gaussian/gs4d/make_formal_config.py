@@ -1,7 +1,7 @@
 """Build the depth-supervised 4D decoder config from the depth pilot config.
 
 Starts from the pilot config (coverage recipe, metre L1 0.002 / 0.002, log-depth L1 0.1 / 0.1, class
-dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline) and changes:
+dwm_pano.gs4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline) and changes:
   * warm start from the pilot decoder checkpoint (init/gs4dd_D1_1000.pth);
   * gs4d_depth.depth_optional = true: depth terms only on batches whose frames all have a label;
   * training data = ConcatDataset of the full training set minus the 5 held-out labelled scenes (695 scenes) and the
@@ -20,7 +20,7 @@ P2_REPEAT = 4
 def main():
     c = json.load(open(HERE / "configs/gs4dd_hpc3_D1.json"))
     p = c["pipeline"]
-    assert p["_class_name"] == "dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline"
+    assert p["_class_name"] == "dwm_pano.gs4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline"
     assert p["gs4d_depth"] == {"weight_log_range": 0.1, "weight_log_render": 0.1, "far_cut_m": 99.0}
     p["initial_decoder_checkpoint_path"] = f"{RUNS}/init/gs4dd_D1_1000.pth"
     p["gs4d_depth"]["depth_optional"] = True

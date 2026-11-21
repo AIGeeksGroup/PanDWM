@@ -30,7 +30,7 @@ from dwm_pano.gs.evaluate_gs import (
     install_strict_pano_hardseam_stub,
     load_config,
 )
-from dwm_pano_4d.geometry import points_in_boxes, relative_ego_transform, transform_gaussians
+from dwm_pano.gs4d.geometry import points_in_boxes, relative_ego_transform, transform_gaussians
 
 
 def masked_psnr(rendered, target, mask):

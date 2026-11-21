@@ -1,7 +1,7 @@
 """External feed-forward Gaussian models run on our generated panoramas (baselines).
 
 For frame t of a clip, the decoded panorama (SceneBuilder.canvas) is cut into the six pinhole crops of
-dwm_pano_4d.da3_depth.Da3Ranger (each with its own camera's optical centre and orientation), resized to long side
+dwm_pano.gs4d.da3_depth.Da3Ranger (each with its own camera's optical centre and orientation), resized to long side
 `long_side` (multiples of 14, intrinsics scaled), and reconstructed by
   "infinisplat"  InfiniSplat (provided cameras): Gaussian centres on the frozen DA3 depth; the raw per-pixel Gaussians
                  are taken before its voxel merge, restricted to each crop's owned patch (the pixels our panorama
@@ -30,7 +30,7 @@ C0 = 0.28209479177387814
 
 def light_ranger(device, crop_hw=(392, 784)):
     """A Da3Ranger without networks: rig(), crop_images(), owned_masks() only (no depth_anything_3 import)."""
-    from dwm_pano_4d.da3_depth import IMAGENET_MEAN, IMAGENET_STD, Da3Ranger
+    from dwm_pano.gs4d.da3_depth import IMAGENET_MEAN, IMAGENET_STD, Da3Ranger
     r = Da3Ranger.__new__(Da3Ranger)
     r.device, r.crop_h, r.crop_w, r._rigs = device, crop_hw[0], crop_hw[1], {}
     r.mean = torch.tensor(IMAGENET_MEAN, device=device).view(1, 3, 1, 1)
@@ -109,7 +109,7 @@ class ExternalGaussians:
             self.pipeline = Pipeline.from_pretrained(weights, device=str(device))
             self.model = self.pipeline.model
         elif method == "da3gs":
-            from dwm_pano_4d.da3_depth import load_da3_net
+            from dwm_pano.gs4d.da3_depth import load_da3_net
             import json
             self.net, _ = load_da3_net(da3_src, weights, device)
             cfg = json.loads(open(f"{weights}/config.json").read())["config"]
@@ -210,7 +210,7 @@ class ExternalGaussians:
         return raw, poses[0].float()
 
     def _da3gs_raw(self, images, K, c2w):
-        from dwm_pano_4d.da3_depth import as_4x4
+        from dwm_pano.gs4d.da3_depth import as_4x4
         w2c = torch.linalg.inv(c2w.double())
         norm = w2c @ torch.linalg.inv(w2c[:1])                     # DepthAnything3._normalize_extrinsics
         centres = torch.linalg.inv(norm)[:, :3, 3]

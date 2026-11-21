@@ -11,7 +11,7 @@
     "weight_decay": 0.01
   },
   "pipeline": {
-    "_class_name": "dwm_pano_4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline",
+    "_class_name": "dwm_pano.gs4d.pipeline_depth.PanoGaussianDecoder4DDepthPipeline",
     "training_config": {
       "supervision_geometry": "nuscenes6_onebev_stitch",
       "half_height": 256,
@@ -128,7 +128,7 @@
       {
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
-          "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+          "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
           "pkl_path": "/path/to/pandwm_root/pandwm_runs/gs4d_hpc3/data/nuscenes_interp_12Hz_infos_train_minus_holdout5.pkl",
           "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700/rgb",
           "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
@@ -185,7 +185,7 @@
       {
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
-          "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+          "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
           "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl",
           "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700/rgb",
           "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
@@ -242,7 +242,7 @@
       {
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
-          "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+          "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
           "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl",
           "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700/rgb",
           "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
@@ -299,7 +299,7 @@
       {
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
-          "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+          "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
           "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl",
           "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700/rgb",
           "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
@@ -356,7 +356,7 @@
       {
         "_class_name": "dwm.datasets.common.DatasetAdapter",
         "base_dataset": {
-          "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+          "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
           "pkl_path": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/nuscenes_interp_12Hz_infos_train_p2.pkl",
           "rgb_dir": "/path/to/pandwm_root/pandwm_full_train_700/rgb",
           "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",
@@ -415,7 +415,7 @@
   "validation_dataset": {
     "_class_name": "dwm.datasets.common.DatasetAdapter",
     "base_dataset": {
-      "_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+      "_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
       "pkl_path": "/path/to/pandwm_root/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl",
       "rgb_dir": "/path/to/pandwm_root/pandwm_data/rgb",
       "seg_dir": "/path/to/pandwm_root/pandwm_gs_aa_experiment/inputs/no_semantic_masks",

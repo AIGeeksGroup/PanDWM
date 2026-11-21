@@ -22,8 +22,8 @@ from __future__ import annotations
 
 import torch
 
-from dwm_pano_4d.da3_depth import bounded_range, plane_offsets, rescale_gaussians
-from dwm_pano_4d.pipeline_da3 import PanoGaussianDecoder4DDa3Pipeline
+from dwm_pano.gs4d.da3_depth import bounded_range, plane_offsets, rescale_gaussians
+from dwm_pano.gs4d.pipeline_da3 import PanoGaussianDecoder4DDa3Pipeline
 
 DEFAULT_RELABEL = {"bound": 0.0, "min_range_m": 0.5, "far_cut_m": 99.0, "no_offset": False, "loo_perceptual": 0.0,
                    "plane_offset_px": 0.0}

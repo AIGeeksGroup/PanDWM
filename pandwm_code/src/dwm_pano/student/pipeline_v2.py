@@ -4,7 +4,7 @@ The discriminator reads an intermediate block feature of the FSDP-wrapped fake s
 FSDP registers its pre-backward hook on the module output, so the output must be part of the graph; in the
 generator step a zero-weighted output term is added to the discriminator logit (values and gradients unchanged).
 """
-from dwm_pano_cfdmd.pipeline import CONTEXT, PanoContextForcedDMD
+from dwm_pano.student.pipeline import CONTEXT, PanoContextForcedDMD
 
 
 class PanoContextForcedDMDv2(PanoContextForcedDMD):

@@ -1,6 +1,6 @@
 """Static depth fusion across a clip for the DA3 crops.
 
-Works in Depth Anything 3's pinhole crop space (dwm_pano_4d/da3_depth.Da3Ranger): F frames x 6 crops of metric
+Works in Depth Anything 3's pinhole crop space (dwm_pano/gs4d/da3_depth.Da3Ranger): F frames x 6 crops of metric
 camera z, crop intrinsics K (pixel centres at i + 0.5), the rig's cam2ego and every frame's ego pose (to frame 0's
 ego).  A crop pixel is static if it lies inside its camera's owned patch, DA3 does not call it sky (< 0.3), its range
 is in (0.5, far) m and its 3D point lies outside every padded 3D box of its own frame.  For frame t, camera k, every

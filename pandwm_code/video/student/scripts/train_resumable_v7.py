@@ -29,7 +29,7 @@ def main():
         sys.exit(0)
 
     import torch
-    from dwm_pano_cfdmd.pipeline_resumable import TrainingPaused
+    from dwm_pano.student.pipeline_resumable import TrainingPaused
 
     signal.signal(signal.SIGUSR1, request_pause)
     trainer = Path(__file__).resolve().parents[1] / "vendor_snapshot" / "train.py"

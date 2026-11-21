@@ -10,7 +10,7 @@ refiner.render.draw_degradation(seed, index) is applied to all 35 frames, and th
     <out-root>/clip<NNNNN>.pt    {"render": (35, 2, 16, 32, 288) fp16, "mask": (35, 2, 32, 288) uint8, "meta"}
     <out-root>/clip<NNNNN>.json  meta (scene_token, anchor_timestamp_us, frame_timestamps_us, mode, dx, dy, ...)
 
-The .pt is written first (tmp + rename), then the .json; dwm_pano_d2.data.D2RenderDataset only uses clips that have
+The .pt is written first (tmp + rename), then the .json; dwm_pano.refiner.data.D2RenderDataset only uses clips that have
 both. Existing clips are skipped, so tasks can be resubmitted.
 """
 
@@ -97,7 +97,7 @@ def main():
               f"{len(mine)}", flush=True)
         if args.count_only:
             return
-        from dwm_pano_4d.da3_depth import Da3Ranger
+        from dwm_pano.gs4d.da3_depth import Da3Ranger
         da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
         torch.manual_seed(int(config["generator_seed"]))
         pipe = dwm.common.create_instance_from_config(config["pipeline"], output_path=str(args.out_root),

@@ -31,6 +31,10 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 
+from dwm_pano.geometry.calibrated_stitch import stitch_camera_views_from_owned_grid
+from dwm_pano.gs.scene import composite_depth
+from dwm_pano.refiner.make_pairs import moved_cameras
+
 KINDS = ("raw", "d2f", "d2m", "d2f_x", "vid_raw", "vid_d2f", "vid_d2m")
 
 
@@ -158,6 +162,28 @@ def psnr_masked(a, b, mask, pool=1):
     return 10 * math.log10(1.0 / max(mse, 1e-10))
 
 
+@torch.no_grad()
+def stitched_range(pipe, cur, fill, dy):
+    """(H, 4114) range from each owning camera centre along its pixel ray, and alpha, of cur over fill at the six
+    nuScenes cameras moved by dy (per-camera camera-z times |K^-1 (u, v, 1)|, stitched like the renders)."""
+    c2w = moved_cameras(pipe, dy)
+    K = pipe.nuscenes_render_intrinsics
+    h, w = pipe.nuscenes_render_height, pipe.nuscenes_render_width
+    kw = dict(target_c2w=c2w, target_intrinsics=K, width=w, height=h)
+    _, depth, alpha = pipe.render_targets(cur, **kw)
+    if fill.shape[0]:
+        _, depth_f, alpha_f = pipe.render_targets(fill, **kw)
+        depth, alpha = composite_depth(depth, alpha, depth_f, alpha_f), alpha + (1.0 - alpha) * alpha_f
+    ys = torch.arange(h, device=depth.device, dtype=torch.float32) + 0.5
+    xs = torch.arange(w, device=depth.device, dtype=torch.float32) + 0.5
+    x = (xs[None, None, :] - K[:, 0, 2, None, None]) / K[:, 0, 0, None, None]
+    y = (ys[None, :, None] - K[:, 1, 2, None, None]) / K[:, 1, 1, None, None]
+    rng = depth * torch.sqrt(x * x + y * y + 1.0)
+    stitched, _ = stitch_camera_views_from_owned_grid(torch.stack([rng, alpha], dim=1), pipe.stitch_sampling_grid,
+                                                      pipe.stitch_owner, pipe.stitch_valid)
+    return stitched[0], torch.where(pipe.stitch_valid, stitched[1], torch.zeros_like(stitched[1]))
+
+
 # ---------------------------------------------------------------- evaluation
 @torch.no_grad()
 def run(args):
@@ -170,9 +196,8 @@ def run(args):
     from dwm_pano.recon.render_ours import camera_time_infos
     from dwm_pano.refiner.eval import decode_latents, soft_mask
     from dwm_pano.refiner.export import parse_clips
-    from dwm_pano.refiner.fuse_export import stitched_range
-    from dwm_pano.refiner.make_pairs import moved_cameras, scene_options
-    from dwm_pano_4d.da3_depth import Da3Ranger
+    from dwm_pano.refiner.make_pairs import scene_options
+    from dwm_pano.gs4d.da3_depth import Da3Ranger
 
     torch.cuda.set_device(0)
     device = torch.device("cuda", 0)

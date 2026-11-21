@@ -17,8 +17,8 @@ With recorded_history=False every method defers to the parent unchanged.
 """
 import torch
 
-from dwm_pano_cfdmd.pipeline import STRIDE, WINDOW
-from dwm_pano_cfdmd.pipeline_v8_4 import PanoContextForcedDMDv8_4
+from .pipeline import STRIDE, WINDOW
+from .pipeline_v8_4 import PanoContextForcedDMDv8_4
 
 
 class PanoContextForcedDMDv8_4R(PanoContextForcedDMDv8_4):

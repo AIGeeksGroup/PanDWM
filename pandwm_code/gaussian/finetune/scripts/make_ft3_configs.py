@@ -20,7 +20,7 @@ R1 = H / "pandwm_code/PanDWM-gs-ft2/configs/gs4dd_hpc2_ft2_R1.json"
 INIT = H / "pandwm_runs/gs_ft2/R1_from_hpc3/checkpoints/2000.pth"
 OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else H / "pandwm_code/gaussian/finetune/configs"
 base = json.loads(R1.read_text())
-assert base["pipeline"]["_class_name"] == "dwm_pano_4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline"
+assert base["pipeline"]["_class_name"] == "dwm_pano.gs4d.pipeline_da3.PanoGaussianDecoder4DDa3Pipeline"
 assert base["training_dataset"]["base_dataset"]["pose_source"] == "camera_time"
 assert INIT.is_file(), INIT
 OUT.mkdir(parents=True, exist_ok=True)
@@ -29,7 +29,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 def arm(note, relabel, gs4d=None, depth=None):
     cfg = copy.deepcopy(base)
     p = cfg["pipeline"]
-    p["_class_name"] = "dwm_pano_4d.pipeline_relabel.PanoGaussianDecoder4DRelabelPipeline"
+    p["_class_name"] = "dwm_pano.gs4d.pipeline_relabel.PanoGaussianDecoder4DRelabelPipeline"
     p["initial_decoder_checkpoint_path"] = str(INIT)
     p["gs4d_relabel"] = relabel
     p["gs4d"].update(gs4d or {})

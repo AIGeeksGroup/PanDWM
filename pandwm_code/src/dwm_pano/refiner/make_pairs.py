@@ -11,7 +11,7 @@ with (clip DA3 + fusion, in-plane offsets, camera-time poses, v0.x boxes):
      ego pose moved, LiDAR frame and boxes kept in place);
   4. scene B is rendered back at -dy, i.e. at the recorded cameras, where the ground truth exists.
 
-The render condition of step 4 is written in the refiner/make_train.py format (dwm_pano_d2.data.D2RenderDataset reads it
+The render condition of step 4 is written in the refiner/make_train.py format (dwm_pano.refiner.data.D2RenderDataset reads it
 unchanged), plus the per-latent-pixel fraction of render pixels whose content was magnified by more than 2x
 (gs.mag_cull.angular_size, scene B's sources against the recorded rig), for loss weighting / masks:
 
@@ -193,7 +193,7 @@ def main():
         if args.count_only:
             return
         from dwm_pano.recon.render_ours import camera_time_infos
-        from dwm_pano_4d.da3_depth import Da3Ranger
+        from dwm_pano.gs4d.da3_depth import Da3Ranger
         da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
         torch.manual_seed(int(config["generator_seed"]))
         pipe = dwm.common.create_instance_from_config(config["pipeline"], output_path=str(args.out_root),

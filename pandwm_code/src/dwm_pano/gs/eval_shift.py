@@ -348,7 +348,7 @@ def main():
         print(f"[gs-shift] resumed with {len(done)} clips", flush=True)
     da3 = None
     if args.da3_relabel or args.sky_layer:
-        from dwm_pano_4d.da3_depth import Da3Ranger
+        from dwm_pano.gs4d.da3_depth import Da3Ranger
         da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
     samples = {int(x) for x in args.sample_clips.split(",") if x.strip()}
     ext = None

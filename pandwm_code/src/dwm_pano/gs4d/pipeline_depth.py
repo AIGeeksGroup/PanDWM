@@ -1,124 +1,56 @@
-"""WorldSplat-style 4D training for the PanDWM Gaussian decoder.
+"""4D GS decoder with log-depth loss terms.
 
-Subclasses ``dwm_pano.pipelines.ctsd_pano_gs_decoder.PanoGaussianDecoderPipeline`` and overrides only ``train_step``;
-rendering, depth loading, LPIPS, previews and checkpointing are inherited.
-
-Per step, F frames of one clip (stride ``frame_stride``) are decoded, each in its own ego frame, with gradients kept
-for all of them. Gaussians whose centre lies inside a padded 3D box of their frame are dynamic. Losses:
-
-* ``own``       single-frame reconstruction (RGB L1, LPIPS and, when depth is available, render-depth / range L1);
-* ``composite`` static Gaussians of all F frames moved into frame t's ego frame plus frame t's own dynamic
-                Gaussians, rendered at frame t's cameras and compared with frame t (as in WorldSplat);
-* ``loo``       leave-one-out: only the other frames' static Gaussians rendered at frame t, on static, covered
-                pixels;
-* ``motion``    (off by default) dynamic Gaussians of frame s carried to frame t by the rigid motion of the same
-                tracked box, supervised on frame t's dynamic pixels.
-
-Batch size must be 1. Batches need the box fields of ``dwm_pano_4d.dataset.PanoNuScenesBoxDataset``.
+Same training step as PanoGaussianDecoder4DPipeline (copied), plus two log-depth L1 terms on the own-frame loss, on
+pixels whose label is below far_cut_m:
+    weight_log_range  * mean |log r_decoder - log r_label|     (the decoder's per-pixel range)
+    weight_log_render * mean |log d_render  - log d_label|     (the rendered own-view depth)
+With both weights 0 the step equals the parent's. Missing label files raise, as in the parent, unless
+depth_optional=True: then a batch gets the depth terms only if every selected frame has a label file in range_dir,
+and otherwise trains on the colour terms alone. The report gains depth_batch (1 or 0).
 """
 
 from __future__ import annotations
 
+import os
 import time
 
 import torch
 import torch.utils.checkpoint
-import torch.nn.functional as F
 
-from dwm_pano.pipelines.ctsd_pano_gs_decoder import (
-    PanoGaussianDecoderPipeline,
-    masked_mean,
-)
-from dwm_pano_4d.geometry import (
-    box_pose,
-    points_in_boxes,
-    relative_ego_transform,
-    transform_gaussians,
-)
+from dwm_pano.pipelines.ctsd_pano_gs_decoder import masked_mean
+from dwm_pano.gs4d.geometry import box_pose, points_in_boxes, relative_ego_transform, transform_gaussians
+from dwm_pano.gs4d.pipeline import PanoGaussianDecoder4DPipeline
 
-DEFAULT_4D = {
-    "frame_stride": [2, 3, 4],
-    "composite_targets": 2,
-    "weight_own": 1.0,
-    "weight_composite": 1.0,
-    "weight_composite_perceptual": 0.1,
-    "weight_loo": 0.5,
-    "weight_motion": 0.0,
-    "box_margin_m": 0.3,
-    "loo_min_alpha": 0.5,
-    "dynamic_pixel_alpha": 0.3,
-    # Keep only each frame's (N, 14) output between forward and backward and
-    # recompute decoder activations in backward, so F frames fit in one graph.
-    "checkpoint_decoder": True,
-    # Composite every training render over a random solid background colour,
-    # since with a black background a transparent Gaussian matches a dark
-    # pixel for free.  Evaluation and demos still render on black.
-    "random_background": False,
-    # Probability of the random background per step (1.0 = always); the
-    # other steps keep the black background used for evaluation.
-    "random_background_prob": 1.0,
-    # Coverage regulariser on each frame's own render: mean(1 - alpha) over
-    # valid pixels.
-    "weight_coverage": 0.0,
-}
+DEFAULT_DEPTH = {"weight_log_range": 0.0, "weight_log_render": 0.0, "far_cut_m": 99.0, "depth_optional": False}
 
 
-class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
-    def __init__(self, *args, gs4d: dict | None = None, **kwargs):
+class PanoGaussianDecoder4DDepthPipeline(PanoGaussianDecoder4DPipeline):
+    def __init__(self, *args, gs4d_depth: dict | None = None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.gs4d = dict(DEFAULT_4D)
-        self.gs4d.update(gs4d or {})
-        unknown = set(self.gs4d) - set(DEFAULT_4D)
+        self.gs4d_depth = dict(DEFAULT_DEPTH)
+        self.gs4d_depth.update(gs4d_depth or {})
+        unknown = set(self.gs4d_depth) - set(DEFAULT_DEPTH)
         if unknown:
-            raise ValueError(f"unknown gs4d options: {sorted(unknown)}")
-        strides = self.gs4d["frame_stride"]
-        self.gs4d["frame_stride"] = [strides] if isinstance(strides, int) else list(strides)
-        if self.training_config["frames_per_step"] < 2:
-            raise ValueError("4D training needs frames_per_step >= 2")
+            raise ValueError(f"unknown gs4d_depth options: {sorted(unknown)}")
 
-    # ------------------------------------------------------------------
-    _train_background = None
+    def _extra_own_loss(self, batch, frame, gaussians):
+        """Hook for subclasses: an extra own-frame loss of frame `frame` given its Gaussians, as
+        (scalar tensor or None, {report key: float}).  None adds nothing, so the parent's loss is unchanged."""
+        return None, {}
 
-    def _render_own_supervision(self, gaussians):
-        rgb, depth, alpha, valid = super()._render_own_supervision(gaussians)
-        if self._train_background is not None:
-            rgb = rgb + (1.0 - alpha.unsqueeze(1)) * self._train_background.view(1, 3, 1, 1)
-        return rgb, depth, alpha, valid
+    def _train_gaussians(self, k, g, predicted_range, gt_ranges, gt_range_valid, pixel_origins,
+                         camera_origin_scale):
+        """Hook for subclasses: frame k's Gaussians as every loss sees them, given its decoder output
+        and depth labels (None without labels).  Returns (g, {report key: float}); the default keeps g, so the
+        parent's step is unchanged."""
+        return g, {}
 
-    def _select_4d_frames(self, frame_count):
-        frames = self.training_config["frames_per_step"]
-        options = [s for s in self.gs4d["frame_stride"] if s * (frames - 1) < frame_count]
-        if not options:
-            raise ValueError("clip too short for frames_per_step x frame_stride")
-        stride = options[int(torch.randint(len(options), (1,), generator=self.generator))]
-        start = int(torch.randint(frame_count - stride * (frames - 1), (1,),
-                                  generator=self.generator))
-        return start + stride * torch.arange(frames)
+    def _loo_extra_loss(self, rgb, target_rgb, mask):
+        """Hook for subclasses: an extra leave-one-out term on the LOO render, as (scalar tensor or
+        None, {report key: float}), added to that target's LOO L1.  None keeps the parent's loss."""
+        return None, {}
 
-    def _perceptual(self, rendered, target, valid):
-        if self.perceptual_metric is None:
-            return torch.zeros((), device=self.device)
-        resolution = self.training_config["perceptual_resolution"]
-        rendered = torch.where(valid.unsqueeze(1), rendered, target)
-        rendered = F.interpolate(rendered, size=resolution, mode="bilinear",
-                                 antialias=True).clamp(0.0, 1.0)
-        target = F.interpolate(target, size=resolution, mode="bilinear",
-                               antialias=True).clamp(0.0, 1.0)
-        value = self.perceptual_metric(rendered, target)
-        self.perceptual_metric.reset()
-        return value
-
-    def _update_aa_eps(self, global_step):
-        if self.rasterize_mode != "antialiased":
-            return
-        if self.aa_eps2d_ramp_steps > 0:
-            progress = min(max(float(global_step), 0.0) / self.aa_eps2d_ramp_steps, 1.0)
-            self.active_rasterize_eps2d = self.aa_eps2d_start + progress * (
-                self.aa_eps2d_end - self.aa_eps2d_start)
-        else:
-            self.active_rasterize_eps2d = self.aa_eps2d_end
-
-    # ------------------------------------------------------------------
+    # A copy of PanoGaussianDecoder4DPipeline.train_step plus the log-depth terms and the subclass hooks.
     def train_step(self, batch: dict, global_step: int):
         step_start = time.time()
         self.decoder_wrapper.train()
@@ -138,7 +70,13 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
         frame_count = len(frame_indices)
         half_images = vae_images[:, frame_indices].flatten(0, 1).to(self.device)
         use_depth = (self.training_config.get("weight_render_depth", 0.0) > 0.0
-                     or self.training_config.get("weight_range_l1", 0.0) > 0.0)
+                     or self.training_config.get("weight_range_l1", 0.0) > 0.0
+                     or self.gs4d_depth["weight_log_range"] > 0.0
+                     or self.gs4d_depth["weight_log_render"] > 0.0)
+        if use_depth and self.gs4d_depth["depth_optional"]:                  # labelled batches only
+            range_dir = self.training_config["range_dir"]
+            use_depth = all(os.path.exists(os.path.join(
+                range_dir, "{}.h5".format(int(batch["frame_timestamps_us"][0, int(f)])))) for f in frame_indices)
         if use_depth:
             gt_ranges, gt_range_valid = self._load_frame_ranges(
                 batch, frame_indices, return_valid=True)
@@ -153,11 +91,13 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
         own_total = torch.zeros((), device=self.device)
         report = {"loss": 0.0, "own_rgb_l1": 0.0, "own_perceptual": 0.0,
                   "own_render_depth_l1": 0.0, "own_range_l1": 0.0,
+                  "own_log_range_l1": 0.0, "own_log_render_l1": 0.0,
                   "composite_rgb_l1": 0.0, "composite_perceptual": 0.0,
                   "loo_rgb_l1": 0.0, "loo_coverage": 0.0, "motion_rgb_l1": 0.0,
                   "dynamic_fraction": 0.0,
                   "rasterize_eps2d": self.active_rasterize_eps2d,
-                  "frame_span": float(frame_indices[-1] - frame_indices[0])}
+                  "frame_span": float(frame_indices[-1] - frame_indices[0]),
+                  "depth_batch": float(use_depth)}
         for k in range(frame_count):
             frame_images = half_images[k:k + 1]
             with torch.no_grad():
@@ -182,6 +122,11 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
             else:
                 g, predicted_range, _ = self.decoder_wrapper(*decoder_args, **decoder_kwargs)
             g = g[0]
+            g, hook_report = self._train_gaussians(                                      # hook
+                k, g, predicted_range, gt_ranges if use_depth else None, gt_range_valid if use_depth else None,
+                None if pixel_origins is None else pixel_origins[k:k + 1], camera_origin_scale)
+            for key, value in hook_report.items():
+                report[key] = report.get(key, 0.0) + value / frame_count
             rendered_rgb, rendered_depth, own_alpha, render_valid = self._render_own_supervision(g)
             with torch.no_grad():
                 if use_depth:
@@ -204,6 +149,25 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
                     + self.training_config["weight_range_l1"] * range_l1
                 report["own_render_depth_l1"] += depth_l1.item() / frame_count
                 report["own_range_l1"] += range_l1.item() / frame_count
+                # Log-depth L1 on the decoder range and on the rendered own-view depth, labels below far_cut_m
+                # only (the labels hold a fill value for holes and sky).
+                far, eps = self.gs4d_depth["far_cut_m"], 1e-3
+                gt_k = gt_ranges[k:k + 1]
+                log_range = masked_mean(
+                    (predicted_range.clamp_min(eps).log() - gt_k.clamp_min(eps).log()).abs(),
+                    gt_range_valid[k:k + 1] & (gt_k < far) & (gt_k > 0.0))
+                log_render = masked_mean(
+                    (rendered_depth.clamp_min(eps).log() - target_depth.clamp_min(eps).log()).abs(),
+                    target_valid & render_valid & (target_depth < far) & (target_depth > 0.0))
+                own = own + self.gs4d_depth["weight_log_range"] * log_range \
+                    + self.gs4d_depth["weight_log_render"] * log_render
+                report["own_log_range_l1"] += log_range.item() / frame_count
+                report["own_log_render_l1"] += log_render.item() / frame_count
+            extra, extra_report = self._extra_own_loss(batch, int(frame_indices[k]), g)   # hook
+            if extra is not None:
+                own = own + extra
+                for key, value in extra_report.items():
+                    report[key] = report.get(key, 0.0) + value / frame_count
             if self.gs4d["weight_coverage"] > 0.0:
                 uncovered = masked_mean((1.0 - own_alpha).clamp_min(0.0), render_valid)
                 own = own + self.gs4d["weight_coverage"] * uncovered
@@ -265,6 +229,11 @@ class PanoGaussianDecoder4DPipeline(PanoGaussianDecoderPipeline):
                 if dynamic_pixels is not None:
                     mask = mask & ~dynamic_pixels
                 loo_l1 = masked_mean((rgb - target_rgb).abs(), mask)
+                loo_extra, loo_report = self._loo_extra_loss(rgb, target_rgb, mask)       # hook
+                if loo_extra is not None:
+                    loo_total = loo_total + loo_extra / len(target_list)
+                    for key, value in loo_report.items():
+                        report[key] = report.get(key, 0.0) + value / len(target_list)
                 loo_total = loo_total + loo_l1 / len(target_list)
                 report["loo_rgb_l1"] += loo_l1.item() / len(target_list)
                 report["loo_coverage"] += float(mask.float().mean()) / len(target_list)

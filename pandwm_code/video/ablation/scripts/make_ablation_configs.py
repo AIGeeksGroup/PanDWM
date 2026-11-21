@@ -3,7 +3,7 @@
 Variants (all share A_ctrl's re-anchored schedules, see CONTROL below):
   A_ctrl    full recipe: the temporal-head and motion-match schedules start at step 0 with no ramp.
   B_noadv   A without the adversarial term (gan weights 0).
-  C_rechist A with PanoContextForcedDMDv8_4R (src/dwm_pano_cfdmd_abl/pipeline_v8_4r.py) and recorded_history true.
+  C_rechist A with PanoContextForcedDMDv8_4R (src/dwm_pano/student/pipeline_v8_4r.py) and recorded_history true.
   D_notemp  A with disc_temporal false (spatial heads only).
 
   python3 make_ablation_configs.py <final run config> <out dir>
@@ -17,7 +17,7 @@ CONTROL = {"temporal_adv_from": 0, "temporal_adv_ramp": 0, "motion_match_from": 
 VARIANTS = {
     "A_ctrl": {},
     "B_noadv": {"gan_generator_weight": 0.0, "gan_discriminator_weight": 0.0},
-    "C_rechist": {"_class_name": "dwm_pano_cfdmd_abl.pipeline_v8_4r.PanoContextForcedDMDv8_4R",
+    "C_rechist": {"_class_name": "dwm_pano.student.pipeline_v8_4r.PanoContextForcedDMDv8_4R",
                   "recorded_history": True},
     "D_notemp": {"disc_temporal": False},
 }

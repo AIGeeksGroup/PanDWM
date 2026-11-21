@@ -44,7 +44,7 @@ def main():
     h, w = (int(v) for v in args.hw.split("x"))
     device = torch.device("cuda", 0)
     torch.cuda.set_device(0)
-    from dwm_pano_4d.da3_depth import Da3Ranger
+    from dwm_pano.gs4d.da3_depth import Da3Ranger
     da3 = Da3Ranger(args.da3_src, args.da3_anyview, args.da3_metric, device)
     started = ensure_single_rank_process_group(device)
     try:

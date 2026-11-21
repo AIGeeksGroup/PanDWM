@@ -25,7 +25,7 @@
         "weight_decay": 0.01
     },
     "pipeline": {
-        "_class_name": "dwm_pano_cfdmd_abl.pipeline_v8_4r.PanoContextForcedDMDv8_4R",
+        "_class_name": "dwm_pano.student.pipeline_v8_4r.PanoContextForcedDMDv8_4R",
         "common_config": {
             "frame_prediction_style": "ctsd",
             "cat_condition": true,

@@ -9,7 +9,7 @@ the static Gaussians of nearby frames as 4D fill. Optional switches, all off by 
   own_include_current, frame t also competes (otherwise frame t is composited on top anyway and its own
   disocclusion holes need the fill).
 * da3_relabel: every frame's Gaussians are moved along their exact rays to the Depth Anything 3 (DA3) range
-  (dwm_pano_4d/da3_depth.py, windows (t - gap, t, t + gap) of VAE-decoded frames, da3_scale = ground by default);
+  (dwm_pano/gs4d/da3_depth.py, windows (t - gap, t, t + gap) of VAE-decoded frames, da3_scale = ground by default);
   pixels DA3 calls sky, or without a DA3 range below far_cut, keep the decoder geometry.
 * sky_layer: the Gaussians of pixels DA3 calls sky are dropped; renderers then take the sky colour from the frame's
   own decoded pano along the ray direction (sky is at infinity, so a pure translation does not move it).
@@ -297,7 +297,7 @@ class SceneBuilder:
             if opts.no_offset:
                 g = torch.cat([ray_o + ray_d * rng.reshape(-1, 1), g[:, 3:]], dim=-1)
             else:
-                from dwm_pano_4d.da3_depth import plane_offsets
+                from dwm_pano.gs4d.da3_depth import plane_offsets
                 g = plane_offsets(g, ray_o, ray_d, rng, opts.plane_offset_px)
         if t not in self.colours:                                      # sky / ground colours (mean of the top / bottom rows)
             rgb = g[:, 3:6].reshape(*rng.shape, 3)
@@ -319,7 +319,7 @@ class SceneBuilder:
                 dirs = pipe.pixel_directions.reshape(-1, 3).float()
                 origins = po.reshape(-1, 3).to(g.device, torch.float32) if po is not None else torch.zeros_like(dirs)
                 if opts.da3_mode in ("scale", "global", "blend", "lowfreq", "bounded"):
-                    from dwm_pano_4d.da3_depth import rescale_gaussians
+                    from dwm_pano.gs4d.da3_depth import rescale_gaussians
                     target = r
                     if opts.da3_mode == "global":
                         both = valid & (rng > 0.5)
@@ -331,7 +331,7 @@ class SceneBuilder:
                         w = ((r - opts.blend_near_m) / max(opts.blend_far_m - opts.blend_near_m, 1e-3)).clamp(0, 1)
                         target = w * r + (1 - w) * rng
                     elif opts.da3_mode == "bounded":
-                        from dwm_pano_4d.da3_depth import bounded_range
+                        from dwm_pano.gs4d.da3_depth import bounded_range
                         target = bounded_range(rng, r, opts.bound_c)
                     elif opts.da3_mode == "lowfreq":
                         from dwm_pano.gs.da3_fusion import lowfreq_log_ratio
@@ -349,14 +349,14 @@ class SceneBuilder:
                             self.stats.setdefault(k, []).append(v)
                     g, rng = rescale_gaussians(g, rng, target, valid, origins)
                 else:
-                    from dwm_pano_4d.da3_depth import relabel_gaussians
+                    from dwm_pano.gs4d.da3_depth import relabel_gaussians
                     g, rng = relabel_gaussians(g, rng, r, valid, origins, dirs)
                 self.stats["da3_use_fraction"].append(float(valid.reshape(-1)[self.content].float().mean()))
             if opts.sky_layer:
                 keep &= ~sky.reshape(-1)
         self._ranges[t] = rng
         if self.range_scale is not None and t in self.range_scale:
-            from dwm_pano_4d.da3_depth import rescale_gaussians
+            from dwm_pano.gs4d.da3_depth import rescale_gaussians
             org = po.reshape(-1, 3).to(g.device, torch.float32) if po is not None else torch.zeros_like(g[:, 0:3])
             ok = self.content.to(g.device).view(self.grid_shape) & (rng > 0)
             g, rng = rescale_gaussians(g, rng, rng * self.range_scale[t].to(rng.device, rng.dtype), ok, org)

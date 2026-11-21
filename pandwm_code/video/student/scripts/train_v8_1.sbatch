@@ -33,7 +33,7 @@ OUT=$CAMPAIGN_DIR/gan
 CONFIG=$CF/configs/cfdmd_F_gan_v8_1_hpc3_8gpu.json
 STEP=$(python3 - "$OUT" <<'PY'
 import sys
-from dwm_pano_cfdmd.checkpoint_io import latest_step
+from dwm_pano.student.checkpoint_io import latest_step
 step = latest_step(sys.argv[1], 8)
 print("none" if step is None else step)
 PY

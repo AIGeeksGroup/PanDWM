@@ -7,7 +7,7 @@ The 4D training decodes several frames of a clip together. Each step decodes F =
 - `loo` (leave-one-out): the static Gaussians of the other frames only, rendered at t on static, covered pixels;
 - `motion` (optional, off by default): the dynamic Gaussians of frame s carried to t by the rigid motion of the same tracked box, compared on t's dynamic pixels.
 
-Code: `pandwm_code/src/dwm_pano_4d/` (`pipeline.py` is the training step; `pipeline_depth.py`, `pipeline_da3.py` and `pipeline_relabel.py` add log-depth terms, Depth Anything 3 pseudo-depth and the test-time relabel; `dataset.py`, `geometry.py` and `evaluate_4d.py` hold the box dataset, the rigid transforms and the held-out-frame evaluation). Configs are in `configs/` (written by `make_config.py`, `make_formal_config.py` and `make_c2_config.py`; `make_config.py --motion` switches on the box motion term); the job scripts are in `scripts/` and `scripts_hpc3/`.
+Code: `pandwm_code/src/dwm_pano/gs4d/` (`pipeline.py` is the training step; `pipeline_depth.py`, `pipeline_da3.py` and `pipeline_relabel.py` add log-depth terms, Depth Anything 3 pseudo-depth and the test-time relabel; `dataset.py`, `geometry.py` and `evaluate_4d.py` hold the box dataset, the rigid transforms and the held-out-frame evaluation). Configs are in `configs/` (written by `make_config.py`, `make_formal_config.py` and `make_c2_config.py`; `make_config.py --motion` switches on the box motion term); the job scripts are in `scripts/` and `scripts_hpc3/`.
 
 Run (after adjusting the paths in the job scripts and their `common_env*.sh`):
 

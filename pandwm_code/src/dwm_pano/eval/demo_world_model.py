@@ -174,7 +174,7 @@ def nuscenes_camera_stack(cams, device, target_size):
 
 
 def to_uint8_image(tensor):
-    """(C, H, W) float in [0, 1] to (H, W, C) uint8, rounded (as `gs.evaluate_gs.save_grid` does)."""
+    """(C, H, W) float in [0, 1] to (H, W, C) uint8, rounded."""
     array = tensor.clamp(0.0, 1.0).permute(1, 2, 0).cpu().numpy()
     return np.rint(array * 255.0).astype(np.uint8)
 
@@ -230,7 +230,7 @@ def main():
 
     stage2_pipeline = None
     if args.latent_source == "stage2":
-        # The Stage-2 stack is built as in gs/evaluate_gs.py, so both use the same inference path.
+        # The Stage-2 stack is built by evaluate_gs.build_stage2_pipeline.
         ensure_single_rank_process_group(device)
         device = torch.device("cuda", 0)
         suffix = "_ema" if args.stage2_ema else ""
@@ -249,7 +249,7 @@ def main():
         raise FileNotFoundError(
             "GS checkpoint is missing: {}".format(checkpoint_path))
 
-    # The same two protocol guards as gs/evaluate_gs.py: this demo passes no range prior and never calls the
+    # Two protocol guards: this demo passes no range prior and never calls the
     # latent refinement.
     decoder_config = config["pipeline"]["decoder"]
     if decoder_config.get("use_range_prior") is not False:

@@ -23,7 +23,7 @@ import time
 
 import torch
 
-from dwm_pano_4d.pipeline_depth import PanoGaussianDecoder4DDepthPipeline
+from dwm_pano.gs4d.pipeline_depth import PanoGaussianDecoder4DDepthPipeline
 
 DEFAULT_DA3 = {"repo_src": "", "anyview_dir": "", "metric_dir": "", "scale": "ground", "sky_threshold": 0.3,
                "min_range_m": 0.5, "far_cut_m": 99.0, "sky_fill_m": 100.0, "crop_hw": [392, 784]}
@@ -46,7 +46,7 @@ class PanoGaussianDecoder4DDa3Pipeline(PanoGaussianDecoder4DDepthPipeline):
 
     def _da3_ranger(self):
         if self._da3 is None:
-            from dwm_pano_4d.da3_depth import Da3Ranger
+            from dwm_pano.gs4d.da3_depth import Da3Ranger
             cfg = self.gs4d_da3
             self._da3 = Da3Ranger(cfg["repo_src"], cfg["anyview_dir"], cfg["metric_dir"], self.device,
                                   crop_hw=tuple(cfg["crop_hw"]))

@@ -10,7 +10,7 @@
 # CHECKPOINT=<raw decoder state dict>; NAME=<report name>; CLIPS (default 50).
 set -euo pipefail
 source $HOME/pandwm_code/gaussian/gs4d/scripts/common_env.sh
-python -m dwm_pano_4d.evaluate_4d -c $GS4D/configs/gs4d_hpc2.json \
+python -m dwm_pano.gs4d.evaluate_4d -c $GS4D/configs/gs4d_hpc2.json \
   --checkpoint ${CHECKPOINT:?} \
   --data-pkl $H/pandwm_data/nuscenes_interp_12Hz_infos_val_with_bid_caption.pkl \
   --clips ${CLIPS:-50} --output $RUNS/eval/${NAME:?}.json

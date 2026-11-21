@@ -154,7 +154,7 @@ class PanoD2RefinerSD(PanoCrossviewTemporalSD):
         self.d2_counts = {"steps": 0, "render_dropped": 0, "render_init": 0}
         super().__init__(*args, **kwargs)
         if not hasattr(self.model, "render_embed"):
-            raise TypeError("PanoD2RefinerSD needs dwm_pano_d2.model.D2RenderDiT")
+            raise TypeError("PanoD2RefinerSD needs dwm_pano.refiner.model.D2RenderDiT")
 
     # ------------------------------------------------------------------ training
     def train_step(self, batch, global_step):

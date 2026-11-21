@@ -53,7 +53,7 @@ fi
 latest() {
 python3 - "$OUT" <<'PY'
 import sys
-from dwm_pano_cfdmd.checkpoint_io import latest_step
+from dwm_pano.student.checkpoint_io import latest_step
 step = latest_step(sys.argv[1], 8)
 print("none" if step is None else step)
 PY

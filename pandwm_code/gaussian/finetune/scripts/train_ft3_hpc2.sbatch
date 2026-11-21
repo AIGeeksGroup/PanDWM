@@ -24,7 +24,7 @@ export TORCH_EXTENSIONS_DIR=$EXT
 CFG=$F/configs/gs4dd_hpc2_ft3_${ARM}.json
 OUT=$HOME/pandwm_runs/gs_ft3/${TAG:-$ARM}
 echo "FT3_START arm=$ARM tag=${TAG:-$ARM} steps=$STEPS node=$(hostname) $(date -Is)"
-python -c "import dwm_pano_4d.pipeline_relabel as m, dwm_pano.gs.scene as s; print('code', m.__file__, s.__file__)"
+python -c "import dwm_pano.gs4d.pipeline_relabel as m, dwm_pano.gs.scene as s; print('code', m.__file__, s.__file__)"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 python $HOME/pandwm_code/src/dwm_pano/train.py -c $CFG -o $OUT --max-steps $STEPS \
   --log-steps ${LOG_STEPS:-20} --preview-steps 100000000 --evaluation-steps 100000000 \

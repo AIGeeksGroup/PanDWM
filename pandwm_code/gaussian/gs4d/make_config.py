@@ -53,7 +53,7 @@ def main():
     config = copy.deepcopy(base)
 
     pipe = config["pipeline"]
-    pipe["_class_name"] = "dwm_pano_4d.pipeline.PanoGaussianDecoder4DPipeline"
+    pipe["_class_name"] = "dwm_pano.gs4d.pipeline.PanoGaussianDecoder4DPipeline"
     pipe["pretrained_model_name_or_path"] = f"{root}/pandwm_data/stable-diffusion-3.5-medium"
     pipe["initial_decoder_checkpoint_path"] = (
         f"{root}/pandwm_gs_aa_experiment/runs/g2_mix75_250_aa_eps0to0p1/checkpoints/250.pth")
@@ -78,7 +78,7 @@ def main():
         tc["weight_render_depth"] = 0.0
         tc["weight_range_l1"] = 0.0
 
-    box_fields = {"_class_name": "dwm_pano_4d.dataset.PanoNuScenesBoxDataset",
+    box_fields = {"_class_name": "dwm_pano.gs4d.dataset.PanoNuScenesBoxDataset",
                   "max_boxes": 128}
     train = config["training_dataset"]["base_dataset"]
     train.update(box_fields)

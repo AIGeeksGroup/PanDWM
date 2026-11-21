@@ -9,8 +9,8 @@ one graph instead of several.
 import torch
 import torch.nn.functional as F
 
-from dwm_pano_cfdmd.pipeline import CONTEXT
-from dwm_pano_cfdmd.pipeline_v2 import PanoContextForcedDMDv2
+from dwm_pano.student.pipeline import CONTEXT
+from dwm_pano.student.pipeline_v2 import PanoContextForcedDMDv2
 
 
 class PanoContextForcedDMDv4(PanoContextForcedDMDv2):
